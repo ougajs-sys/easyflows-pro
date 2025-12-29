@@ -14,16 +14,399 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          created_by: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string
+          phone_secondary: string | null
+          segment: Database["public"]["Enums"]["client_segment"]
+          total_orders: number
+          total_spent: number
+          updated_at: string
+          zone: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone: string
+          phone_secondary?: string | null
+          segment?: Database["public"]["Enums"]["client_segment"]
+          total_orders?: number
+          total_spent?: number
+          updated_at?: string
+          zone?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string
+          phone_secondary?: string | null
+          segment?: Database["public"]["Enums"]["client_segment"]
+          total_orders?: number
+          total_spent?: number
+          updated_at?: string
+          zone?: string | null
+        }
+        Relationships: []
+      }
+      delivery_persons: {
+        Row: {
+          created_at: string
+          daily_amount: number
+          daily_deliveries: number
+          id: string
+          is_active: boolean
+          status: Database["public"]["Enums"]["delivery_status"]
+          updated_at: string
+          user_id: string
+          vehicle_type: string | null
+          zone: string | null
+        }
+        Insert: {
+          created_at?: string
+          daily_amount?: number
+          daily_deliveries?: number
+          id?: string
+          is_active?: boolean
+          status?: Database["public"]["Enums"]["delivery_status"]
+          updated_at?: string
+          user_id: string
+          vehicle_type?: string | null
+          zone?: string | null
+        }
+        Update: {
+          created_at?: string
+          daily_amount?: number
+          daily_deliveries?: number
+          id?: string
+          is_active?: boolean
+          status?: Database["public"]["Enums"]["delivery_status"]
+          updated_at?: string
+          user_id?: string
+          vehicle_type?: string | null
+          zone?: string | null
+        }
+        Relationships: []
+      }
+      follow_ups: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          order_id: string | null
+          scheduled_at: string
+          status: Database["public"]["Enums"]["followup_status"]
+          type: Database["public"]["Enums"]["followup_type"]
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          scheduled_at: string
+          status?: Database["public"]["Enums"]["followup_status"]
+          type: Database["public"]["Enums"]["followup_type"]
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          scheduled_at?: string
+          status?: Database["public"]["Enums"]["followup_status"]
+          type?: Database["public"]["Enums"]["followup_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_ups_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_ups_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          amount_due: number | null
+          amount_paid: number
+          cancellation_reason: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          delivery_address: string | null
+          delivery_notes: string | null
+          delivery_person_id: string | null
+          id: string
+          order_number: string | null
+          product_id: string | null
+          quantity: number
+          report_reason: string | null
+          scheduled_at: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          total_amount: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          amount_due?: number | null
+          amount_paid?: number
+          cancellation_reason?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_address?: string | null
+          delivery_notes?: string | null
+          delivery_person_id?: string | null
+          id?: string
+          order_number?: string | null
+          product_id?: string | null
+          quantity?: number
+          report_reason?: string | null
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total_amount: number
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number | null
+          amount_paid?: number
+          cancellation_reason?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_address?: string | null
+          delivery_notes?: string | null
+          delivery_person_id?: string | null
+          id?: string
+          order_number?: string | null
+          product_id?: string | null
+          quantity?: number
+          report_reason?: string | null
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          total_amount?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_delivery_person_id_fkey"
+            columns: ["delivery_person_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          notes: string | null
+          order_id: string
+          received_by: string | null
+          reference: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          notes?: string | null
+          order_id: string
+          received_by?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          notes?: string | null
+          order_id?: string
+          received_by?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price: number
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "appelant" | "livreur" | "superviseur" | "administrateur"
+      client_segment: "new" | "regular" | "vip" | "inactive" | "problematic"
+      delivery_status: "available" | "busy" | "offline"
+      followup_status: "pending" | "completed" | "cancelled"
+      followup_type:
+        | "reminder"
+        | "partial_payment"
+        | "rescheduled"
+        | "retargeting"
+      order_status:
+        | "pending"
+        | "confirmed"
+        | "in_transit"
+        | "delivered"
+        | "partial"
+        | "cancelled"
+        | "reported"
+      payment_method: "cash" | "mobile_money" | "card" | "transfer"
+      payment_status: "pending" | "completed" | "failed" | "refunded"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +533,28 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["appelant", "livreur", "superviseur", "administrateur"],
+      client_segment: ["new", "regular", "vip", "inactive", "problematic"],
+      delivery_status: ["available", "busy", "offline"],
+      followup_status: ["pending", "completed", "cancelled"],
+      followup_type: [
+        "reminder",
+        "partial_payment",
+        "rescheduled",
+        "retargeting",
+      ],
+      order_status: [
+        "pending",
+        "confirmed",
+        "in_transit",
+        "delivered",
+        "partial",
+        "cancelled",
+        "reported",
+      ],
+      payment_method: ["cash", "mobile_money", "card", "transfer"],
+      payment_status: ["pending", "completed", "failed", "refunded"],
+    },
   },
 } as const
