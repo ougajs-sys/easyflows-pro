@@ -3,8 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
-import Login from "./pages/Login";
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import ModulePage from "./pages/ModulePage";
 import NotFound from "./pages/NotFound";
@@ -13,32 +15,139 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/roles" element={<ModulePage />} />
-          <Route path="/supervisor" element={<ModulePage />} />
-          <Route path="/admin" element={<ModulePage />} />
-          <Route path="/delivery" element={<ModulePage />} />
-          <Route path="/stock" element={<ModulePage />} />
-          <Route path="/notifications" element={<ModulePage />} />
-          <Route path="/payment" element={<ModulePage />} />
-          <Route path="/clients" element={<ModulePage />} />
-          <Route path="/utb" element={<ModulePage />} />
-          <Route path="/retargeting" element={<ModulePage />} />
-          <Route path="/synthesis" element={<ModulePage />} />
-          <Route path="/planning" element={<ModulePage />} />
-          <Route path="/training" element={<ModulePage />} />
-          <Route path="/campaigns" element={<ModulePage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/roles"
+              element={
+                <ProtectedRoute allowedRoles={['administrateur']}>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/supervisor"
+              element={
+                <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={['administrateur']}>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/delivery"
+              element={
+                <ProtectedRoute allowedRoles={['administrateur', 'superviseur', 'livreur']}>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/stock"
+              element={
+                <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payment"
+              element={
+                <ProtectedRoute>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clients"
+              element={
+                <ProtectedRoute>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/utb"
+              element={
+                <ProtectedRoute>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/retargeting"
+              element={
+                <ProtectedRoute>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/synthesis"
+              element={
+                <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/planning"
+              element={
+                <ProtectedRoute>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/training"
+              element={
+                <ProtectedRoute>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campaigns"
+              element={
+                <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                  <ModulePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

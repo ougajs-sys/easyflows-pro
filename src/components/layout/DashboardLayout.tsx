@@ -1,13 +1,38 @@
 import { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
-import { Bell, Search, User } from "lucide-react";
+import { Bell, Search, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+const roleLabels: Record<string, string> = {
+  appelant: 'Appelant',
+  livreur: 'Livreur',
+  superviseur: 'Superviseur',
+  administrateur: 'Administrateur',
+};
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const { profile, role, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
@@ -36,15 +61,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               
               <div className="w-px h-8 bg-border" />
               
-              <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary transition-colors">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <User className="w-4 h-4 text-primary" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium">Admin</p>
-                  <p className="text-xs text-muted-foreground">Administrateur</p>
-                </div>
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-secondary transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <User className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">{profile?.full_name || 'Utilisateur'}</p>
+                      <p className="text-xs text-muted-foreground">{role ? roleLabels[role] : 'Chargement...'}</p>
+                    </div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/profile')}>
+                    <User className="mr-2 h-4 w-4" />
+                    Profil
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Déconnexion
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
