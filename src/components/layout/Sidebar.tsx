@@ -22,20 +22,21 @@ import {
 } from "lucide-react";
 
 const menuItems = [
-  { id: 1, label: "Rôles & Accès", icon: ShieldCheck, path: "/roles", color: "text-red-400" },
-  { id: 2, label: "Tableau Superviseur", icon: LayoutDashboard, path: "/supervisor", color: "text-blue-400" },
-  { id: 3, label: "Tableau Admin", icon: Users, path: "/admin", color: "text-purple-400" },
-  { id: 4, label: "Espace Livreur", icon: Truck, path: "/delivery", color: "text-green-400" },
-  { id: 5, label: "Stock Global", icon: Package, path: "/stock", color: "text-orange-400" },
-  { id: 6, label: "Notifications IA", icon: Bell, path: "/notifications", color: "text-yellow-400" },
-  { id: 7, label: "Paiement Sécurisé", icon: CreditCard, path: "/payment", color: "text-emerald-400" },
-  { id: 8, label: "Suivi Clients", icon: Clock, path: "/clients", color: "text-pink-400" },
-  { id: 9, label: "Sync UTB", icon: RefreshCw, path: "/utb", color: "text-cyan-400" },
-  { id: 10, label: "Relances Auto", icon: MessageSquare, path: "/retargeting", color: "text-indigo-400" },
-  { id: 11, label: "Synthèse Finale", icon: BarChart3, path: "/synthesis", color: "text-teal-400" },
-  { id: 12, label: "Planification", icon: Calendar, path: "/planning", color: "text-rose-400" },
-  { id: 13, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400" },
-  { id: 14, label: "Campagnes SMS", icon: Send, path: "/campaigns", color: "text-violet-400" },
+  { id: 1, label: "Produits", icon: Package, path: "/products", color: "text-orange-400" },
+  { id: 2, label: "Rôles & Accès", icon: ShieldCheck, path: "/roles", color: "text-red-400" },
+  { id: 3, label: "Tableau Superviseur", icon: LayoutDashboard, path: "/supervisor", color: "text-blue-400" },
+  { id: 4, label: "Tableau Admin", icon: Users, path: "/admin", color: "text-purple-400" },
+  { id: 5, label: "Espace Livreur", icon: Truck, path: "/delivery", color: "text-green-400" },
+  { id: 6, label: "Stock Global", icon: Package, path: "/stock", color: "text-lime-400" },
+  { id: 7, label: "Notifications IA", icon: Bell, path: "/notifications", color: "text-yellow-400" },
+  { id: 8, label: "Paiement Sécurisé", icon: CreditCard, path: "/payment", color: "text-emerald-400" },
+  { id: 9, label: "Suivi Clients", icon: Clock, path: "/clients", color: "text-pink-400" },
+  { id: 10, label: "Sync UTB", icon: RefreshCw, path: "/utb", color: "text-cyan-400" },
+  { id: 11, label: "Relances Auto", icon: MessageSquare, path: "/retargeting", color: "text-indigo-400" },
+  { id: 12, label: "Synthèse Finale", icon: BarChart3, path: "/synthesis", color: "text-teal-400" },
+  { id: 13, label: "Planification", icon: Calendar, path: "/planning", color: "text-rose-400" },
+  { id: 14, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400" },
+  { id: 15, label: "Campagnes SMS", icon: Send, path: "/campaigns", color: "text-violet-400" },
 ];
 
 export function Sidebar() {
