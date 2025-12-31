@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import ModulePage from "./pages/ModulePage";
 import Products from "./pages/Products";
 import Orders from "./pages/Orders";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -69,7 +70,7 @@ const App = () => (
               path="/admin"
               element={
                 <ProtectedRoute allowedRoles={['administrateur']}>
-                  <ModulePage />
+                  <Admin />
                 </ProtectedRoute>
               }
             />
