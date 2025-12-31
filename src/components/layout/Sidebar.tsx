@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 const menuItems = [
+  { id: 0, label: "Commandes", icon: Package, path: "/orders", color: "text-primary" },
   { id: 1, label: "Produits", icon: Package, path: "/products", color: "text-orange-400" },
   { id: 2, label: "Rôles & Accès", icon: ShieldCheck, path: "/roles", color: "text-red-400" },
   { id: 3, label: "Tableau Superviseur", icon: LayoutDashboard, path: "/supervisor", color: "text-blue-400" },
