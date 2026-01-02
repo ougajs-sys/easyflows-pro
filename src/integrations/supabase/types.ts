@@ -565,18 +565,24 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          confirmed: boolean
+          confirmed_at: string | null
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          confirmed?: boolean
+          confirmed_at?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          confirmed?: boolean
+          confirmed_at?: string | null
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
