@@ -266,8 +266,12 @@ export default function Integrations() {
         ))}
       </div>
 
-      <Tabs defaultValue="test" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="elementor" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="elementor" className="flex items-center gap-2">
+            <Globe className="w-4 h-4" />
+            Elementor
+          </TabsTrigger>
           <TabsTrigger value="test" className="flex items-center gap-2">
             <TestTube className="w-4 h-4" />
             Test Direct
@@ -277,10 +281,211 @@ export default function Integrations() {
             Documentation API
           </TabsTrigger>
           <TabsTrigger value="platforms" className="flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            Plateformes
+            <Zap className="w-4 h-4" />
+            Autres
           </TabsTrigger>
         </TabsList>
+
+        {/* Elementor Tab */}
+        <TabsContent value="elementor">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="glass-card lg:col-span-2">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-[#92003B]/20 flex items-center justify-center">
+                    <Globe className="w-6 h-6 text-[#92003B]" />
+                  </div>
+                  <div>
+                    <CardTitle>Configuration Elementor Pro Forms</CardTitle>
+                    <CardDescription>
+                      Connectez votre formulaire Elementor directement à votre système de gestion
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Étape 1 */}
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <span className="text-lg font-bold text-primary">1</span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold mb-2">Créez votre formulaire Elementor</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Ajoutez ces champs dans votre formulaire avec les IDs exacts suivants :
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <div className="p-2 bg-secondary/50 rounded text-xs">
+                        <code className="text-primary">client_name</code>
+                        <span className="block text-muted-foreground mt-1">Nom du client</span>
+                      </div>
+                      <div className="p-2 bg-secondary/50 rounded text-xs">
+                        <code className="text-primary">phone</code>
+                        <span className="block text-muted-foreground mt-1">Téléphone *</span>
+                      </div>
+                      <div className="p-2 bg-secondary/50 rounded text-xs">
+                        <code className="text-primary">city</code>
+                        <span className="block text-muted-foreground mt-1">Ville/Commune</span>
+                      </div>
+                      <div className="p-2 bg-secondary/50 rounded text-xs">
+                        <code className="text-primary">product_name</code>
+                        <span className="block text-muted-foreground mt-1">Nom produit *</span>
+                      </div>
+                      <div className="p-2 bg-secondary/50 rounded text-xs">
+                        <code className="text-primary">quantity</code>
+                        <span className="block text-muted-foreground mt-1">Quantité</span>
+                      </div>
+                      <div className="p-2 bg-secondary/50 rounded text-xs">
+                        <code className="text-primary">unit_price</code>
+                        <span className="block text-muted-foreground mt-1">Prix unitaire</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Étape 2 */}
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <span className="text-lg font-bold text-primary">2</span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold mb-2">Configurez l'action Webhook</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Dans les paramètres du formulaire Elementor :
+                    </p>
+                    <ol className="space-y-2 text-sm">
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary font-medium">a.</span>
+                        <span>Allez dans <strong>Actions après soumission</strong></span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary font-medium">b.</span>
+                        <span>Cliquez sur <strong>+ Ajouter une action</strong> et sélectionnez <strong>Webhook</strong></span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary font-medium">c.</span>
+                        <span>Collez l'URL du webhook dans le champ URL :</span>
+                      </li>
+                    </ol>
+                    <div className="mt-3 flex gap-2">
+                      <Input 
+                        value={WEBHOOK_URL} 
+                        readOnly 
+                        className="font-mono text-xs"
+                      />
+                      <Button onClick={copyToClipboard} variant="outline" size="sm">
+                        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Étape 3 */}
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <span className="text-lg font-bold text-primary">3</span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold mb-2">Configurez les métadonnées avancées</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Dans la section <strong>Webhook</strong> du formulaire :
+                    </p>
+                    <div className="p-4 bg-secondary/50 rounded-lg space-y-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-success" />
+                        <span className="text-sm">Activez <strong>Advanced Data</strong></span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-success" />
+                        <span className="text-sm">Méthode : <strong>POST</strong></span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-success" />
+                        <span className="text-sm">Format : <strong>JSON</strong> (si disponible)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Étape 4 */}
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5 text-success" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold mb-2">Testez votre formulaire</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Soumettez une commande test depuis votre site WordPress. 
+                      Elle apparaîtra instantanément dans votre tableau de bord des commandes.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Structure JSON attendue */}
+            <Card className="glass-card">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <FileJson className="w-5 h-5 text-primary" />
+                  <CardTitle>Structure JSON envoyée</CardTitle>
+                </div>
+                <CardDescription>
+                  Voici le format que le webhook recevra
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <pre className="bg-secondary/50 p-4 rounded-lg text-xs overflow-x-auto">
+                  <code className="text-foreground">{`{
+  "client_name": "Jean Dupont",
+  "phone": "+225 07 00 00 00",
+  "city": "Abidjan",
+  "product_name": "Votre Produit",
+  "quantity": "2",
+  "unit_price": "15000",
+  "notes": "Commentaire client"
+}`}</code>
+                </pre>
+              </CardContent>
+            </Card>
+
+            {/* Important */}
+            <Card className="glass-card border-amber-500/30">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-amber-500" />
+                  <CardTitle>Points importants</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success mt-0.5" />
+                  <p className="text-sm">
+                    <strong>Elementor Pro requis</strong> - L'action Webhook n'est disponible que dans la version Pro
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success mt-0.5" />
+                  <p className="text-sm">
+                    <strong>IDs des champs</strong> - Utilisez les IDs exacts (client_name, phone, etc.) pour que les données soient reconnues
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success mt-0.5" />
+                  <p className="text-sm">
+                    <strong>Téléphone obligatoire</strong> - Le champ téléphone est requis pour créer le client
+                  </p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success mt-0.5" />
+                  <p className="text-sm">
+                    <strong>Produit existant</strong> - Si le nom du produit correspond à un produit existant, il sera lié automatiquement
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         {/* Test Direct Tab */}
         <TabsContent value="test">
