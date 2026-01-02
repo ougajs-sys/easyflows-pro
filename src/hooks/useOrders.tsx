@@ -19,7 +19,7 @@ export function useOrders() {
           *,
           client:clients(*),
           product:products(*),
-          delivery_person:delivery_persons(*, profile:profiles(*))
+          delivery_person:delivery_persons(*)
         `)
         .order('created_at', { ascending: false });
 
