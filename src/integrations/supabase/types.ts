@@ -530,6 +530,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_templates: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          message: string
+          name: string
+          updated_at: string
+          variables: string[] | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          message: string
+          name: string
+          updated_at?: string
+          variables?: string[] | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          message?: string
+          name?: string
+          updated_at?: string
+          variables?: string[] | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

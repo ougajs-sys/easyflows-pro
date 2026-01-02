@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCampaigns, Campaign } from "@/hooks/useCampaigns";
+import { useSmsTemplates } from "@/hooks/useSmsTemplates";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -29,15 +31,19 @@ import {
   Bell,
   Edit,
   Calendar,
-  CalendarClock
+  CalendarClock,
+  FileText,
+  Sparkles
 } from "lucide-react";
 
 const Campaigns = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const { campaigns, isLoading, createCampaign, updateCampaign, sendCampaign } = useCampaigns();
+  const { templates, templatesByCategory, isLoading: templatesLoading } = useSmsTemplates();
 
   const [newCampaign, setNewCampaign] = useState({
     name: "",
@@ -251,17 +257,96 @@ const Campaigns = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Message</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Message</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowTemplates(!showTemplates)}
+                      className="text-primary gap-1"
+                    >
+                      <FileText className="h-3 w-3" />
+                      {showTemplates ? "Masquer templates" : "Voir templates"}
+                    </Button>
+                  </div>
+                  
+                  {showTemplates && (
+                    <div className="border border-border rounded-lg p-3 bg-muted/20 space-y-3">
+                      <Tabs defaultValue="promotion" className="w-full">
+                        <TabsList className="grid grid-cols-4 h-8">
+                          <TabsTrigger value="promotion" className="text-xs">
+                            <Megaphone className="h-3 w-3 mr-1" />
+                            Promo
+                          </TabsTrigger>
+                          <TabsTrigger value="relance" className="text-xs">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            Relance
+                          </TabsTrigger>
+                          <TabsTrigger value="notification" className="text-xs">
+                            <Bell className="h-3 w-3 mr-1" />
+                            Notif
+                          </TabsTrigger>
+                          <TabsTrigger value="custom" className="text-xs">
+                            <Sparkles className="h-3 w-3 mr-1" />
+                            Custom
+                          </TabsTrigger>
+                        </TabsList>
+                        
+                        {(['promotion', 'relance', 'notification', 'custom'] as const).map(cat => (
+                          <TabsContent key={cat} value={cat} className="mt-2">
+                            <ScrollArea className="h-[120px]">
+                              <div className="space-y-2">
+                                {templatesByCategory[cat].length === 0 ? (
+                                  <p className="text-xs text-muted-foreground text-center py-4">
+                                    Aucun template disponible
+                                  </p>
+                                ) : (
+                                  templatesByCategory[cat].map(template => (
+                                    <div
+                                      key={template.id}
+                                      onClick={() => {
+                                        setNewCampaign({ 
+                                          ...newCampaign, 
+                                          message: template.message,
+                                          category: template.category
+                                        });
+                                        setShowTemplates(false);
+                                      }}
+                                      className="p-2 rounded border border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-colors"
+                                    >
+                                      <p className="text-xs font-medium">{template.name}</p>
+                                      <p className="text-xs text-muted-foreground truncate">
+                                        {template.message}
+                                      </p>
+                                      {template.variables.length > 0 && (
+                                        <div className="flex gap-1 mt-1 flex-wrap">
+                                          {template.variables.map(v => (
+                                            <Badge key={v} variant="outline" className="text-[10px] py-0 px-1">
+                                              {`{{${v}}}`}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </TabsContent>
+                        ))}
+                      </Tabs>
+                    </div>
+                  )}
+                  
                   <Textarea 
-                    placeholder="Rédigez votre message ici..."
+                    placeholder="Rédigez votre message ici ou sélectionnez un template..."
                     rows={4}
                     value={newCampaign.message}
                     onChange={(e) => setNewCampaign({ ...newCampaign, message: e.target.value })}
                   />
                   <p className="text-xs text-muted-foreground">{newCampaign.message.length}/160 caractères</p>
                 </div>
-                
-                {/* Scheduling options */}
                 <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-border">
                   <div className="flex items-center gap-2">
                     <CalendarClock className="h-4 w-4 text-primary" />
