@@ -5,6 +5,7 @@ import { SynthesisOverview } from "@/components/synthesis/SynthesisOverview";
 import { SynthesisCharts } from "@/components/synthesis/SynthesisCharts";
 import { SynthesisTable } from "@/components/synthesis/SynthesisTable";
 import { ExportPDFButton } from "@/components/synthesis/ExportPDFButton";
+import { ExportCSVButton } from "@/components/synthesis/ExportCSVButton";
 import { BarChart3 } from "lucide-react";
 
 export default function Synthesis() {
@@ -26,7 +27,10 @@ export default function Synthesis() {
             Analyse détaillée des performances sur période personnalisable
           </p>
         </div>
-        <ExportPDFButton dateRange={dateRange} />
+        <div className="flex gap-2">
+          <ExportCSVButton dateRange={dateRange} />
+          <ExportPDFButton dateRange={dateRange} />
+        </div>
       </div>
 
       {/* Filters */}
