@@ -6,6 +6,104 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
+type AnyRecord = Record<string, unknown>;
+
+function setDeep(obj: AnyRecord, path: string[], value: unknown) {
+  let curr: AnyRecord = obj;
+  for (let i = 0; i < path.length; i++) {
+    const key = path[i];
+    const isLast = i === path.length - 1;
+    if (isLast) {
+      curr[key] = value;
+      return;
+    }
+
+    const next = curr[key];
+    if (!next || typeof next !== "object" || Array.isArray(next)) {
+      curr[key] = {};
+    }
+    curr = curr[key] as AnyRecord;
+  }
+}
+
+function parseBracketNotation(flat: Record<string, string>) {
+  const out: AnyRecord = {};
+  for (const [rawKey, value] of Object.entries(flat)) {
+    // Examples:
+    // - form[id]
+    // - form[fields][phone]
+    // - fields[product_name]
+    const parts = rawKey.split(/\[|\]/).filter(Boolean);
+    if (parts.length === 0) continue;
+    setDeep(out, parts, value);
+  }
+  return out;
+}
+
+function pickFirstString(...values: unknown[]) {
+  for (const v of values) {
+    if (typeof v === "string" && v.trim().length > 0) return v.trim();
+  }
+  return "";
+}
+
+function pickFirstNumber(...values: unknown[]) {
+  for (const v of values) {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string") {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return 0;
+}
+
+async function parseIncomingBody(req: Request): Promise<AnyRecord> {
+  const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
+
+  // Elementor webhook often sends application/x-www-form-urlencoded.
+  if (contentType.includes("application/json")) {
+    const json = (await req.json()) as AnyRecord;
+    return json;
+  }
+
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    const text = await req.text();
+    const flat = Object.fromEntries(new URLSearchParams(text)) as Record<string, string>;
+    return parseBracketNotation(flat);
+  }
+
+  if (contentType.includes("multipart/form-data")) {
+    const fd = await req.formData();
+    const flat: Record<string, string> = {};
+    for (const [k, v] of fd.entries()) {
+      if (typeof v === "string") flat[k] = v;
+    }
+    return parseBracketNotation(flat);
+  }
+
+  // Fallback: try JSON first, else urlencoded-ish.
+  const raw = await req.text();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const flat = Object.fromEntries(new URLSearchParams(raw)) as Record<string, string>;
+    return parseBracketNotation(flat);
+  }
+}
+
+function getField(body: AnyRecord, key: string) {
+  // Accept multiple payload shapes:
+  // - { phone: "..." }
+  // - { form: { fields: { phone: "..." } } }
+  // - { fields: { phone: "..." } }
+  const form = (body.form ?? {}) as AnyRecord;
+  const formFields = (form.fields ?? {}) as AnyRecord;
+  const fields = (body.fields ?? {}) as AnyRecord;
+
+  return (body[key] ?? formFields[key] ?? fields[key]) as unknown;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -13,65 +111,115 @@ serve(async (req) => {
   }
 
   try {
-    console.log("📦 Webhook received - Processing order from WordPress/Make");
+    console.log("📦 Webhook received - Processing order");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse incoming data
-    const body = await req.json();
-    console.log("📥 Received payload:", JSON.stringify(body, null, 2));
+    // Parse incoming data (JSON / urlencoded / multipart)
+    const body = await parseIncomingBody(req);
 
-    // Extract order data from Make/WordPress payload
-    // Adaptable to different WordPress/WooCommerce formats
-    const orderData = {
-      // Client info
-      client_name: body.billing_first_name 
-        ? `${body.billing_first_name} ${body.billing_last_name || ""}`.trim()
-        : body.client_name || body.customer_name || body.name || "Client WordPress",
-      client_phone: body.billing_phone || body.phone || body.client_phone || "",
-      client_address: body.billing_address_1 
-        ? `${body.billing_address_1}${body.billing_address_2 ? ", " + body.billing_address_2 : ""}`
-        : body.address || body.client_address || "",
-      client_city: body.billing_city || body.city || body.client_city || "",
-      
-      // Order info
-      product_name: body.line_items?.[0]?.name || body.product_name || body.product || "Produit WordPress",
-      quantity: parseInt(body.line_items?.[0]?.quantity || body.quantity || "1"),
-      unit_price: parseFloat(body.line_items?.[0]?.price || body.unit_price || body.price || "0"),
-      total_amount: parseFloat(body.total || body.order_total || body.total_amount || "0"),
-      
-      // WordPress/WooCommerce order ID for reference
-      external_order_id: body.id || body.order_id || body.order_number || null,
-      notes: body.customer_note || body.order_notes || body.notes || `Commande WordPress #${body.id || body.order_id || ""}`,
-    };
+    // Log only non-sensitive info (avoid PII)
+    const topKeys = Object.keys(body ?? {}).slice(0, 30);
+    console.log("📥 Payload content-type:", req.headers.get("content-type") ?? "(none)");
+    console.log("📥 Payload top-level keys:", topKeys);
 
-    console.log("📋 Parsed order data:", JSON.stringify(orderData, null, 2));
+    // Extract order data from multiple possible formats
+    const clientName = pickFirstString(
+      getField(body, "client_name"),
+      getField(body, "customer_name"),
+      getField(body, "name"),
+      pickFirstString(body.billing_first_name as unknown)
+        ? `${pickFirstString(body.billing_first_name)} ${pickFirstString(body.billing_last_name)}`.trim()
+        : ""
+    );
+
+    const clientPhone = pickFirstString(
+      getField(body, "phone"),
+      getField(body, "client_phone"),
+      body.billing_phone
+    );
+
+    const clientCity = pickFirstString(
+      getField(body, "city"),
+      getField(body, "client_city"),
+      body.billing_city
+    );
+
+    const clientAddress = pickFirstString(
+      getField(body, "address"),
+      getField(body, "client_address"),
+      body.billing_address_1
+        ? `${pickFirstString(body.billing_address_1)}${pickFirstString(body.billing_address_2) ? ", " + pickFirstString(body.billing_address_2) : ""}`
+        : ""
+    );
+
+    const productName = pickFirstString(
+      getField(body, "product_name"),
+      getField(body, "product"),
+      body.line_items && Array.isArray(body.line_items)
+        ? (body.line_items[0] as AnyRecord)?.name
+        : ""
+    );
+
+    const quantityRaw = pickFirstNumber(
+      getField(body, "quantity"),
+      body.line_items && Array.isArray(body.line_items)
+        ? (body.line_items[0] as AnyRecord)?.quantity
+        : 1
+    );
+    const quantity = Math.max(1, Math.trunc(quantityRaw || 1));
+
+    const unitPrice = pickFirstNumber(
+      getField(body, "unit_price"),
+      getField(body, "price"),
+      body.line_items && Array.isArray(body.line_items)
+        ? (body.line_items[0] as AnyRecord)?.price
+        : 0
+    );
+
+    const notes = pickFirstString(
+      getField(body, "notes"),
+      getField(body, "order_notes"),
+      body.customer_note
+    );
+
+    const externalOrderId =
+      (body.id as string | undefined) ||
+      (getField(body, "order_id") as string | undefined) ||
+      (getField(body, "order_number") as string | undefined) ||
+      null;
+
+    // Minimal server-side validation
+    if (!clientPhone) {
+      throw new Error("Téléphone obligatoire (champ 'phone').");
+    }
+    if (!productName) {
+      throw new Error("Nom du produit obligatoire (champ 'product_name').");
+    }
 
     // Step 1: Find or create client
     let clientId: string;
 
-    // Check if client exists by phone
     const { data: existingClient } = await supabase
       .from("clients")
       .select("id")
-      .eq("phone", orderData.client_phone)
+      .eq("phone", clientPhone)
       .maybeSingle();
 
     if (existingClient) {
       clientId = existingClient.id;
       console.log("👤 Found existing client:", clientId);
     } else {
-      // Create new client
       const { data: newClient, error: clientError } = await supabase
         .from("clients")
         .insert({
-          full_name: orderData.client_name,
-          phone: orderData.client_phone || `WP-${Date.now()}`, // Phone is required
-          address: orderData.client_address,
-          city: orderData.client_city,
-          notes: `Client importé depuis WordPress`,
+          full_name: clientName || "Client Web",
+          phone: clientPhone,
+          address: clientAddress || null,
+          city: clientCity || null,
+          notes: "Client importé depuis formulaire web",
         })
         .select("id")
         .single();
@@ -85,33 +233,39 @@ serve(async (req) => {
       console.log("✅ Created new client:", clientId);
     }
 
-    // Step 2: Find product by name or create a generic one
+    // Step 2: Find product by name (optional)
     let productId: string | null = null;
+    let resolvedUnitPrice = unitPrice;
 
     const { data: existingProduct } = await supabase
       .from("products")
       .select("id, price")
-      .ilike("name", `%${orderData.product_name}%`)
+      .ilike("name", `%${productName}%`)
       .maybeSingle();
 
     if (existingProduct) {
       productId = existingProduct.id;
+      if (!resolvedUnitPrice || resolvedUnitPrice <= 0) {
+        resolvedUnitPrice = Number(existingProduct.price) || 0;
+      }
       console.log("📦 Found existing product:", productId);
     }
 
-    // Step 3: Create order
-    const totalAmount = orderData.total_amount || orderData.unit_price * orderData.quantity;
+    const totalAmount =
+      pickFirstNumber(getField(body, "total_amount"), body.total, body.order_total) ||
+      resolvedUnitPrice * quantity;
 
+    // Step 3: Create order
     const { data: newOrder, error: orderError } = await supabase
       .from("orders")
       .insert({
         client_id: clientId,
         product_id: productId,
-        quantity: orderData.quantity,
-        unit_price: orderData.unit_price,
+        quantity,
+        unit_price: resolvedUnitPrice,
         total_amount: totalAmount,
-        delivery_address: orderData.client_address,
-        delivery_notes: orderData.notes,
+        delivery_address: clientAddress || null,
+        delivery_notes: notes || null,
         status: "pending",
       })
       .select("id, order_number")
@@ -122,7 +276,7 @@ serve(async (req) => {
       throw new Error(`Failed to create order: ${orderError.message}`);
     }
 
-    console.log("✅ Order created successfully:", newOrder);
+    console.log("✅ Order created successfully:", newOrder.id);
 
     return new Response(
       JSON.stringify({
@@ -133,7 +287,7 @@ serve(async (req) => {
           order_number: newOrder.order_number,
         },
         client_id: clientId,
-        external_order_id: orderData.external_order_id,
+        external_order_id: externalOrderId,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
