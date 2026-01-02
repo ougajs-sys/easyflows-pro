@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useProducts } from "@/hooks/useProducts";
 import { 
   Copy, 
   Check, 
@@ -34,13 +36,14 @@ export default function Integrations() {
   const [copied, setCopied] = useState(false);
   const [isTestLoading, setIsTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const { products } = useProducts();
   
   // Formulaire de test
   const [testForm, setTestForm] = useState({
     client_name: "",
     client_phone: "",
-    client_address: "",
     client_city: "",
+    product_id: "",
     product_name: "",
     quantity: "1",
     unit_price: "",
@@ -58,11 +61,23 @@ export default function Integrations() {
     }
   };
 
+  const handleProductSelect = (productId: string) => {
+    const product = products?.find(p => p.id === productId);
+    if (product) {
+      setTestForm({
+        ...testForm,
+        product_id: productId,
+        product_name: product.name,
+        unit_price: product.price.toString(),
+      });
+    }
+  };
+
   const handleTestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!testForm.client_name || !testForm.client_phone || !testForm.product_name || !testForm.unit_price) {
-      toast.error("Veuillez remplir tous les champs obligatoires");
+    if (!testForm.client_phone || !testForm.product_name || !testForm.unit_price) {
+      toast.error("Veuillez remplir le téléphone et sélectionner un produit");
       return;
     }
 
@@ -73,7 +88,6 @@ export default function Integrations() {
       const payload = {
         client_name: testForm.client_name,
         phone: testForm.client_phone,
-        address: testForm.client_address,
         city: testForm.client_city,
         product_name: testForm.product_name,
         quantity: testForm.quantity,
@@ -103,8 +117,8 @@ export default function Integrations() {
         setTestForm({
           client_name: "",
           client_phone: "",
-          client_address: "",
           client_city: "",
+          product_id: "",
           product_name: "",
           quantity: "1",
           unit_price: "",
@@ -285,7 +299,7 @@ export default function Integrations() {
                 <form onSubmit={handleTestSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="client_name">Nom du client *</Label>
+                      <Label htmlFor="client_name">Nom du client</Label>
                       <Input
                         id="client_name"
                         value={testForm.client_name}
@@ -300,39 +314,35 @@ export default function Integrations() {
                         value={testForm.client_phone}
                         onChange={(e) => setTestForm({ ...testForm, client_phone: e.target.value })}
                         placeholder="+225 07 00 00 00"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="client_address">Adresse</Label>
-                      <Input
-                        id="client_address"
-                        value={testForm.client_address}
-                        onChange={(e) => setTestForm({ ...testForm, client_address: e.target.value })}
-                        placeholder="Cocody, Rue des Jardins"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="client_city">Ville</Label>
-                      <Input
-                        id="client_city"
-                        value={testForm.client_city}
-                        onChange={(e) => setTestForm({ ...testForm, client_city: e.target.value })}
-                        placeholder="Abidjan"
+                        required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="product_name">Nom du produit *</Label>
+                    <Label htmlFor="client_city">Ville / Commune</Label>
                     <Input
-                      id="product_name"
-                      value={testForm.product_name}
-                      onChange={(e) => setTestForm({ ...testForm, product_name: e.target.value })}
-                      placeholder="Produit Example"
+                      id="client_city"
+                      value={testForm.client_city}
+                      onChange={(e) => setTestForm({ ...testForm, client_city: e.target.value })}
+                      placeholder="Abidjan, Cocody..."
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Nom du produit *</Label>
+                    <Select value={testForm.product_id} onValueChange={handleProductSelect}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un produit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products?.filter(p => p.is_active).map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - {product.price.toLocaleString()} FCFA
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -347,16 +357,27 @@ export default function Integrations() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="unit_price">Prix unitaire (FCFA) *</Label>
+                      <Label htmlFor="unit_price">Prix unitaire (FCFA)</Label>
                       <Input
                         id="unit_price"
                         type="number"
                         value={testForm.unit_price}
-                        onChange={(e) => setTestForm({ ...testForm, unit_price: e.target.value })}
-                        placeholder="15000"
+                        readOnly
+                        className="bg-muted"
                       />
                     </div>
                   </div>
+
+                  {testForm.unit_price && testForm.quantity && (
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Total</span>
+                        <span className="font-bold text-lg text-primary">
+                          {(parseFloat(testForm.unit_price) * parseInt(testForm.quantity)).toLocaleString()} FCFA
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="notes">Notes</Label>
