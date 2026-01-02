@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useProducts } from "@/hooks/useProducts";
+import { SmsTestPanel } from "@/components/sms/SmsTestPanel";
 import { 
   Copy, 
   Check, 
@@ -28,7 +29,8 @@ import {
   Loader2,
   ExternalLink,
   Store,
-  Smartphone
+  Smartphone,
+  MessageSquare
 } from "lucide-react";
 
 const WEBHOOK_URL = "https://qpxzuglvvfvookzmpgfe.supabase.co/functions/v1/webhook-orders";
@@ -268,7 +270,7 @@ export default function Integrations() {
       </div>
 
       <Tabs defaultValue="elementor" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="elementor" className="flex items-center gap-2">
             <Globe className="w-4 h-4" />
             Elementor
@@ -276,6 +278,10 @@ export default function Integrations() {
           <TabsTrigger value="test" className="flex items-center gap-2">
             <TestTube className="w-4 h-4" />
             Test Direct
+          </TabsTrigger>
+          <TabsTrigger value="sms" className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" />
+            Test SMS
           </TabsTrigger>
           <TabsTrigger value="api" className="flex items-center gap-2">
             <FileJson className="w-4 h-4" />
@@ -681,6 +687,89 @@ export default function Integrations() {
                     Vous pouvez utiliser ce webhook depuis n'importe quel outil : Postman, cURL, 
                     une application mobile, un autre site web, ou même un formulaire Google Forms !
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* SMS Test Tab */}
+        <TabsContent value="sms">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SmsTestPanel />
+            
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  Notifications SMS automatiques
+                </CardTitle>
+                <CardDescription>
+                  Configuration des SMS envoyés automatiquement
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-success/10 border border-success/30 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="w-5 h-5 text-success" />
+                    <span className="font-medium text-success">Messenger360 configuré</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Les SMS sont envoyés automatiquement via Messenger360
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Notifications automatiques :</h4>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                      <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <ShoppingCart className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Nouvelle commande</p>
+                        <p className="text-xs text-muted-foreground">SMS de confirmation envoyé au client</p>
+                      </div>
+                      <Badge className="bg-success/20 text-success border-success/30">Actif</Badge>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                      <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center">
+                        <Send className="w-4 h-4 text-violet-500" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Commande expédiée</p>
+                        <p className="text-xs text-muted-foreground">Notification de départ en livraison</p>
+                      </div>
+                      <Badge variant="outline">Manuel</Badge>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg">
+                      <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Commande livrée</p>
+                        <p className="text-xs text-muted-foreground">Remerciement après livraison</p>
+                      </div>
+                      <Badge variant="outline">Manuel</Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">📱 Campagnes SMS</h4>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Envoyez des SMS en masse à vos clients depuis la page Campagnes
+                  </p>
+                  <Link to="/campaigns">
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <MessageSquare className="w-4 h-4" />
+                      Gérer les campagnes
+                      <ArrowRight className="w-3 h-3" />
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
