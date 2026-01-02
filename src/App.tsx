@@ -14,6 +14,7 @@ import Products from "./pages/Products";
 import Orders from "./pages/Orders";
 import Admin from "./pages/Admin";
 import Delivery from "./pages/Delivery";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -82,6 +83,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['administrateur', 'superviseur', 'livreur']}>
                     <Delivery />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 }
               />

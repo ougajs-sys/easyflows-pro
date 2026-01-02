@@ -26,9 +26,12 @@ import {
   X,
   Moon,
   Sun,
+  User,
+  LogOut,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type AppRole = "appelant" | "livreur" | "superviseur" | "administrateur";
 
@@ -66,12 +69,22 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
   onItemClick?: () => void;
 }) {
   const location = useLocation();
-  const { role } = useAuth();
+  const { role, profile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   const filteredMenuItems = menuItems.filter((item) =>
     role ? item.allowedRoles.includes(role as AppRole) : false
   );
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    onItemClick?.();
+  };
 
   return (
     <>
@@ -145,8 +158,33 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
         })}
       </nav>
 
-      {/* Theme Toggle */}
-      <div className="p-3 border-t border-sidebar-border">
+      {/* Bottom Section */}
+      <div className="p-3 border-t border-sidebar-border space-y-1">
+        {/* Profile Link */}
+        <Link
+          to="/profile"
+          onClick={onItemClick}
+          className={cn(
+            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent",
+            location.pathname === "/profile" && "bg-sidebar-primary/15 border border-sidebar-primary/30"
+          )}
+        >
+          <Avatar className="w-8 h-8">
+            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarFallback className="bg-sidebar-accent text-xs">
+              {getInitials(profile?.full_name)}
+            </AvatarFallback>
+          </Avatar>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-sidebar-foreground truncate block">
+                {profile?.full_name || 'Mon profil'}
+              </span>
+            </div>
+          )}
+        </Link>
+
+        {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
           className={cn(
@@ -163,6 +201,21 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
           {!collapsed && (
             <span className="text-sm font-medium text-sidebar-foreground">
               {theme === "dark" ? "Mode clair" : "Mode sombre"}
+            </span>
+          )}
+        </button>
+
+        {/* Sign Out */}
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-destructive/10 text-destructive"
+        >
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-destructive/10">
+            <LogOut className="w-4 h-4" />
+          </div>
+          {!collapsed && (
+            <span className="text-sm font-medium">
+              Déconnexion
             </span>
           )}
         </button>
