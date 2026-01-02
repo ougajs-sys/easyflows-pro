@@ -4,6 +4,7 @@ import { OrdersTable } from "@/components/dashboard/OrdersTable";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { DeliveryStatus } from "@/components/dashboard/DeliveryStatus";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { SalesTrendChart } from "@/components/dashboard/SalesTrendChart";
 import { Package, Truck, CreditCard, Users } from "lucide-react";
 
 export default function Dashboard() {
@@ -54,7 +55,8 @@ export default function Dashboard() {
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Orders Table - Takes 2 columns */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
+          <SalesTrendChart />
           <OrdersTable />
         </div>
 
