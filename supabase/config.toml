@@ -1,4 +1,7 @@
 project_id = "qpxzuglvvfvookzmpgfe"
 
+[functions.send-sms]
+verify_jwt = false
+
 [functions.webhook-orders]
 verify_jwt = false

@@ -26,6 +26,8 @@ import Synthesis from "./pages/Synthesis";
 import Stock from "./pages/Stock";
 import Training from "./pages/Training";
 import Integrations from "./pages/Integrations";
+import Planning from "./pages/Planning";
+import Campaigns from "./pages/Campaigns";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -166,7 +168,15 @@ const App = () => (
                 path="/planning"
                 element={
                   <ProtectedRoute>
-                    <ModulePage />
+                    <Planning />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/campaigns"
+                element={
+                  <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                    <Campaigns />
                   </ProtectedRoute>
                 }
               />
