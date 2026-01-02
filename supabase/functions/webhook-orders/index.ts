@@ -295,6 +295,39 @@ serve(async (req) => {
 
     console.log("✅ Order created successfully:", newOrder.id);
 
+    // Send SMS notification to client (non-blocking)
+    try {
+      const notificationPayload = {
+        phone: clientPhone,
+        type: 'order_created',
+        channel: 'sms',
+        data: {
+          order_number: newOrder.order_number,
+          client_name: clientName || 'Client',
+          product_name: productName,
+          amount: totalAmount,
+          delivery_address: clientAddress
+        }
+      };
+
+      // Fire and forget - don't wait for SMS response
+      fetch(`${supabaseUrl}/functions/v1/send-notification-sms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`
+        },
+        body: JSON.stringify(notificationPayload)
+      }).then(response => {
+        console.log("📱 SMS notification triggered, status:", response.status);
+      }).catch(smsError => {
+        console.log("📱 SMS notification failed (non-critical):", smsError);
+      });
+    } catch (smsError) {
+      // Non-blocking - log but don't fail the order
+      console.log("📱 Could not trigger SMS notification:", smsError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -305,6 +338,7 @@ serve(async (req) => {
         },
         client_id: clientId,
         external_order_id: externalOrderId,
+        sms_notification: "triggered"
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
