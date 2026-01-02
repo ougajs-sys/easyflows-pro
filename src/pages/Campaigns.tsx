@@ -27,7 +27,9 @@ import {
   TrendingUp,
   UserCheck,
   Bell,
-  Edit
+  Edit,
+  Calendar,
+  CalendarClock
 } from "lucide-react";
 
 const Campaigns = () => {
@@ -43,23 +45,48 @@ const Campaigns = () => {
     category: "promotion" as 'promotion' | 'relance' | 'notification' | 'custom',
     message: "",
     segment: "all" as 'all' | 'new' | 'regular' | 'vip' | 'inactive',
-    status: "draft" as const,
+    status: "draft" as 'draft' | 'scheduled',
     total_recipients: 0,
+    scheduled_at: "",
   });
 
-  const handleCreateCampaign = async () => {
+  const handleCreateCampaign = async (sendNow: boolean = false) => {
     if (!newCampaign.name || !newCampaign.message) {
       toast({ title: "Erreur", description: "Veuillez remplir tous les champs", variant: "destructive" });
       return;
     }
 
+    if (!sendNow && newCampaign.status === 'scheduled' && !newCampaign.scheduled_at) {
+      toast({ title: "Erreur", description: "Veuillez sélectionner une date/heure de planification", variant: "destructive" });
+      return;
+    }
+
     try {
-      await createCampaign.mutateAsync({
-        ...newCampaign,
+      const campaignData = {
+        name: newCampaign.name,
+        type: newCampaign.type,
+        category: newCampaign.category,
+        message: newCampaign.message,
+        segment: newCampaign.segment,
+        status: sendNow ? "draft" as const : newCampaign.status,
+        total_recipients: 0,
         created_by: user?.id || null,
-        scheduled_at: null,
-      });
-      toast({ title: "Succès", description: "Campagne créée avec succès" });
+        scheduled_at: !sendNow && newCampaign.status === 'scheduled' && newCampaign.scheduled_at 
+          ? new Date(newCampaign.scheduled_at).toISOString() 
+          : null,
+      };
+
+      const created = await createCampaign.mutateAsync(campaignData);
+      
+      if (sendNow && created) {
+        await sendCampaign.mutateAsync(created.id);
+        toast({ title: "Succès", description: "Campagne créée et envoyée avec succès" });
+      } else if (newCampaign.status === 'scheduled') {
+        toast({ title: "Succès", description: `Campagne planifiée pour le ${format(new Date(newCampaign.scheduled_at), "dd/MM/yyyy à HH:mm", { locale: fr })}` });
+      } else {
+        toast({ title: "Succès", description: "Campagne créée comme brouillon" });
+      }
+      
       setIsDialogOpen(false);
       setNewCampaign({
         name: "",
@@ -69,10 +96,15 @@ const Campaigns = () => {
         segment: "all",
         status: "draft",
         total_recipients: 0,
+        scheduled_at: "",
       });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
+  };
+
+  const handleScheduleCampaign = async (campaignId: string) => {
+    setSelectedCampaign(campaigns.find(c => c.id === campaignId) || null);
   };
 
   const handleSendCampaign = async (campaignId: string) => {
@@ -228,9 +260,74 @@ const Campaigns = () => {
                   />
                   <p className="text-xs text-muted-foreground">{newCampaign.message.length}/160 caractères</p>
                 </div>
-                <Button className="w-full" onClick={handleCreateCampaign} disabled={createCampaign.isPending}>
-                  {createCampaign.isPending ? "Création..." : "Créer la campagne"}
-                </Button>
+                
+                {/* Scheduling options */}
+                <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-border">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-primary" />
+                    <Label className="font-medium">Planification</Label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      type="button"
+                      variant={newCampaign.status === 'draft' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setNewCampaign({ ...newCampaign, status: 'draft', scheduled_at: '' })}
+                      className="justify-start"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Brouillon
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={newCampaign.status === 'scheduled' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setNewCampaign({ ...newCampaign, status: 'scheduled' })}
+                      className="justify-start"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Planifier
+                    </Button>
+                  </div>
+                  
+                  {newCampaign.status === 'scheduled' && (
+                    <div className="space-y-2">
+                      <Label>Date et heure d'envoi</Label>
+                      <Input 
+                        type="datetime-local"
+                        value={newCampaign.scheduled_at}
+                        onChange={(e) => setNewCampaign({ ...newCampaign, scheduled_at: e.target.value })}
+                        min={new Date().toISOString().slice(0, 16)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    className="flex-1" 
+                    variant="outline"
+                    onClick={() => handleCreateCampaign(false)} 
+                    disabled={createCampaign.isPending}
+                  >
+                    {newCampaign.status === 'scheduled' ? (
+                      <>
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Planifier l'envoi
+                      </>
+                    ) : (
+                      "Enregistrer brouillon"
+                    )}
+                  </Button>
+                  <Button 
+                    className="flex-1" 
+                    onClick={() => handleCreateCampaign(true)} 
+                    disabled={createCampaign.isPending || sendCampaign.isPending}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Envoyer maintenant
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -351,22 +448,44 @@ const Campaigns = () => {
                         {campaign.failed_count}
                       </TableCell>
                       <TableCell>
-                        {campaign.sent_at 
-                          ? format(new Date(campaign.sent_at), "dd/MM/yyyy HH:mm", { locale: fr })
-                          : format(new Date(campaign.created_at), "dd/MM/yyyy", { locale: fr })
-                        }
+                        {campaign.status === 'scheduled' && campaign.scheduled_at ? (
+                          <div className="flex items-center gap-1 text-blue-400">
+                            <CalendarClock className="h-3 w-3" />
+                            {format(new Date(campaign.scheduled_at), "dd/MM/yyyy HH:mm", { locale: fr })}
+                          </div>
+                        ) : campaign.sent_at ? (
+                          format(new Date(campaign.sent_at), "dd/MM/yyyy HH:mm", { locale: fr })
+                        ) : (
+                          format(new Date(campaign.created_at), "dd/MM/yyyy", { locale: fr })
+                        )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-1">
                         {campaign.status === 'draft' && (
-                          <Button 
-                            size="sm" 
-                            className="gap-1"
-                            onClick={() => handleSendCampaign(campaign.id)}
-                            disabled={sendCampaign.isPending}
-                          >
-                            <Send className="h-3 w-3" />
-                            Envoyer
-                          </Button>
+                          <>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => handleScheduleCampaign(campaign.id)}
+                            >
+                              <Calendar className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              className="gap-1"
+                              onClick={() => handleSendCampaign(campaign.id)}
+                              disabled={sendCampaign.isPending}
+                            >
+                              <Send className="h-3 w-3" />
+                              Envoyer
+                            </Button>
+                          </>
+                        )}
+                        {campaign.status === 'scheduled' && (
+                          <Badge variant="outline" className="text-blue-400 border-blue-400/30">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Programmée
+                          </Badge>
                         )}
                       </TableCell>
                     </TableRow>
