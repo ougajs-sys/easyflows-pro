@@ -9,8 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
+
+type AppRole = Database['public']['Enums']['app_role'];
 
 const loginSchema = z.object({
   email: z.string().email('Email invalide'),
@@ -22,6 +27,7 @@ const signupSchema = z.object({
   email: z.string().email('Email invalide'),
   password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
   confirmPassword: z.string(),
+  requestedRole: z.enum(['appelant', 'livreur']).optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Les mots de passe ne correspondent pas',
   path: ['confirmPassword'],
@@ -37,10 +43,16 @@ const roles = [
   { id: 'administrateur', label: 'Administrateur', icon: Shield, color: 'text-destructive' },
 ];
 
+const signupRoles = [
+  { id: 'appelant', label: 'Appelant (Téléconseiller)', icon: Phone, description: 'Gestion des appels et suivi clients' },
+  { id: 'livreur', label: 'Livreur', icon: Truck, description: 'Livraison des commandes' },
+];
+
 export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'appelant' | 'livreur'>('appelant');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, signIn, signUp } = useAuth();
@@ -66,6 +78,7 @@ export default function Auth() {
       email: '',
       password: '',
       confirmPassword: '',
+      requestedRole: 'appelant',
     },
   });
 
@@ -111,12 +124,31 @@ export default function Auth() {
         description: message,
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: 'Inscription réussie',
-        description: 'Vérifiez votre email pour confirmer votre compte. Vous pouvez aussi désactiver la confirmation email dans Supabase pour tester plus rapidement.',
-      });
+      setIsLoading(false);
+      return;
     }
+
+    // If user requested a role different from the default (appelant), create a role request
+    if (selectedRole === 'livreur') {
+      // We need to wait a bit for the user to be created
+      setTimeout(async () => {
+        const { data: session } = await supabase.auth.getSession();
+        if (session?.session?.user) {
+          await supabase.from('role_requests').insert({
+            user_id: session.session.user.id,
+            requested_role: 'livreur' as AppRole,
+            reason: 'Demandé lors de l\'inscription',
+          });
+        }
+      }, 1000);
+    }
+
+    toast({
+      title: 'Inscription réussie',
+      description: selectedRole === 'livreur' 
+        ? 'Votre compte a été créé. Votre demande pour devenir livreur est en attente de validation.'
+        : 'Vérifiez votre email pour confirmer votre compte.',
+    });
     setIsLoading(false);
   };
 
@@ -281,6 +313,36 @@ export default function Auth() {
                     )}
                   </div>
 
+                  {/* Role Selection */}
+                  <div className="space-y-2">
+                    <Label>Fonction souhaitée</Label>
+                    <Select 
+                      value={selectedRole} 
+                      onValueChange={(v) => setSelectedRole(v as 'appelant' | 'livreur')}
+                    >
+                      <SelectTrigger className="bg-input border-border">
+                        <SelectValue placeholder="Sélectionnez votre fonction" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {signupRoles.map((role) => (
+                          <SelectItem key={role.id} value={role.id}>
+                            <div className="flex items-center gap-2">
+                              <role.icon className="h-4 w-4" />
+                              <div className="flex flex-col">
+                                <span>{role.label}</span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedRole === 'livreur' 
+                        ? '⏳ Le rôle Livreur nécessite une validation par un administrateur.'
+                        : '✅ Accès immédiat avec le rôle Appelant.'}
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Mot de passe</Label>
                     <div className="relative">
@@ -330,10 +392,6 @@ export default function Auth() {
                       </p>
                     )}
                   </div>
-
-                  <p className="text-xs text-muted-foreground">
-                    Le rôle par défaut est <strong>Appelant</strong>. Un administrateur peut modifier votre rôle ultérieurement.
-                  </p>
 
                   <Button
                     type="submit"
