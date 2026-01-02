@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -414,10 +415,17 @@ export default function Integrations() {
                   </div>
                   <div className="flex-1">
                     <h4 className="font-semibold mb-2">Testez votre formulaire</h4>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground mb-3">
                       Soumettez une commande test depuis votre site WordPress. 
                       Elle apparaîtra instantanément dans votre tableau de bord des commandes.
                     </p>
+                    <Link to="/webhook-test">
+                      <Button variant="outline" className="gap-2">
+                        <TestTube className="w-4 h-4" />
+                        Ouvrir le formulaire de test simplifié
+                        <ExternalLink className="w-3 h-3" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </CardContent>
