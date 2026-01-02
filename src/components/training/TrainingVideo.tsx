@@ -19,6 +19,7 @@ interface Video {
   title: string;
   duration: string;
   completed: boolean;
+  youtubeId: string;
 }
 
 interface ModuleContent {
@@ -36,9 +37,9 @@ const moduleContents: Record<string, ModuleContent> = {
     title: "Introduction à Pipeline",
     description: "Découvrez l'interface et les concepts de base de Pipeline Gestion Automatique.",
     videos: [
-      { id: "v1", title: "Bienvenue sur Pipeline", duration: "3:45", completed: true },
-      { id: "v2", title: "Navigation dans l'interface", duration: "5:20", completed: true },
-      { id: "v3", title: "Configuration initiale", duration: "6:15", completed: true },
+      { id: "v1", title: "Bienvenue sur Pipeline", duration: "3:45", completed: true, youtubeId: "dQw4w9WgXcQ" },
+      { id: "v2", title: "Navigation dans l'interface", duration: "5:20", completed: true, youtubeId: "jNQXAC9IVRw" },
+      { id: "v3", title: "Configuration initiale", duration: "6:15", completed: true, youtubeId: "9bZkp7q19f0" },
     ],
     steps: [
       "Connectez-vous à votre compte Pipeline",
@@ -57,11 +58,11 @@ const moduleContents: Record<string, ModuleContent> = {
     title: "Gestion des Commandes",
     description: "Apprenez à créer, modifier et suivre les commandes efficacement.",
     videos: [
-      { id: "v1", title: "Créer une nouvelle commande", duration: "4:30", completed: true },
-      { id: "v2", title: "Modifier une commande existante", duration: "3:15", completed: true },
-      { id: "v3", title: "Statuts et workflow des commandes", duration: "5:45", completed: true },
-      { id: "v4", title: "Assigner un livreur", duration: "3:00", completed: true },
-      { id: "v5", title: "Annuler et gérer les retours", duration: "4:20", completed: true },
+      { id: "v1", title: "Créer une nouvelle commande", duration: "4:30", completed: true, youtubeId: "ZZ5LpwO-An4" },
+      { id: "v2", title: "Modifier une commande existante", duration: "3:15", completed: true, youtubeId: "kJQP7kiw5Fk" },
+      { id: "v3", title: "Statuts et workflow des commandes", duration: "5:45", completed: true, youtubeId: "RgKAFK5djSk" },
+      { id: "v4", title: "Assigner un livreur", duration: "3:00", completed: true, youtubeId: "fJ9rUzIMcZQ" },
+      { id: "v5", title: "Annuler et gérer les retours", duration: "4:20", completed: true, youtubeId: "CevxZvSJLk8" },
     ],
     steps: [
       "Accédez au module Commandes depuis le menu",
@@ -81,10 +82,10 @@ const moduleContents: Record<string, ModuleContent> = {
     title: "Gestion des Clients",
     description: "Gérez votre base de clients et leur historique d'achats.",
     videos: [
-      { id: "v1", title: "Ajouter un nouveau client", duration: "3:00", completed: true },
-      { id: "v2", title: "Consulter l'historique client", duration: "4:15", completed: true },
-      { id: "v3", title: "Segmentation des clients", duration: "5:30", completed: true },
-      { id: "v4", title: "Relances et suivis", duration: "4:45", completed: true },
+      { id: "v1", title: "Ajouter un nouveau client", duration: "3:00", completed: true, youtubeId: "OPf0YbXqDm0" },
+      { id: "v2", title: "Consulter l'historique client", duration: "4:15", completed: true, youtubeId: "JGwWNGJdvx8" },
+      { id: "v3", title: "Segmentation des clients", duration: "5:30", completed: true, youtubeId: "kXYiU_JCYtU" },
+      { id: "v4", title: "Relances et suivis", duration: "4:45", completed: true, youtubeId: "09R8_2nJtjg" },
     ],
     steps: [
       "Accédez au module Suivi Clients",
@@ -104,12 +105,12 @@ const moduleContents: Record<string, ModuleContent> = {
     title: "Espace Livreur",
     description: "Optimisez vos livraisons et gérez vos tournées efficacement.",
     videos: [
-      { id: "v1", title: "Vue d'ensemble du tableau livreur", duration: "4:00", completed: true },
-      { id: "v2", title: "Accepter et gérer les livraisons", duration: "5:30", completed: true },
-      { id: "v3", title: "Confirmer une livraison", duration: "3:45", completed: true },
-      { id: "v4", title: "Gérer les problèmes de livraison", duration: "6:00", completed: false },
-      { id: "v5", title: "Encaisser les paiements", duration: "4:15", completed: false },
-      { id: "v6", title: "Rapport de fin de journée", duration: "5:00", completed: false },
+      { id: "v1", title: "Vue d'ensemble du tableau livreur", duration: "4:00", completed: true, youtubeId: "hT_nvWreIhg" },
+      { id: "v2", title: "Accepter et gérer les livraisons", duration: "5:30", completed: true, youtubeId: "YQHsXMglC9A" },
+      { id: "v3", title: "Confirmer une livraison", duration: "3:45", completed: true, youtubeId: "450p7goxZqg" },
+      { id: "v4", title: "Gérer les problèmes de livraison", duration: "6:00", completed: false, youtubeId: "60ItHLz5WEA" },
+      { id: "v5", title: "Encaisser les paiements", duration: "4:15", completed: false, youtubeId: "lp-EO5I60KA" },
+      { id: "v6", title: "Rapport de fin de journée", duration: "5:00", completed: false, youtubeId: "pRpeEdMmmQ0" },
     ],
     steps: [
       "Connectez-vous et passez en mode 'Disponible'",
@@ -130,10 +131,10 @@ const moduleContents: Record<string, ModuleContent> = {
     title: "Paiements et Facturation",
     description: "Gérez les paiements et le suivi financier de vos commandes.",
     videos: [
-      { id: "v1", title: "Types de paiements", duration: "3:30", completed: false },
-      { id: "v2", title: "Enregistrer un paiement", duration: "4:00", completed: false },
-      { id: "v3", title: "Suivi des impayés", duration: "5:15", completed: false },
-      { id: "v4", title: "Rapports financiers", duration: "6:30", completed: false },
+      { id: "v1", title: "Types de paiements", duration: "3:30", completed: false, youtubeId: "Zi_XLOBDo_Y" },
+      { id: "v2", title: "Enregistrer un paiement", duration: "4:00", completed: false, youtubeId: "2Vv-BfVoq4g" },
+      { id: "v3", title: "Suivi des impayés", duration: "5:15", completed: false, youtubeId: "fLexgOxsZu0" },
+      { id: "v4", title: "Rapports financiers", duration: "6:30", completed: false, youtubeId: "PT2_F-1esPk" },
     ],
     steps: [
       "Accédez au module Paiement",
@@ -153,11 +154,11 @@ const moduleContents: Record<string, ModuleContent> = {
     title: "Synthèse et Rapports",
     description: "Analysez les performances et prenez des décisions éclairées.",
     videos: [
-      { id: "v1", title: "Tableau de bord synthèse", duration: "4:45", completed: false },
-      { id: "v2", title: "Filtres et périodes", duration: "3:30", completed: false },
-      { id: "v3", title: "Graphiques et tendances", duration: "5:00", completed: false },
-      { id: "v4", title: "Export PDF et CSV", duration: "4:15", completed: false },
-      { id: "v5", title: "Indicateurs clés", duration: "6:00", completed: false },
+      { id: "v1", title: "Tableau de bord synthèse", duration: "4:45", completed: false, youtubeId: "IcrbM1l_BoI" },
+      { id: "v2", title: "Filtres et périodes", duration: "3:30", completed: false, youtubeId: "nfWlot6h_JM" },
+      { id: "v3", title: "Graphiques et tendances", duration: "5:00", completed: false, youtubeId: "bo_efYhYU2A" },
+      { id: "v4", title: "Export PDF et CSV", duration: "4:15", completed: false, youtubeId: "5qap5aO4i9A" },
+      { id: "v5", title: "Indicateurs clés", duration: "6:00", completed: false, youtubeId: "ktvTqknDobU" },
     ],
     steps: [
       "Accédez au module Synthèse",
@@ -278,22 +279,43 @@ export function TrainingVideo({ moduleId }: TrainingVideoProps) {
             
             {activeVideo && (
               <div className="mt-6 p-6 bg-secondary/30 rounded-xl border border-border">
-                <div className="aspect-video bg-background rounded-lg flex items-center justify-center mb-4">
-                  <div className="text-center">
-                    <PlayCircle className="w-16 h-16 text-primary mx-auto mb-2 opacity-50" />
-                    <p className="text-muted-foreground text-sm">
-                      Lecteur vidéo - {content.videos.find(v => v.id === activeVideo)?.title}
-                    </p>
-                  </div>
+                <div className="aspect-video bg-background rounded-lg overflow-hidden mb-4">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${content.videos.find(v => v.id === activeVideo)?.youtubeId}?rel=0&modestbranding=1`}
+                    title={content.videos.find(v => v.id === activeVideo)?.title}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const currentIndex = content.videos.findIndex(v => v.id === activeVideo);
+                      if (currentIndex > 0) {
+                        setActiveVideo(content.videos[currentIndex - 1].id);
+                      }
+                    }}
+                    disabled={content.videos.findIndex(v => v.id === activeVideo) === 0}
+                  >
                     Précédent
                   </Button>
                   <Button size="sm">
                     Marquer comme terminé
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const currentIndex = content.videos.findIndex(v => v.id === activeVideo);
+                      if (currentIndex < content.videos.length - 1) {
+                        setActiveVideo(content.videos[currentIndex + 1].id);
+                      }
+                    }}
+                    disabled={content.videos.findIndex(v => v.id === activeVideo) === content.videos.length - 1}
+                  >
                     Suivant
                   </Button>
                 </div>
