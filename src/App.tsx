@@ -29,6 +29,7 @@ import Integrations from "./pages/Integrations";
 import Planning from "./pages/Planning";
 import Campaigns from "./pages/Campaigns";
 import Roles from "./pages/Roles";
+import WebhookTest from "./pages/WebhookTest";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -146,6 +147,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
                     <Integrations />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/webhook-test"
+                element={
+                  <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                    <WebhookTest />
                   </ProtectedRoute>
                 }
               />
