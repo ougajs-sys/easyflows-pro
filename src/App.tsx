@@ -30,6 +30,7 @@ import Planning from "./pages/Planning";
 import Campaigns from "./pages/Campaigns";
 import Roles from "./pages/Roles";
 import WebhookTest from "./pages/WebhookTest";
+import EmbedOrderForm from "./pages/EmbedOrderForm";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -206,6 +207,8 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              {/* Public embeddable order form - no auth required */}
+              <Route path="/embed/order" element={<EmbedOrderForm />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
