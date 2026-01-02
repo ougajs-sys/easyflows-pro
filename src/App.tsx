@@ -23,6 +23,7 @@ import FollowUps from "./pages/FollowUps";
 import Notifications from "./pages/Notifications";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
 import Synthesis from "./pages/Synthesis";
+import Stock from "./pages/Stock";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -107,7 +108,7 @@ const App = () => (
                 path="/stock"
                 element={
                   <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
-                    <ModulePage />
+                    <Stock />
                   </ProtectedRoute>
                 }
               />
