@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Loader2, ArrowLeft, Copy, ExternalLink } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, ArrowLeft, Copy, Send } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const WEBHOOK_URL = "https://qpxzuglvvfvookzmpgfe.supabase.co/functions/v1/webhook-orders";
+
+// Formulaire simplifié - Version 2
 
 export default function WebhookTest() {
   const [isLoading, setIsLoading] = useState(false);
@@ -90,11 +92,14 @@ export default function WebhookTest() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Formulaire de test */}
+          {/* Formulaire de test simplifié */}
           <Card>
             <CardHeader>
-              <CardTitle>Formulaire de Test</CardTitle>
-              <CardDescription>Testez l'envoi d'une commande vers le webhook</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5 text-primary" />
+                Envoyer une commande de test
+              </CardTitle>
+              <CardDescription>Testez le webhook en créant une commande directement</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -108,36 +113,38 @@ export default function WebhookTest() {
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    Dans Elementor, c'est le nom du formulaire qui contient le nom du produit
+                    C'est le nom du formulaire Elementor qui contient le nom du produit
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nom du client</Label>
-                  <Input
-                    id="name"
-                    placeholder="Ex: TEST APATAP"
-                    value={formData.name}
-                    onChange={(e) => handleChange("name", e.target.value)}
-                  />
-                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nom du client</Label>
+                    <Input
+                      id="name"
+                      placeholder="Jean Dupont"
+                      value={formData.name}
+                      onChange={(e) => handleChange("name", e.target.value)}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Téléphone *</Label>
-                  <Input
-                    id="phone"
-                    placeholder="Ex: 0759767341"
-                    value={formData.phone}
-                    onChange={(e) => handleChange("phone", e.target.value)}
-                    required
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Téléphone *</Label>
+                    <Input
+                      id="phone"
+                      placeholder="+225 07 00 00 00"
+                      value={formData.phone}
+                      onChange={(e) => handleChange("phone", e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="address">Lieu de livraison</Label>
                   <Input
                     id="address"
-                    placeholder="Ex: BINGERVILLE OUGA"
+                    placeholder="Abidjan, Cocody..."
                     value={formData.address}
                     onChange={(e) => handleChange("address", e.target.value)}
                   />
@@ -150,7 +157,10 @@ export default function WebhookTest() {
                       Envoi en cours...
                     </>
                   ) : (
-                    "Envoyer la commande"
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Envoyer la commande
+                    </>
                   )}
                 </Button>
               </form>
