@@ -14,13 +14,10 @@ export default function WebhookTest() {
   const [result, setResult] = useState<{ success: boolean; message: string; data?: unknown } | null>(null);
   
   const [formData, setFormData] = useState({
+    form_name: "",  // Nom du formulaire Elementor = nom du produit
     name: "",
     phone: "",
-    address: "",
-    product_name: "",
-    unit_price: "",
-    quantity: "1",
-    notes: ""
+    address: ""
   });
 
   const handleChange = (field: string, value: string) => {
@@ -34,13 +31,10 @@ export default function WebhookTest() {
 
     try {
       const payload = {
+        form_name: formData.form_name,  // Le nom du produit est dans le nom du formulaire
         name: formData.name,
         phone: formData.phone,
-        address: formData.address,
-        product_name: formData.product_name,
-        unit_price: parseFloat(formData.unit_price) || 0,
-        quantity: parseInt(formData.quantity) || 1,
-        notes: formData.notes
+        address: formData.address
       };
 
       const response = await fetch(WEBHOOK_URL, {
@@ -105,10 +99,24 @@ export default function WebhookTest() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
+                  <Label htmlFor="form_name">Nom du formulaire (= Produit) *</Label>
+                  <Input
+                    id="form_name"
+                    placeholder="Ex: Crème cicatrisante"
+                    value={formData.form_name}
+                    onChange={(e) => handleChange("form_name", e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Dans Elementor, c'est le nom du formulaire qui contient le nom du produit
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="name">Nom du client</Label>
                   <Input
                     id="name"
-                    placeholder="Ex: Jean Dupont"
+                    placeholder="Ex: TEST APATAP"
                     value={formData.name}
                     onChange={(e) => handleChange("name", e.target.value)}
                   />
@@ -129,53 +137,9 @@ export default function WebhookTest() {
                   <Label htmlFor="address">Lieu de livraison</Label>
                   <Input
                     id="address"
-                    placeholder="Ex: Bingerville, Abidjan"
+                    placeholder="Ex: BINGERVILLE OUGA"
                     value={formData.address}
                     onChange={(e) => handleChange("address", e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="product_name">Produit commandé *</Label>
-                  <Input
-                    id="product_name"
-                    placeholder="Ex: Crème cicatrisante"
-                    value={formData.product_name}
-                    onChange={(e) => handleChange("product_name", e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="unit_price">Prix unitaire</Label>
-                    <Input
-                      id="unit_price"
-                      type="number"
-                      placeholder="7500"
-                      value={formData.unit_price}
-                      onChange={(e) => handleChange("unit_price", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">Quantité</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      min="1"
-                      value={formData.quantity}
-                      onChange={(e) => handleChange("quantity", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Input
-                    id="notes"
-                    placeholder="Notes optionnelles"
-                    value={formData.notes}
-                    onChange={(e) => handleChange("notes", e.target.value)}
                   />
                 </div>
 
@@ -231,7 +195,14 @@ export default function WebhookTest() {
               </div>
 
               <div className="space-y-3">
-                <h4 className="font-medium text-sm">Mapping des champs Elementor:</h4>
+                <h4 className="font-medium text-sm">Configuration Elementor:</h4>
+                
+                <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg mb-3">
+                  <p className="text-sm font-medium mb-1">📝 Nom du formulaire</p>
+                  <p className="text-xs text-muted-foreground">
+                    Le nom du formulaire Elementor doit être le <strong>nom du produit</strong> (ex: "Crème cicatrisante")
+                  </p>
+                </div>
                 
                 <table className="w-full text-sm">
                   <thead>
@@ -242,39 +213,21 @@ export default function WebhookTest() {
                   </thead>
                   <tbody className="divide-y">
                     <tr>
-                      <td className="py-2">Nom</td>
+                      <td className="py-2">Nom du client</td>
                       <td className="py-2">
                         <code className="bg-muted px-2 py-1 rounded text-xs">name</code>
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2">Votre Contact</td>
+                      <td className="py-2">Téléphone</td>
                       <td className="py-2">
                         <code className="bg-muted px-2 py-1 rounded text-xs">phone</code>
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2">Lieu de Livraison</td>
+                      <td className="py-2">Lieu de livraison</td>
                       <td className="py-2">
                         <code className="bg-muted px-2 py-1 rounded text-xs">address</code>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2">Produit Commandé</td>
-                      <td className="py-2">
-                        <code className="bg-muted px-2 py-1 rounded text-xs">product_name</code>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2">Prix unitaire</td>
-                      <td className="py-2">
-                        <code className="bg-muted px-2 py-1 rounded text-xs">unit_price</code>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2">Quantité</td>
-                      <td className="py-2">
-                        <code className="bg-muted px-2 py-1 rounded text-xs">quantity</code>
                       </td>
                     </tr>
                   </tbody>
