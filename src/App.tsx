@@ -24,6 +24,7 @@ import Notifications from "./pages/Notifications";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
 import Synthesis from "./pages/Synthesis";
 import Stock from "./pages/Stock";
+import Training from "./pages/Training";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -172,7 +173,7 @@ const App = () => (
                 path="/training"
                 element={
                   <ProtectedRoute>
-                    <ModulePage />
+                    <Training />
                   </ProtectedRoute>
                 }
               />
