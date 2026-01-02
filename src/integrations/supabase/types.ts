@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      campaign_logs: {
+        Row: {
+          campaign_id: string | null
+          client_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          phone: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          phone: string
+          sent_at?: string | null
+          status: string
+        }
+        Update: {
+          campaign_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          phone?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_logs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          failed_count: number | null
+          id: string
+          message: string
+          name: string
+          scheduled_at: string | null
+          segment: string | null
+          sent_at: string | null
+          sent_count: number | null
+          status: string
+          total_recipients: number | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number | null
+          id?: string
+          message: string
+          name: string
+          scheduled_at?: string | null
+          segment?: string | null
+          sent_at?: string | null
+          sent_count?: number | null
+          status?: string
+          total_recipients?: number | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number | null
+          id?: string
+          message?: string
+          name?: string
+          scheduled_at?: string | null
+          segment?: string | null
+          sent_at?: string | null
+          sent_count?: number | null
+          status?: string
+          total_recipients?: number | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
@@ -383,6 +485,48 @@ export type Database = {
           reviewed_by?: string | null
           status?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      schedules: {
+        Row: {
+          created_at: string
+          date: string
+          end_time: string
+          id: string
+          notes: string | null
+          start_time: string
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+          zone: string | null
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          end_time: string
+          id?: string
+          notes?: string | null
+          start_time: string
+          status?: string
+          type: string
+          updated_at?: string
+          user_id: string
+          zone?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          end_time?: string
+          id?: string
+          notes?: string | null
+          start_time?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+          zone?: string | null
         }
         Relationships: []
       }
