@@ -17,6 +17,7 @@ import Delivery from "./pages/Delivery";
 import Profile from "./pages/Profile";
 import Clients from "./pages/Clients";
 import Payments from "./pages/Payments";
+import FollowUps from "./pages/FollowUps";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -139,8 +140,8 @@ const App = () => (
               <Route
                 path="/retargeting"
                 element={
-                  <ProtectedRoute>
-                    <ModulePage />
+                  <ProtectedRoute allowedRoles={['appelant', 'superviseur', 'administrateur']}>
+                    <FollowUps />
                   </ProtectedRoute>
                 }
               />
