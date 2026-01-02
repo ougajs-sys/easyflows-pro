@@ -104,6 +104,17 @@ function getField(body: AnyRecord, key: string) {
   return (body[key] ?? formFields[key] ?? fields[key]) as unknown;
 }
 
+function getFormName(body: AnyRecord): string {
+  // Le nom du formulaire Elementor contient le nom du produit
+  // Elementor envoie: form[name] ou form_name
+  const form = (body.form ?? {}) as AnyRecord;
+  return pickFirstString(
+    body.form_name,
+    form.name,
+    getField(body, "form_name")
+  );
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -155,13 +166,19 @@ serve(async (req) => {
         : ""
     );
 
+    // Le nom du produit peut venir de: form_name (nom du formulaire), product_name, ou product
+    const formName = getFormName(body);
     const productName = pickFirstString(
+      formName,  // Priorité au nom du formulaire Elementor
       getField(body, "product_name"),
       getField(body, "product"),
       body.line_items && Array.isArray(body.line_items)
         ? (body.line_items[0] as AnyRecord)?.name
         : ""
     );
+
+    console.log("📝 Form name (product):", formName || "(not set)");
+    console.log("📦 Resolved product name:", productName);
 
     const quantityRaw = pickFirstNumber(
       getField(body, "quantity"),
