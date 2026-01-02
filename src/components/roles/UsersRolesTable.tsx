@@ -41,6 +41,7 @@ export function UsersRolesTable() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
   const { users, isLoading, updateRole } = useUsers();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
@@ -76,6 +77,7 @@ export function UsersRolesTable() {
   const handleActivateUser = async (userId: string, role: AppRole) => {
     try {
       await updateRole.mutateAsync({ userId, newRole: role });
+      setActivatingUserId(null); // Close dialog
       toast({
         title: 'Compte activé',
         description: `L'utilisateur a été activé en tant que ${roleConfig[role].label}`,
@@ -264,7 +266,10 @@ export function UsersRolesTable() {
                         <div className="flex items-center gap-2">
                           {/* Quick Activate Button for pending users */}
                           {isPending && user.id !== currentUser?.id && (
-                            <AlertDialog>
+                            <AlertDialog 
+                              open={activatingUserId === user.id} 
+                              onOpenChange={(open) => setActivatingUserId(open ? user.id : null)}
+                            >
                               <AlertDialogTrigger asChild>
                                 <Button size="sm" variant="default" className="gap-1">
                                   <UserCheck className="h-4 w-4" />
