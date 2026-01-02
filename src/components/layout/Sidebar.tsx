@@ -1,9 +1,10 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNotifications } from "@/hooks/useNotifications";
 import {
   Users,
   LayoutDashboard,
@@ -32,6 +33,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 type AppRole = "appelant" | "livreur" | "superviseur" | "administrateur";
 
@@ -71,6 +73,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
   const location = useLocation();
   const { role, profile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { unreadCount } = useNotifications();
 
   const filteredMenuItems = menuItems.filter((item) =>
     role ? item.allowedRoles.includes(role as AppRole) : false
@@ -117,6 +120,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
         {filteredMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
+          const isNotifications = item.path === '/notifications';
 
           return (
             <Link
@@ -132,7 +136,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
             >
               <div
                 className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-lg transition-all",
+                  "flex items-center justify-center w-8 h-8 rounded-lg transition-all relative",
                   isActive ? "bg-sidebar-primary/20" : "bg-sidebar-accent group-hover:bg-sidebar-primary/10"
                 )}
               >
@@ -142,16 +146,28 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
                     isActive ? "text-sidebar-primary" : item.color
                   )}
                 />
+                {isNotifications && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </div>
               {!collapsed && (
-                <span
-                  className={cn(
-                    "text-sm font-medium transition-colors flex-1",
-                    isActive ? "text-sidebar-primary" : "text-sidebar-foreground"
+                <div className="flex items-center gap-2 flex-1">
+                  <span
+                    className={cn(
+                      "text-sm font-medium transition-colors",
+                      isActive ? "text-sidebar-primary" : "text-sidebar-foreground"
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                  {isNotifications && unreadCount > 0 && (
+                    <Badge variant="destructive" className="text-xs px-1.5 py-0">
+                      {unreadCount}
+                    </Badge>
                   )}
-                >
-                  {item.label}
-                </span>
+                </div>
               )}
             </Link>
           );

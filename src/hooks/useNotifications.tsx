@@ -1,0 +1,245 @@
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { Database } from '@/integrations/supabase/types';
+
+type OrderStatus = Database['public']['Enums']['order_status'];
+
+interface Notification {
+  id: string;
+  type: 'new_order' | 'status_change' | 'payment' | 'follow_up';
+  title: string;
+  message: string;
+  data?: any;
+  read: boolean;
+  created_at: string;
+}
+
+interface NotificationsContextType {
+  notifications: Notification[];
+  unreadCount: number;
+  markAsRead: (id: string) => void;
+  markAllAsRead: () => void;
+  clearNotifications: () => void;
+}
+
+const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
+
+const statusLabels: Record<OrderStatus, string> = {
+  pending: 'En attente',
+  confirmed: 'Confirmée',
+  in_transit: 'En livraison',
+  delivered: 'Livrée',
+  partial: 'Partielle',
+  cancelled: 'Annulée',
+  reported: 'Reportée',
+};
+
+export function NotificationsProvider({ children }: { children: ReactNode }) {
+  const [notifications, setNotifications] = useState<Notification[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('notifications');
+      return stored ? JSON.parse(stored) : [];
+    }
+    return [];
+  });
+  const { user, role } = useAuth();
+
+  // Persist notifications to localStorage
+  useEffect(() => {
+    localStorage.setItem('notifications', JSON.stringify(notifications.slice(0, 50)));
+  }, [notifications]);
+
+  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'read' | 'created_at'>) => {
+    const newNotification: Notification = {
+      ...notification,
+      id: crypto.randomUUID(),
+      read: false,
+      created_at: new Date().toISOString(),
+    };
+
+    setNotifications(prev => [newNotification, ...prev].slice(0, 50));
+    
+    // Show toast
+    toast(notification.title, {
+      description: notification.message,
+    });
+  }, []);
+
+  // Subscribe to real-time order changes
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('Setting up Supabase Realtime subscriptions...');
+
+    // Subscribe to new orders
+    const ordersChannel = supabase
+      .channel('orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+        },
+        async (payload) => {
+          console.log('New order received:', payload);
+          
+          // Fetch client info
+          const { data: client } = await supabase
+            .from('clients')
+            .select('full_name')
+            .eq('id', payload.new.client_id)
+            .single();
+
+          addNotification({
+            type: 'new_order',
+            title: '🆕 Nouvelle commande',
+            message: `Commande ${payload.new.order_number || 'nouvelle'} de ${client?.full_name || 'un client'}`,
+            data: payload.new,
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+        },
+        async (payload) => {
+          const oldStatus = (payload.old as any).status;
+          const newStatus = payload.new.status;
+
+          // Only notify on status changes
+          if (oldStatus !== newStatus) {
+            console.log('Order status changed:', payload);
+
+            const { data: client } = await supabase
+              .from('clients')
+              .select('full_name')
+              .eq('id', payload.new.client_id)
+              .single();
+
+            addNotification({
+              type: 'status_change',
+              title: '📦 Statut modifié',
+              message: `${payload.new.order_number}: ${statusLabels[oldStatus as OrderStatus] || oldStatus} → ${statusLabels[newStatus as OrderStatus] || newStatus}`,
+              data: payload.new,
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Orders channel status:', status);
+      });
+
+    // Subscribe to new payments
+    const paymentsChannel = supabase
+      .channel('payments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'payments',
+        },
+        async (payload) => {
+          console.log('New payment received:', payload);
+
+          const { data: order } = await supabase
+            .from('orders')
+            .select('order_number, client:clients(full_name)')
+            .eq('id', payload.new.order_id)
+            .single();
+
+          addNotification({
+            type: 'payment',
+            title: '💰 Nouveau paiement',
+            message: `${Number(payload.new.amount).toLocaleString()} DH reçu pour ${order?.order_number || 'une commande'}`,
+            data: payload.new,
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log('Payments channel status:', status);
+      });
+
+    // Subscribe to follow-ups due today
+    const followUpsChannel = supabase
+      .channel('followups-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'follow_ups',
+        },
+        async (payload) => {
+          console.log('New follow-up created:', payload);
+
+          const { data: client } = await supabase
+            .from('clients')
+            .select('full_name')
+            .eq('id', payload.new.client_id)
+            .single();
+
+          addNotification({
+            type: 'follow_up',
+            title: '📞 Nouvelle relance',
+            message: `Relance planifiée pour ${client?.full_name || 'un client'}`,
+            data: payload.new,
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log('Follow-ups channel status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up Supabase Realtime subscriptions...');
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(paymentsChannel);
+      supabase.removeChannel(followUpsChannel);
+    };
+  }, [user, addNotification]);
+
+  const markAsRead = (id: string) => {
+    setNotifications(prev =>
+      prev.map(n => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  return (
+    <NotificationsContext.Provider
+      value={{
+        notifications,
+        unreadCount,
+        markAsRead,
+        markAllAsRead,
+        clearNotifications,
+      }}
+    >
+      {children}
+    </NotificationsContext.Provider>
+  );
+}
+
+export function useNotifications() {
+  const context = useContext(NotificationsContext);
+  if (!context) {
+    throw new Error('useNotifications must be used within a NotificationsProvider');
+  }
+  return context;
+}
