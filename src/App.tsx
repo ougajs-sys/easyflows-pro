@@ -28,6 +28,7 @@ import Training from "./pages/Training";
 import Integrations from "./pages/Integrations";
 import Planning from "./pages/Planning";
 import Campaigns from "./pages/Campaigns";
+import Roles from "./pages/Roles";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,7 +73,7 @@ const App = () => (
                 path="/roles"
                 element={
                   <ProtectedRoute allowedRoles={['administrateur']}>
-                    <ModulePage />
+                    <Roles />
                   </ProtectedRoute>
                 }
               />
