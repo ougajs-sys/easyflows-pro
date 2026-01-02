@@ -1,19 +1,30 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Package, User, MapPin, Phone, Truck, X, ExternalLink } from "lucide-react";
+import { Clock, Package, User, MapPin, Phone, Truck, ExternalLink, CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Database } from "@/integrations/supabase/types";
+
+type OrderStatus = Database["public"]["Enums"]["order_status"];
 
 interface OrderDetail {
   id: string;
@@ -28,9 +39,21 @@ interface OrderDetail {
   deliveryPersonPhone?: string | null;
 }
 
+const statusOptions: { value: OrderStatus; label: string; icon: React.ReactNode; color: string }[] = [
+  { value: "pending", label: "En attente", icon: <AlertCircle className="w-4 h-4" />, color: "text-warning" },
+  { value: "confirmed", label: "Confirmée", icon: <CheckCircle2 className="w-4 h-4" />, color: "text-primary" },
+  { value: "in_transit", label: "En transit", icon: <Truck className="w-4 h-4" />, color: "text-blue-500" },
+  { value: "delivered", label: "Livrée", icon: <CheckCircle2 className="w-4 h-4" />, color: "text-success" },
+  { value: "cancelled", label: "Annulée", icon: <XCircle className="w-4 h-4" />, color: "text-destructive" },
+  { value: "reported", label: "Reportée", icon: <AlertCircle className="w-4 h-4" />, color: "text-muted-foreground" },
+];
+
 export function RecentOrders() {
   const isMobile = useIsMobile();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const { data: recentOrders, isLoading } = useQuery({
     queryKey: ["recent-orders-supervisor"],
@@ -86,6 +109,46 @@ export function RecentOrders() {
     },
     refetchInterval: 30000,
   });
+
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    if (!selectedOrder) return;
+    
+    setIsUpdatingStatus(true);
+    try {
+      const updateData: { status: OrderStatus; delivered_at?: string } = { status: newStatus };
+      if (newStatus === "delivered") {
+        updateData.delivered_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from("orders")
+        .update(updateData)
+        .eq("id", selectedOrder.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setSelectedOrder({ ...selectedOrder, status: newStatus });
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["recent-orders-supervisor"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+
+      toast({
+        title: "Statut mis à jour",
+        description: `La commande ${selectedOrder.order_number} est maintenant "${statusOptions.find(s => s.value === newStatus)?.label}"`,
+      });
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le statut",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
@@ -189,7 +252,7 @@ export function RecentOrders() {
 
     return (
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-        <DialogContent className="max-w-md mx-4 rounded-xl">
+        <DialogContent className="max-w-md mx-4 rounded-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span className="font-mono">{selectedOrder.order_number}</span>
@@ -198,6 +261,39 @@ export function RecentOrders() {
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Status Change Section */}
+            <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
+              <h4 className="font-semibold flex items-center gap-2 text-primary">
+                <CheckCircle2 className="w-4 h-4" />
+                Changer le statut
+              </h4>
+              <Select
+                value={selectedOrder.status}
+                onValueChange={(value) => handleStatusChange(value as OrderStatus)}
+                disabled={isUpdatingStatus}
+              >
+                <SelectTrigger className="w-full bg-background">
+                  <SelectValue placeholder="Sélectionner un statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <span className={option.color}>{option.icon}</span>
+                        <span>{option.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isUpdatingStatus && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Mise à jour en cours...
+                </div>
+              )}
+            </div>
+
             {/* Order Info */}
             <div className="p-4 rounded-lg bg-secondary/30 space-y-3">
               <div className="flex items-center justify-between">
