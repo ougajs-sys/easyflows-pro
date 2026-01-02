@@ -18,10 +18,10 @@ const notificationIcons = {
 };
 
 const notificationColors = {
-  new_order: 'text-blue-500 bg-blue-500/10',
-  status_change: 'text-orange-500 bg-orange-500/10',
-  payment: 'text-green-500 bg-green-500/10',
-  follow_up: 'text-purple-500 bg-purple-500/10',
+  new_order: 'text-primary bg-primary/10',
+  status_change: 'text-warning bg-warning/10',
+  payment: 'text-success bg-success/10',
+  follow_up: 'text-accent-foreground bg-accent',
 };
 
 export default function Notifications() {
