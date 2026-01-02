@@ -6,13 +6,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Search, Users, ShieldCheck, Eye, Truck, Phone, UserX, Loader2 } from 'lucide-react';
+import { 
+  Search, Users, ShieldCheck, Eye, Truck, Phone, UserX, Loader2, 
+  CheckCircle2, XCircle, UserCheck, AlertCircle
+} from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -26,6 +40,7 @@ const roleConfig: Record<AppRole, { label: string; icon: React.ElementType; colo
 export function UsersRolesTable() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const { users, isLoading, updateRole } = useUsers();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
@@ -35,7 +50,11 @@ export function UsersRolesTable() {
       user.profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.profile?.phone?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    return matchesSearch && matchesRole;
+    const isActivated = user.role !== null && user.role !== 'appelant';
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'activated' && isActivated) ||
+      (statusFilter === 'pending' && !isActivated);
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
@@ -54,6 +73,22 @@ export function UsersRolesTable() {
     }
   };
 
+  const handleActivateUser = async (userId: string, role: AppRole) => {
+    try {
+      await updateRole.mutateAsync({ userId, newRole: role });
+      toast({
+        title: 'Compte activé',
+        description: `L'utilisateur a été activé en tant que ${roleConfig[role].label}`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible d\'activer le compte',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getInitials = (name: string | null) => {
     if (!name) return '?';
     return name
@@ -64,6 +99,10 @@ export function UsersRolesTable() {
       .slice(0, 2);
   };
 
+  // Count users by activation status
+  const pendingCount = users.filter(u => !u.role || u.role === 'appelant').length;
+  const activatedCount = users.filter(u => u.role && u.role !== 'appelant').length;
+
   return (
     <Card>
       <CardHeader>
@@ -72,8 +111,20 @@ export function UsersRolesTable() {
           Gestion des Utilisateurs
         </CardTitle>
         <CardDescription>
-          Gérez les rôles et permissions des utilisateurs du système
+          Activez les comptes et gérez les rôles des utilisateurs du système
         </CardDescription>
+        
+        {/* Status Summary */}
+        <div className="flex gap-4 pt-2">
+          <div className="flex items-center gap-2 text-sm">
+            <div className="h-2 w-2 rounded-full bg-green-500"></div>
+            <span className="text-muted-foreground">Activés: {activatedCount}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <div className="h-2 w-2 rounded-full bg-yellow-500"></div>
+            <span className="text-muted-foreground">En attente: {pendingCount}</span>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Filters */}
@@ -87,8 +138,28 @@ export function UsersRolesTable() {
               className="pl-10"
             />
           </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Statut" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="activated">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  Activés
+                </div>
+              </SelectItem>
+              <SelectItem value="pending">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  En attente
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filtrer par rôle" />
             </SelectTrigger>
             <SelectContent>
@@ -118,26 +189,36 @@ export function UsersRolesTable() {
                 <TableRow>
                   <TableHead>Utilisateur</TableHead>
                   <TableHead>Téléphone</TableHead>
+                  <TableHead>Statut</TableHead>
                   <TableHead>Rôle actuel</TableHead>
-                  <TableHead>Date d'inscription</TableHead>
-                  <TableHead>Modifier le rôle</TableHead>
+                  <TableHead>Inscription</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.map((user) => {
                   const config = user.role ? roleConfig[user.role] : null;
                   const RoleIcon = config?.icon || UserX;
+                  const isActivated = user.role !== null && user.role !== 'appelant';
+                  const isPending = !user.role || user.role === 'appelant';
 
                   return (
-                    <TableRow key={user.id}>
+                    <TableRow key={user.id} className={isPending ? 'bg-yellow-50/50 dark:bg-yellow-950/10' : ''}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage src={user.profile?.avatar_url || undefined} />
-                            <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                              {getInitials(user.profile?.full_name)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage src={user.profile?.avatar_url || undefined} />
+                              <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                                {getInitials(user.profile?.full_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            {isActivated && (
+                              <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
+                                <CheckCircle2 className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                          </div>
                           <div>
                             <p className="font-medium">
                               {user.profile?.full_name || 'Utilisateur'}
@@ -152,6 +233,19 @@ export function UsersRolesTable() {
                         {user.profile?.phone || '-'}
                       </TableCell>
                       <TableCell>
+                        {isActivated ? (
+                          <Badge variant="default" className="bg-green-500 hover:bg-green-600 gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Activé
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-yellow-600 border-yellow-400 gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            En attente
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {config ? (
                           <Badge variant={config.badgeVariant} className="gap-1">
                             <RoleIcon className="h-3 w-3" />
@@ -163,45 +257,101 @@ export function UsersRolesTable() {
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(user.created_at), 'dd MMM yyyy', { locale: fr })}
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={user.role || ''}
-                          onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
-                          disabled={user.id === currentUser?.id || updateRole.isPending}
-                        >
-                          <SelectTrigger className="w-[160px]">
-                            <SelectValue placeholder="Choisir un rôle" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="administrateur">
-                              <div className="flex items-center gap-2">
-                                <ShieldCheck className="h-4 w-4 text-red-500" />
-                                Administrateur
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="superviseur">
-                              <div className="flex items-center gap-2">
-                                <Eye className="h-4 w-4 text-purple-500" />
-                                Superviseur
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="livreur">
-                              <div className="flex items-center gap-2">
-                                <Truck className="h-4 w-4 text-blue-500" />
-                                Livreur
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="appelant">
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-4 w-4 text-green-500" />
-                                Appelant
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          {/* Quick Activate Button for pending users */}
+                          {isPending && user.id !== currentUser?.id && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="default" className="gap-1">
+                                  <UserCheck className="h-4 w-4" />
+                                  Activer
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Activer le compte</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Choisissez le rôle pour activer le compte de{' '}
+                                    <strong>{user.profile?.full_name || 'cet utilisateur'}</strong>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="grid grid-cols-2 gap-3 py-4">
+                                  <Button
+                                    variant="outline"
+                                    className="flex flex-col items-center gap-2 h-auto py-4 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                    onClick={() => handleActivateUser(user.id, 'superviseur')}
+                                    disabled={updateRole.isPending}
+                                  >
+                                    <Eye className="h-6 w-6 text-purple-500" />
+                                    <span>Superviseur</span>
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    className="flex flex-col items-center gap-2 h-auto py-4 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950"
+                                    onClick={() => handleActivateUser(user.id, 'livreur')}
+                                    disabled={updateRole.isPending}
+                                  >
+                                    <Truck className="h-6 w-6 text-blue-500" />
+                                    <span>Livreur</span>
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    className="flex flex-col items-center gap-2 h-auto py-4 hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-950 col-span-2"
+                                    onClick={() => handleActivateUser(user.id, 'appelant')}
+                                    disabled={updateRole.isPending}
+                                  >
+                                    <Phone className="h-6 w-6 text-green-500" />
+                                    <span>Appelant (Confirmé)</span>
+                                  </Button>
+                                </div>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+
+                          {/* Role Change Dropdown */}
+                          <Select
+                            value={user.role || ''}
+                            onValueChange={(value) => handleRoleChange(user.id, value as AppRole)}
+                            disabled={user.id === currentUser?.id || updateRole.isPending}
+                          >
+                            <SelectTrigger className="w-[140px]">
+                              <SelectValue placeholder="Changer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="administrateur">
+                                <div className="flex items-center gap-2">
+                                  <ShieldCheck className="h-4 w-4 text-red-500" />
+                                  Admin
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="superviseur">
+                                <div className="flex items-center gap-2">
+                                  <Eye className="h-4 w-4 text-purple-500" />
+                                  Superviseur
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="livreur">
+                                <div className="flex items-center gap-2">
+                                  <Truck className="h-4 w-4 text-blue-500" />
+                                  Livreur
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="appelant">
+                                <div className="flex items-center gap-2">
+                                  <Phone className="h-4 w-4 text-green-500" />
+                                  Appelant
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
