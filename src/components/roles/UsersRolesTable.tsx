@@ -6,9 +6,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Search, Users, ShieldCheck, Eye, Truck, Phone, UserX, Loader2, 
-  CheckCircle2, XCircle, UserCheck, AlertCircle
+import {
+  Search,
+  Users,
+  ShieldCheck,
+  Eye,
+  Truck,
+  Phone,
+  UserX,
+  Loader2,
+  CheckCircle2,
+  UserCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,7 +27,6 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -47,14 +55,18 @@ export function UsersRolesTable() {
   const { toast } = useToast();
 
   const filteredUsers = users.filter((user) => {
-    const matchesSearch = 
+    const matchesSearch =
       user.profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.profile?.phone?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const isActivated = user.role !== null && user.role !== 'appelant';
-    const matchesStatus = statusFilter === 'all' || 
+
+    // Activation = role assigned/confirmed by admin (any role)
+    const isActivated = !!user.role;
+    const matchesStatus =
+      statusFilter === 'all' ||
       (statusFilter === 'activated' && isActivated) ||
       (statusFilter === 'pending' && !isActivated);
+
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -102,9 +114,8 @@ export function UsersRolesTable() {
   };
 
   // Count users by activation status
-  const pendingCount = users.filter(u => !u.role || u.role === 'appelant').length;
-  const activatedCount = users.filter(u => u.role && u.role !== 'appelant').length;
-
+  const pendingCount = users.filter((u) => !u.role).length;
+  const activatedCount = users.filter((u) => !!u.role).length;
   return (
     <Card>
       <CardHeader>
@@ -201,8 +212,8 @@ export function UsersRolesTable() {
                 {filteredUsers.map((user) => {
                   const config = user.role ? roleConfig[user.role] : null;
                   const RoleIcon = config?.icon || UserX;
-                  const isActivated = user.role !== null && user.role !== 'appelant';
-                  const isPending = !user.role || user.role === 'appelant';
+                  const isActivated = !!user.role;
+                  const isPending = !user.role;
 
                   return (
                     <TableRow key={user.id} className={isPending ? 'bg-yellow-50/50 dark:bg-yellow-950/10' : ''}>
