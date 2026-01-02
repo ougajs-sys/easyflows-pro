@@ -16,6 +16,7 @@ import Admin from "./pages/Admin";
 import Delivery from "./pages/Delivery";
 import Profile from "./pages/Profile";
 import Clients from "./pages/Clients";
+import Payments from "./pages/Payments";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -115,7 +116,7 @@ const App = () => (
                 path="/payment"
                 element={
                   <ProtectedRoute>
-                    <ModulePage />
+                    <Payments />
                   </ProtectedRoute>
                 }
               />
