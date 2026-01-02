@@ -22,6 +22,7 @@ import Payments from "./pages/Payments";
 import FollowUps from "./pages/FollowUps";
 import Notifications from "./pages/Notifications";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
+import Synthesis from "./pages/Synthesis";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -154,7 +155,7 @@ const App = () => (
                 path="/synthesis"
                 element={
                   <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
-                    <ModulePage />
+                    <Synthesis />
                   </ProtectedRoute>
                 }
               />
