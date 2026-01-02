@@ -21,6 +21,7 @@ import Clients from "./pages/Clients";
 import Payments from "./pages/Payments";
 import FollowUps from "./pages/FollowUps";
 import Notifications from "./pages/Notifications";
+import SupervisorDashboard from "./pages/SupervisorDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,7 +74,7 @@ const App = () => (
                 path="/supervisor"
                 element={
                   <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
-                    <ModulePage />
+                    <SupervisorDashboard />
                   </ProtectedRoute>
                 }
               />
