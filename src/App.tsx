@@ -25,6 +25,7 @@ import SupervisorDashboard from "./pages/SupervisorDashboard";
 import Synthesis from "./pages/Synthesis";
 import Stock from "./pages/Stock";
 import Training from "./pages/Training";
+import Integrations from "./pages/Integrations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -141,7 +142,7 @@ const App = () => (
                 path="/utb"
                 element={
                   <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
-                    <ModulePage />
+                    <Integrations />
                   </ProtectedRoute>
                 }
               />

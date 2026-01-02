@@ -57,7 +57,7 @@ const menuItems: MenuItem[] = [
   { id: 7, label: "Notifications", icon: Bell, path: "/notifications", color: "text-yellow-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
   { id: 8, label: "Paiement", icon: CreditCard, path: "/payment", color: "text-emerald-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
   { id: 9, label: "Suivi Clients", icon: Clock, path: "/clients", color: "text-pink-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
-  { id: 10, label: "Sync UTB", icon: RefreshCw, path: "/utb", color: "text-cyan-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 10, label: "Intégrations", icon: RefreshCw, path: "/utb", color: "text-cyan-400", allowedRoles: ["superviseur", "administrateur"] },
   { id: 11, label: "Relances Auto", icon: MessageSquare, path: "/retargeting", color: "text-indigo-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
   { id: 12, label: "Synthèse", icon: BarChart3, path: "/synthesis", color: "text-teal-400", allowedRoles: ["superviseur", "administrateur"] },
   { id: 13, label: "Planification", icon: Calendar, path: "/planning", color: "text-rose-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
