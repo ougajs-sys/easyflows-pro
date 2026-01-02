@@ -110,7 +110,6 @@ serve(async (req) => {
         quantity: orderData.quantity,
         unit_price: orderData.unit_price,
         total_amount: totalAmount,
-        amount_due: totalAmount,
         delivery_address: orderData.client_address,
         delivery_notes: orderData.notes,
         status: "pending",
