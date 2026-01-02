@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCampaigns, Campaign } from "@/hooks/useCampaigns";
-import { useSmsTemplates } from "@/hooks/useSmsTemplates";
+import { useSmsTemplates, SmsTemplate } from "@/hooks/useSmsTemplates";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { SmsTemplatesManager } from "@/components/campaigns/SmsTemplatesManager";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { 
@@ -27,18 +27,19 @@ import {
   Clock,
   Megaphone,
   TrendingUp,
-  UserCheck,
   Bell,
   Edit,
   Calendar,
   CalendarClock,
   FileText,
-  Sparkles
+  Sparkles,
+  Settings
 } from "lucide-react";
 
 const Campaigns = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates'>('campaigns');
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -184,14 +185,28 @@ const Campaigns = () => {
             <h1 className="text-3xl font-bold text-foreground">Campagnes SMS/WhatsApp</h1>
             <p className="text-muted-foreground mt-1">Gérez vos campagnes marketing via MESSENGER360</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Nouvelle campagne
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
+          <div className="flex gap-2">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates')}>
+              <TabsList>
+                <TabsTrigger value="campaigns" className="gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Campagnes
+                </TabsTrigger>
+                <TabsTrigger value="templates" className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Templates
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {activeTab === 'campaigns' && (
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Nouvelle campagne
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Créer une campagne</DialogTitle>
               </DialogHeader>
@@ -272,70 +287,18 @@ const Campaigns = () => {
                   </div>
                   
                   {showTemplates && (
-                    <div className="border border-border rounded-lg p-3 bg-muted/20 space-y-3">
-                      <Tabs defaultValue="promotion" className="w-full">
-                        <TabsList className="grid grid-cols-4 h-8">
-                          <TabsTrigger value="promotion" className="text-xs">
-                            <Megaphone className="h-3 w-3 mr-1" />
-                            Promo
-                          </TabsTrigger>
-                          <TabsTrigger value="relance" className="text-xs">
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                            Relance
-                          </TabsTrigger>
-                          <TabsTrigger value="notification" className="text-xs">
-                            <Bell className="h-3 w-3 mr-1" />
-                            Notif
-                          </TabsTrigger>
-                          <TabsTrigger value="custom" className="text-xs">
-                            <Sparkles className="h-3 w-3 mr-1" />
-                            Custom
-                          </TabsTrigger>
-                        </TabsList>
-                        
-                        {(['promotion', 'relance', 'notification', 'custom'] as const).map(cat => (
-                          <TabsContent key={cat} value={cat} className="mt-2">
-                            <ScrollArea className="h-[120px]">
-                              <div className="space-y-2">
-                                {templatesByCategory[cat].length === 0 ? (
-                                  <p className="text-xs text-muted-foreground text-center py-4">
-                                    Aucun template disponible
-                                  </p>
-                                ) : (
-                                  templatesByCategory[cat].map(template => (
-                                    <div
-                                      key={template.id}
-                                      onClick={() => {
-                                        setNewCampaign({ 
-                                          ...newCampaign, 
-                                          message: template.message,
-                                          category: template.category
-                                        });
-                                        setShowTemplates(false);
-                                      }}
-                                      className="p-2 rounded border border-border hover:border-primary hover:bg-primary/5 cursor-pointer transition-colors"
-                                    >
-                                      <p className="text-xs font-medium">{template.name}</p>
-                                      <p className="text-xs text-muted-foreground truncate">
-                                        {template.message}
-                                      </p>
-                                      {template.variables.length > 0 && (
-                                        <div className="flex gap-1 mt-1 flex-wrap">
-                                          {template.variables.map(v => (
-                                            <Badge key={v} variant="outline" className="text-[10px] py-0 px-1">
-                                              {`{{${v}}}`}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </ScrollArea>
-                          </TabsContent>
-                        ))}
-                      </Tabs>
+                    <div className="border border-border rounded-lg p-3 bg-muted/20">
+                      <SmsTemplatesManager 
+                        mode="select" 
+                        onSelectTemplate={(template) => {
+                          setNewCampaign({ 
+                            ...newCampaign, 
+                            message: template.message,
+                            category: template.category
+                          });
+                          setShowTemplates(false);
+                        }}
+                      />
                     </div>
                   )}
                   
@@ -416,8 +379,14 @@ const Campaigns = () => {
               </div>
             </DialogContent>
           </Dialog>
+            )}
+          </div>
         </div>
 
+        {activeTab === 'templates' ? (
+          <SmsTemplatesManager />
+        ) : (
+          <>
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -580,6 +549,8 @@ const Campaigns = () => {
             )}
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

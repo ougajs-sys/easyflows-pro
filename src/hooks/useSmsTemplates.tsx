@@ -24,7 +24,11 @@ export const useSmsTemplates = () => {
         .eq("is_active", true)
         .order("category", { ascending: true });
       if (error) throw error;
-      return data as SmsTemplate[];
+      return (data || []).map(t => ({
+        ...t,
+        variables: t.variables || [],
+        category: t.category as 'promotion' | 'relance' | 'notification' | 'custom'
+      })) as SmsTemplate[];
     },
   });
 
