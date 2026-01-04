@@ -31,6 +31,7 @@ import Campaigns from "./pages/Campaigns";
 import Roles from "./pages/Roles";
 import WebhookTest from "./pages/WebhookTest";
 import EmbedOrderForm from "./pages/EmbedOrderForm";
+import EmbedFormsAdmin from "./pages/EmbedFormsAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -204,6 +205,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
                     <ModulePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/embed-forms"
+                element={
+                  <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                    <EmbedFormsAdmin />
                   </ProtectedRoute>
                 }
               />

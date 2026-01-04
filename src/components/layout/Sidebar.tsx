@@ -29,6 +29,7 @@ import {
   Sun,
   User,
   LogOut,
+  Code,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,7 @@ const menuItems: MenuItem[] = [
   { id: 13, label: "Planification", icon: Calendar, path: "/planning", color: "text-rose-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
   { id: 14, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
   { id: 15, label: "Campagnes SMS", icon: Send, path: "/campaigns", color: "text-violet-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 16, label: "Formulaires Embed", icon: Code, path: "/admin/embed-forms", color: "text-sky-400", allowedRoles: ["superviseur", "administrateur"] },
 ];
 
 function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: { 
