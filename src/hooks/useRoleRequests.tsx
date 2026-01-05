@@ -132,22 +132,20 @@ export function useRoleRequests() {
 
         // If the role is livreur, create a delivery_persons entry
         if (requestedRole === 'livreur') {
-          const { data: existingDP } = await supabase
+          // Use upsert to avoid duplicate key errors
+          const { error: dpError } = await supabase
             .from('delivery_persons')
-            .select('id')
-            .eq('user_id', userId)
-            .single();
+            .upsert({
+              user_id: userId,
+              status: 'offline',
+              is_active: true,
+            }, {
+              onConflict: 'user_id',
+            });
 
-          if (!existingDP) {
-            const { error: dpError } = await supabase
-              .from('delivery_persons')
-              .insert({
-                user_id: userId,
-                status: 'offline',
-                is_active: true,
-              });
-
-            if (dpError) throw dpError;
+          if (dpError) {
+            console.error('Error creating delivery_persons entry:', dpError);
+            throw dpError;
           }
         }
       }
