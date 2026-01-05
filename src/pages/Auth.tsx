@@ -17,6 +17,21 @@ import { Database } from '@/integrations/supabase/types';
 
 type AppRole = Database['public']['Enums']['app_role'];
 
+// Helper function to get redirect path based on role
+const getRedirectPathForRole = (role: AppRole | null): string => {
+  switch (role) {
+    case 'livreur':
+      return '/delivery';
+    case 'superviseur':
+      return '/supervisor';
+    case 'administrateur':
+    case 'appelant':
+    default:
+      return '/dashboard';
+  }
+};
+
+
 const loginSchema = z.object({
   email: z.string().email('Email invalide'),
   password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
@@ -55,13 +70,14 @@ export default function Auth() {
   const [selectedRole, setSelectedRole] = useState<'appelant' | 'livreur'>('appelant');
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, signIn, signUp } = useAuth();
+  const { user, role, signIn, signUp } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
+    if (user && role) {
+      const redirectPath = getRedirectPathForRole(role);
+      navigate(redirectPath);
     }
-  }, [user, navigate]);
+  }, [user, role, navigate]);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -103,7 +119,7 @@ export default function Auth() {
         title: 'Connexion réussie',
         description: 'Bienvenue !',
       });
-      navigate('/dashboard');
+      // Redirection will be handled by useEffect when role is loaded
     }
     setIsLoading(false);
   };

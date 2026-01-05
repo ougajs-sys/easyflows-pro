@@ -48,23 +48,31 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 0, label: "Commandes", icon: Package, path: "/orders", color: "text-primary", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 1, label: "Produits", icon: Package, path: "/products", color: "text-orange-400", allowedRoles: ["administrateur"] },
-  { id: 2, label: "Rôles & Accès", icon: ShieldCheck, path: "/roles", color: "text-red-400", allowedRoles: ["administrateur"] },
-  { id: 3, label: "Tableau Superviseur", icon: LayoutDashboard, path: "/supervisor", color: "text-blue-400", allowedRoles: ["superviseur", "administrateur"] },
-  { id: 4, label: "Tableau Admin", icon: Users, path: "/admin", color: "text-purple-400", allowedRoles: ["administrateur"] },
-  { id: 5, label: "Espace Livreur", icon: Truck, path: "/delivery", color: "text-green-400", allowedRoles: ["livreur", "superviseur", "administrateur"] },
+  // Livreur uniquement - Espace dédié
+  { id: 0, label: "Mon Espace", icon: Truck, path: "/delivery", color: "text-green-400", allowedRoles: ["livreur"] },
+  
+  // Appelant, Superviseur, Admin - Pas Livreur
+  { id: 1, label: "Tableau de bord", icon: LayoutDashboard, path: "/dashboard", color: "text-primary", allowedRoles: ["appelant", "superviseur", "administrateur"] },
+  { id: 2, label: "Commandes", icon: Package, path: "/orders", color: "text-blue-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
+  { id: 3, label: "Suivi Clients", icon: Clock, path: "/clients", color: "text-pink-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
+  { id: 4, label: "Relances Auto", icon: MessageSquare, path: "/retargeting", color: "text-indigo-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
+  
+  // Superviseur et Admin uniquement
+  { id: 5, label: "Tableau Superviseur", icon: BarChart3, path: "/supervisor", color: "text-cyan-400", allowedRoles: ["superviseur", "administrateur"] },
   { id: 6, label: "Stock Global", icon: Package, path: "/stock", color: "text-lime-400", allowedRoles: ["superviseur", "administrateur"] },
-  { id: 7, label: "Notifications", icon: Bell, path: "/notifications", color: "text-yellow-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 8, label: "Paiement", icon: CreditCard, path: "/payment", color: "text-emerald-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 9, label: "Suivi Clients", icon: Clock, path: "/clients", color: "text-pink-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
-  { id: 10, label: "Intégrations", icon: RefreshCw, path: "/utb", color: "text-cyan-400", allowedRoles: ["superviseur", "administrateur"] },
-  { id: 11, label: "Relances Auto", icon: MessageSquare, path: "/retargeting", color: "text-indigo-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
-  { id: 12, label: "Synthèse", icon: BarChart3, path: "/synthesis", color: "text-teal-400", allowedRoles: ["superviseur", "administrateur"] },
-  { id: 13, label: "Planification", icon: Calendar, path: "/planning", color: "text-rose-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 14, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 15, label: "Campagnes SMS", icon: Send, path: "/campaigns", color: "text-violet-400", allowedRoles: ["superviseur", "administrateur"] },
-  { id: 16, label: "Formulaires Embed", icon: Code, path: "/admin/embed-forms", color: "text-sky-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 7, label: "Synthèse", icon: BarChart3, path: "/synthesis", color: "text-teal-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 8, label: "Intégrations", icon: RefreshCw, path: "/utb", color: "text-cyan-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 9, label: "Campagnes SMS", icon: Send, path: "/campaigns", color: "text-violet-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 10, label: "Formulaires Embed", icon: Code, path: "/admin/embed-forms", color: "text-sky-400", allowedRoles: ["superviseur", "administrateur"] },
+  
+  // Admin uniquement
+  { id: 11, label: "Produits", icon: Package, path: "/products", color: "text-orange-400", allowedRoles: ["administrateur"] },
+  { id: 12, label: "Rôles & Accès", icon: ShieldCheck, path: "/roles", color: "text-red-400", allowedRoles: ["administrateur"] },
+  { id: 13, label: "Tableau Admin", icon: Users, path: "/admin", color: "text-purple-400", allowedRoles: ["administrateur"] },
+  
+  // Commun à tous (sauf livreur pour certains)
+  { id: 14, label: "Notifications", icon: Bell, path: "/notifications", color: "text-yellow-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
+  { id: 15, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
 ];
 
 function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: { 
