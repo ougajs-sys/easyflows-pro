@@ -2,7 +2,6 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { OrdersTable } from "@/components/dashboard/OrdersTable";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import { DeliveryStatus } from "@/components/dashboard/DeliveryStatus";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { SalesTrendChart } from "@/components/dashboard/SalesTrendChart";
 import { Package, Truck, CreditCard, Users } from "lucide-react";
@@ -60,10 +59,9 @@ export default function Dashboard() {
           <OrdersTable />
         </div>
 
-        {/* Right Sidebar */}
+        {/* Right Sidebar - No more DeliveryStatus for callers */}
         <div className="space-y-6">
           <QuickActions />
-          <DeliveryStatus />
         </div>
       </div>
 

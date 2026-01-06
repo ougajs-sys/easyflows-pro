@@ -5,6 +5,8 @@ import { CallerPerformance } from "@/components/supervisor/CallerPerformance";
 import { SalesSummary } from "@/components/supervisor/SalesSummary";
 import { SupervisorStats } from "@/components/supervisor/SupervisorStats";
 import { RecentOrders } from "@/components/supervisor/RecentOrders";
+import { ConfirmedOrdersDispatch } from "@/components/supervisor/ConfirmedOrdersDispatch";
+import { DeliveryStatus } from "@/components/dashboard/DeliveryStatus";
 
 export default function SupervisorDashboard() {
   return (
@@ -22,12 +24,22 @@ export default function SupervisorDashboard() {
       {/* Stats Overview */}
       <SupervisorStats />
 
+      {/* Confirmed Orders to Dispatch - NEW SECTION */}
+      <div className="mt-6">
+        <ConfirmedOrdersDispatch />
+      </div>
+
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Delivery Performance */}
         <DeliveryPerformance />
 
-        {/* Caller Performance */}
+        {/* Active Delivery Persons - Moved from Dashboard */}
+        <DeliveryStatus />
+      </div>
+
+      {/* Caller Performance */}
+      <div className="mt-6">
         <CallerPerformance />
       </div>
 
