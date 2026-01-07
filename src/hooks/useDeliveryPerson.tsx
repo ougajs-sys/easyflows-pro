@@ -2,10 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { useAuth } from './useAuth';
+import { useEffect } from 'react';
 
 type DeliveryPerson = Database['public']['Tables']['delivery_persons']['Row'];
 type DeliveryStatus = Database['public']['Enums']['delivery_status'];
 type OrderStatus = Database['public']['Enums']['order_status'];
+
+// Delivery fee per order (can be made configurable later)
+const DELIVERY_FEE = 500;
 
 export function useDeliveryPerson() {
   const queryClient = useQueryClient();
@@ -29,7 +33,7 @@ export function useDeliveryPerson() {
     enabled: !!user?.id,
   });
 
-  // Get orders assigned to this delivery person
+  // Get orders assigned to this delivery person (active)
   const { data: assignedOrders = [], isLoading: isLoadingOrders } = useQuery({
     queryKey: ['delivery-orders', deliveryProfile?.id],
     queryFn: async () => {
@@ -79,6 +83,88 @@ export function useDeliveryPerson() {
     enabled: !!deliveryProfile?.id,
   });
 
+  // Get today's reported orders
+  const { data: reportedOrders = [] } = useQuery({
+    queryKey: ['delivery-reported', deliveryProfile?.id],
+    queryFn: async () => {
+      if (!deliveryProfile?.id) return [];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          client:clients(*),
+          product:products(*)
+        `)
+        .eq('delivery_person_id', deliveryProfile.id)
+        .eq('status', 'reported')
+        .gte('updated_at', today.toISOString())
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!deliveryProfile?.id,
+  });
+
+  // Get today's cancelled orders
+  const { data: cancelledOrders = [] } = useQuery({
+    queryKey: ['delivery-cancelled', deliveryProfile?.id],
+    queryFn: async () => {
+      if (!deliveryProfile?.id) return [];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          client:clients(*),
+          product:products(*)
+        `)
+        .eq('delivery_person_id', deliveryProfile.id)
+        .eq('status', 'cancelled')
+        .gte('updated_at', today.toISOString())
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!deliveryProfile?.id,
+  });
+
+  // Subscribe to real-time updates for orders
+  useEffect(() => {
+    if (!deliveryProfile?.id) return;
+
+    const channel = supabase
+      .channel('delivery-orders-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `delivery_person_id=eq.${deliveryProfile.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['delivery-orders'] });
+          queryClient.invalidateQueries({ queryKey: ['delivery-today'] });
+          queryClient.invalidateQueries({ queryKey: ['delivery-reported'] });
+          queryClient.invalidateQueries({ queryKey: ['delivery-cancelled'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [deliveryProfile?.id, queryClient]);
+
   // Update delivery status
   const updateDeliveryStatus = useMutation({
     mutationFn: async (status: DeliveryStatus) => {
@@ -125,16 +211,30 @@ export function useDeliveryPerson() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delivery-orders'] });
       queryClient.invalidateQueries({ queryKey: ['delivery-today'] });
+      queryClient.invalidateQueries({ queryKey: ['delivery-reported'] });
+      queryClient.invalidateQueries({ queryKey: ['delivery-cancelled'] });
       queryClient.invalidateQueries({ queryKey: ['delivery-person'] });
     },
   });
+
+  // Calculate stats
+  const todayRevenue = todayDeliveries.reduce((sum, o) => sum + (o.amount_paid || 0), 0);
+  const delivererRevenue = todayDeliveries.length * DELIVERY_FEE;
+  const amountToReturn = todayRevenue - delivererRevenue;
 
   return {
     deliveryProfile,
     assignedOrders,
     todayDeliveries,
+    reportedOrders,
+    cancelledOrders,
     isLoading: isLoadingProfile || isLoadingOrders,
     updateDeliveryStatus,
     updateOrderStatus,
+    // Stats
+    deliveryFee: DELIVERY_FEE,
+    todayRevenue,
+    delivererRevenue,
+    amountToReturn: Math.max(0, amountToReturn),
   };
 }

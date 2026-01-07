@@ -1,9 +1,11 @@
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { DeliveryStats } from "@/components/delivery/DeliveryStats";
-import { DeliveryOrdersList } from "@/components/delivery/DeliveryOrdersList";
-import { DeliveryStatusToggle } from "@/components/delivery/DeliveryStatusToggle";
+import { useState } from "react";
+import { DeliveryLayout } from "@/components/delivery/DeliveryLayout";
+import { DeliveryDashboard } from "@/components/delivery/DeliveryDashboard";
+import { DeliveryOrders } from "@/components/delivery/DeliveryOrders";
+import { DeliveryChat } from "@/components/delivery/DeliveryChat";
+import { DeliveryTraining } from "@/components/delivery/DeliveryTraining";
 import { useDeliveryPerson } from "@/hooks/useDeliveryPerson";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Loader2, AlertCircle, Truck } from "lucide-react";
 import { toast } from "sonner";
@@ -11,19 +13,26 @@ import { useAuth } from "@/hooks/useAuth";
 import { Database } from "@/integrations/supabase/types";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
+type DeliveryStatus = Database["public"]["Enums"]["delivery_status"];
 
 export default function Delivery() {
   const { role } = useAuth();
+  const [activeSection, setActiveSection] = useState("dashboard");
   const {
     deliveryProfile,
     assignedOrders,
     todayDeliveries,
+    reportedOrders,
+    cancelledOrders,
     isLoading,
     updateDeliveryStatus,
     updateOrderStatus,
+    deliveryFee,
+    todayRevenue,
+    amountToReturn,
   } = useDeliveryPerson();
 
-  const handleStatusChange = async (status: Database["public"]["Enums"]["delivery_status"]) => {
+  const handleStatusChange = async (status: DeliveryStatus) => {
     try {
       await updateDeliveryStatus.mutateAsync(status);
       toast.success("Statut mis à jour");
@@ -40,6 +49,7 @@ export default function Delivery() {
         delivered: "Livraison confirmée",
         partial: "Paiement partiel enregistré",
         reported: "Commande reportée",
+        cancelled: "Commande annulée",
       };
       toast.success(statusMessages[status] || "Statut mis à jour");
     } catch {
@@ -104,84 +114,72 @@ export default function Delivery() {
     );
   }
 
-  const inTransitOrders = assignedOrders.filter((o) => o.status === "in_transit");
-  const pendingOrders = assignedOrders.filter((o) => o.status !== "in_transit");
-  const todayRevenue = todayDeliveries.reduce((sum, o) => sum + (o.amount_paid || 0), 0);
+  // Prepare data for chat (reported and cancelled orders for today)
+  const reportedForChat = reportedOrders.map((o) => ({
+    id: o.id,
+    order_number: o.order_number,
+    client_name: o.client?.full_name || "Client inconnu",
+    status: o.status,
+  }));
+
+  const cancelledForChat = cancelledOrders.map((o) => ({
+    id: o.id,
+    order_number: o.order_number,
+    client_name: o.client?.full_name || "Client inconnu",
+    status: o.status,
+  }));
+
+  // Stats
+  const receivedCount = assignedOrders.length + todayDeliveries.length + reportedOrders.length + cancelledOrders.length;
+
+  const renderSection = () => {
+    switch (activeSection) {
+      case "dashboard":
+        return (
+          <DeliveryDashboard
+            receivedCount={receivedCount}
+            deliveredCount={todayDeliveries.length}
+            reportedCount={reportedOrders.length}
+            cancelledCount={cancelledOrders.length}
+            deliveryFee={deliveryFee}
+            todayRevenue={todayRevenue}
+            amountToReturn={amountToReturn}
+          />
+        );
+      case "orders":
+        return (
+          <DeliveryOrders
+            assignedOrders={assignedOrders}
+            deliveredOrders={todayDeliveries}
+            reportedOrders={reportedOrders}
+            cancelledOrders={cancelledOrders}
+            onUpdateStatus={handleOrderStatusChange}
+            isUpdating={updateOrderStatus.isPending}
+          />
+        );
+      case "chat":
+        return (
+          <DeliveryChat
+            reportedOrders={reportedForChat}
+            cancelledOrders={cancelledForChat}
+          />
+        );
+      case "training":
+        return <DeliveryTraining />;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Espace Livreur</h1>
-            <p className="text-muted-foreground">Gérez vos livraisons et mettez à jour votre statut</p>
-          </div>
-          <div className="w-full md:w-auto">
-            <DeliveryStatusToggle
-              currentStatus={deliveryProfile.status}
-              onStatusChange={handleStatusChange}
-              isUpdating={updateDeliveryStatus.isPending}
-            />
-          </div>
-        </div>
-
-        {/* Stats */}
-        <DeliveryStats
-          assignedCount={pendingOrders.length}
-          completedToday={todayDeliveries.length}
-          inTransitCount={inTransitOrders.length}
-          todayRevenue={todayRevenue}
-          status={deliveryProfile.status}
-        />
-
-        {/* Orders Tabs */}
-        <Tabs defaultValue="active" className="space-y-4">
-          <TabsList className="bg-muted/50">
-            <TabsTrigger value="active" className="data-[state=active]:bg-background">
-              À livrer ({assignedOrders.length})
-            </TabsTrigger>
-            <TabsTrigger value="completed" className="data-[state=active]:bg-background">
-              Livrées aujourd'hui ({todayDeliveries.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="active">
-            <DeliveryOrdersList
-              orders={assignedOrders}
-              onUpdateStatus={handleOrderStatusChange}
-              isUpdating={updateOrderStatus.isPending}
-            />
-          </TabsContent>
-
-          <TabsContent value="completed">
-            {todayDeliveries.length === 0 ? (
-              <Card className="p-8 glass text-center">
-                <p className="text-muted-foreground">Aucune livraison effectuée aujourd'hui</p>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {todayDeliveries.map((order) => (
-                  <Card key={order.id} className="p-4 glass">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-foreground">{order.client?.full_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {order.product?.name} x{order.quantity}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-success">{order.amount_paid?.toLocaleString()} F</p>
-                        <p className="text-xs text-muted-foreground">{order.order_number}</p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-    </DashboardLayout>
+    <DeliveryLayout
+      activeSection={activeSection}
+      onSectionChange={setActiveSection}
+      deliveryStatus={deliveryProfile.status}
+      onStatusChange={handleStatusChange}
+      isUpdatingStatus={updateDeliveryStatus.isPending}
+    >
+      {renderSection()}
+    </DeliveryLayout>
   );
 }
