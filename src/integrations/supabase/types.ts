@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      caller_achievements: {
+        Row: {
+          achievement_name: string
+          achievement_type: string
+          description: string | null
+          earned_at: string
+          id: string
+          points_awarded: number | null
+          user_id: string
+        }
+        Insert: {
+          achievement_name: string
+          achievement_type: string
+          description?: string | null
+          earned_at?: string
+          id?: string
+          points_awarded?: number | null
+          user_id: string
+        }
+        Update: {
+          achievement_name?: string
+          achievement_type?: string
+          description?: string | null
+          earned_at?: string
+          id?: string
+          points_awarded?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      caller_scores: {
+        Row: {
+          best_streak: number | null
+          confirmed_orders: number | null
+          conversion_rate: number | null
+          created_at: string
+          id: string
+          last_activity_date: string | null
+          level: number | null
+          streak_days: number | null
+          total_points: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          best_streak?: number | null
+          confirmed_orders?: number | null
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          last_activity_date?: string | null
+          level?: number | null
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          best_streak?: number | null
+          confirmed_orders?: number | null
+          conversion_rate?: number | null
+          created_at?: string
+          id?: string
+          last_activity_date?: string | null
+          level?: number | null
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       campaign_logs: {
         Row: {
           campaign_id: string | null
@@ -260,6 +332,50 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          channel: string
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean | null
+          message_type: string | null
+          order_id: string | null
+          receiver_id: string | null
+          sender_id: string
+        }
+        Insert: {
+          channel?: string
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message_type?: string | null
+          order_id?: string | null
+          receiver_id?: string | null
+          sender_id: string
+        }
+        Update: {
+          channel?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message_type?: string | null
+          order_id?: string | null
+          receiver_id?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           amount_due: number | null
@@ -488,6 +604,66 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_followups: {
+        Row: {
+          attempts: number | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          followup_type: string | null
+          id: string
+          last_attempt_at: string | null
+          order_id: string
+          scheduled_at: string
+          sms_content: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          followup_type?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          order_id: string
+          scheduled_at: string
+          sms_content?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          followup_type?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          order_id?: string
+          scheduled_at?: string
+          sms_content?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_followups_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_followups_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schedules: {
         Row: {
           created_at: string
@@ -563,6 +739,51 @@ export type Database = {
         }
         Relationships: []
       }
+      training_resources: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          duration: string | null
+          id: string
+          is_active: boolean | null
+          order_index: number | null
+          title: string
+          type: string
+          updated_at: string
+          url: string | null
+          youtube_id: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          is_active?: boolean | null
+          order_index?: number | null
+          title: string
+          type: string
+          updated_at?: string
+          url?: string | null
+          youtube_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          is_active?: boolean | null
+          order_index?: number | null
+          title?: string
+          type?: string
+          updated_at?: string
+          url?: string | null
+          youtube_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           confirmed: boolean
@@ -589,6 +810,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_training_progress: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          progress_percent: number | null
+          resource_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          progress_percent?: number | null
+          resource_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          progress_percent?: number | null
+          resource_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_training_progress_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "training_resources"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
