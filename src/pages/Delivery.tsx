@@ -4,6 +4,7 @@ import { DeliveryDashboard } from "@/components/delivery/DeliveryDashboard";
 import { DeliveryOrders } from "@/components/delivery/DeliveryOrders";
 import { DeliveryChat } from "@/components/delivery/DeliveryChat";
 import { DeliveryTraining } from "@/components/delivery/DeliveryTraining";
+import { DeliveryStock } from "@/components/delivery/DeliveryStock";
 import { useDeliveryPerson } from "@/hooks/useDeliveryPerson";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/card";
@@ -157,6 +158,8 @@ export default function Delivery() {
             isUpdating={updateOrderStatus.isPending}
           />
         );
+      case "stock":
+        return <DeliveryStock deliveryPersonId={deliveryProfile.id} />;
       case "chat":
         return (
           <DeliveryChat

@@ -11,7 +11,8 @@ import {
   X,
   LogOut,
   Moon,
-  Sun
+  Sun,
+  Boxes
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,6 +34,7 @@ interface DeliveryLayoutProps {
 const menuItems = [
   { id: "dashboard", label: "Mon espace", icon: Home },
   { id: "orders", label: "Commandes", icon: Package },
+  { id: "stock", label: "Mon Stock", icon: Boxes },
   { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "training", label: "Formation", icon: GraduationCap },
 ];

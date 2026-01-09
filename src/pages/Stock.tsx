@@ -4,10 +4,15 @@ import { StockOverview } from "@/components/stock/StockOverview";
 import { StockTable } from "@/components/stock/StockTable";
 import { StockAlerts } from "@/components/stock/StockAlerts";
 import { StockHistory } from "@/components/stock/StockHistory";
-import { Package } from "lucide-react";
+import { StockTransferManager } from "@/components/supervisor/StockTransferManager";
+import { Package, Truck } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Stock() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const { role } = useAuth();
+  const canManageTransfers = role === "administrateur" || role === "superviseur";
 
   return (
     <DashboardLayout>
@@ -22,29 +27,47 @@ export default function Stock() {
         </p>
       </div>
 
-      {/* Overview Stats */}
-      <StockOverview />
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+          {canManageTransfers && (
+            <TabsTrigger value="transfers" className="flex items-center gap-2">
+              <Truck className="w-4 h-4" />
+              Stock Livreurs
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-      {/* Alerts Section */}
-      <div className="mt-6">
-        <StockAlerts />
-      </div>
+        <TabsContent value="overview" className="space-y-6">
+          {/* Overview Stats */}
+          <StockOverview />
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Stock Table */}
-        <div className="lg:col-span-2">
-          <StockTable 
-            onSelectProduct={setSelectedProductId}
-            selectedProductId={selectedProductId}
-          />
-        </div>
+          {/* Alerts Section */}
+          <StockAlerts />
 
-        {/* Stock History */}
-        <div>
-          <StockHistory productId={selectedProductId} />
-        </div>
-      </div>
+          {/* Main Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Stock Table */}
+            <div className="lg:col-span-2">
+              <StockTable 
+                onSelectProduct={setSelectedProductId}
+                selectedProductId={selectedProductId}
+              />
+            </div>
+
+            {/* Stock History */}
+            <div>
+              <StockHistory productId={selectedProductId} />
+            </div>
+          </div>
+        </TabsContent>
+
+        {canManageTransfers && (
+          <TabsContent value="transfers">
+            <StockTransferManager />
+          </TabsContent>
+        )}
+      </Tabs>
     </DashboardLayout>
   );
 }

@@ -239,6 +239,51 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_person_stock: {
+        Row: {
+          created_at: string
+          delivery_person_id: string
+          id: string
+          last_restocked_at: string | null
+          product_id: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_person_id: string
+          id?: string
+          last_restocked_at?: string | null
+          product_id: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_person_id?: string
+          id?: string
+          last_restocked_at?: string | null
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_person_stock_delivery_person_id_fkey"
+            columns: ["delivery_person_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_person_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_persons: {
         Row: {
           created_at: string
@@ -739,6 +784,57 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_movements: {
+        Row: {
+          created_at: string
+          delivery_person_id: string | null
+          id: string
+          movement_type: string
+          notes: string | null
+          performed_by: string | null
+          product_id: string
+          quantity: number
+          reference_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          delivery_person_id?: string | null
+          id?: string
+          movement_type: string
+          notes?: string | null
+          performed_by?: string | null
+          product_id: string
+          quantity: number
+          reference_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          delivery_person_id?: string | null
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          performed_by?: string | null
+          product_id?: string
+          quantity?: number
+          reference_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_delivery_person_id_fkey"
+            columns: ["delivery_person_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_resources: {
         Row: {
           category: string
@@ -863,6 +959,24 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      transfer_stock_from_delivery: {
+        Args: {
+          p_delivery_person_id: string
+          p_performed_by: string
+          p_product_id: string
+          p_quantity: number
+        }
+        Returns: Json
+      }
+      transfer_stock_to_delivery: {
+        Args: {
+          p_delivery_person_id: string
+          p_performed_by: string
+          p_product_id: string
+          p_quantity: number
+        }
+        Returns: Json
       }
     }
     Enums: {
