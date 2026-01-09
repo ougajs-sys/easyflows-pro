@@ -52,10 +52,10 @@ type LoginFormData = z.infer<typeof loginSchema>;
 type SignupFormData = z.infer<typeof signupSchema>;
 
 const roles = [
-  { id: 'appelant', label: 'Appelant', icon: Phone, color: 'text-primary' },
-  { id: 'livreur', label: 'Livreur', icon: Truck, color: 'text-success' },
-  { id: 'superviseur', label: 'Superviseur', icon: Users, color: 'text-warning' },
-  { id: 'administrateur', label: 'Administrateur', icon: Shield, color: 'text-destructive' },
+  { id: 'appelant', label: 'Appelant', icon: Phone, color: 'text-primary', bgColor: 'bg-primary/10', borderColor: 'border-primary', description: 'Gestion des appels clients' },
+  { id: 'livreur', label: 'Livreur', icon: Truck, color: 'text-success', bgColor: 'bg-success/10', borderColor: 'border-success', description: 'Livraison des commandes' },
+  { id: 'superviseur', label: 'Superviseur', icon: Users, color: 'text-warning', bgColor: 'bg-warning/10', borderColor: 'border-warning', description: 'Supervision des équipes' },
+  { id: 'administrateur', label: 'Administrateur', icon: Shield, color: 'text-destructive', bgColor: 'bg-destructive/10', borderColor: 'border-destructive', description: 'Gestion complète' },
 ];
 
 const signupRoles = [
@@ -68,6 +68,7 @@ export default function Auth() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<'appelant' | 'livreur'>('appelant');
+  const [selectedLoginRole, setSelectedLoginRole] = useState<AppRole>('appelant');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, role, signIn, signUp } = useAuth();
@@ -114,14 +115,15 @@ export default function Auth() {
         description: message,
         variant: 'destructive',
       });
+      setIsLoading(false);
     } else {
       toast({
         title: 'Connexion réussie',
-        description: 'Bienvenue !',
+        description: 'Redirection vers votre espace...',
       });
-      // Redirection will be handled by useEffect when role is loaded
+      // Redirect based on selected role if user's actual role matches, otherwise redirect by actual role
+      // The useEffect will handle actual role-based redirection
     }
-    setIsLoading(false);
   };
 
   const onSignup = async (data: SignupFormData) => {
@@ -195,18 +197,32 @@ export default function Auth() {
 
           <div className="space-y-6">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Rôles disponibles
+              Sélectionnez votre espace
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              {roles.map((role) => (
-                <div key={role.id} className="glass glass-hover rounded-lg p-4 flex items-center gap-3">
-                  <div className={`p-2 rounded-lg bg-card ${role.color}`}>
-                    <role.icon className="w-5 h-5" />
+              {roles.map((roleItem) => (
+                <button
+                  key={roleItem.id}
+                  onClick={() => setSelectedLoginRole(roleItem.id as AppRole)}
+                  className={`glass rounded-lg p-4 flex items-center gap-3 transition-all duration-200 text-left ${
+                    selectedLoginRole === roleItem.id 
+                      ? `ring-2 ${roleItem.borderColor} ${roleItem.bgColor}` 
+                      : 'hover:bg-card/50'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${roleItem.bgColor} ${roleItem.color}`}>
+                    <roleItem.icon className="w-5 h-5" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">{role.label}</span>
-                </div>
+                  <div>
+                    <span className="text-sm font-medium text-foreground block">{roleItem.label}</span>
+                    <span className="text-xs text-muted-foreground">{roleItem.description}</span>
+                  </div>
+                </button>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Cliquez sur votre rôle puis connectez-vous
+            </p>
           </div>
         </div>
       </div>
@@ -235,6 +251,28 @@ export default function Auth() {
               {/* Login Tab */}
               <TabsContent value="login">
                 <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
+                  {/* Mobile Role Selection */}
+                  <div className="lg:hidden space-y-2">
+                    <Label>Votre espace</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {roles.map((roleItem) => (
+                        <button
+                          key={roleItem.id}
+                          type="button"
+                          onClick={() => setSelectedLoginRole(roleItem.id as AppRole)}
+                          className={`rounded-lg p-3 flex items-center gap-2 transition-all duration-200 border ${
+                            selectedLoginRole === roleItem.id 
+                              ? `${roleItem.borderColor} ${roleItem.bgColor}` 
+                              : 'border-border hover:bg-muted/50'
+                          }`}
+                        >
+                          <roleItem.icon className={`w-4 h-4 ${roleItem.color}`} />
+                          <span className="text-xs font-medium text-foreground">{roleItem.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
                     <Input
@@ -274,6 +312,22 @@ export default function Auth() {
                         {loginForm.formState.errors.password.message}
                       </p>
                     )}
+                  </div>
+
+                  {/* Selected role indicator */}
+                  <div className="hidden lg:flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+                    {(() => {
+                      const currentRole = roles.find(r => r.id === selectedLoginRole);
+                      if (!currentRole) return null;
+                      return (
+                        <>
+                          <currentRole.icon className={`w-4 h-4 ${currentRole.color}`} />
+                          <span className="text-sm text-muted-foreground">
+                            Connexion vers : <span className="font-medium text-foreground">{currentRole.label}</span>
+                          </span>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   <Button
