@@ -5,7 +5,9 @@ import { StockTable } from "@/components/stock/StockTable";
 import { StockAlerts } from "@/components/stock/StockAlerts";
 import { StockHistory } from "@/components/stock/StockHistory";
 import { StockTransferManager } from "@/components/supervisor/StockTransferManager";
-import { Package, Truck } from "lucide-react";
+import { StockAlertsPanel } from "@/components/stock/StockAlertsPanel";
+import { SupplyRequestsPanel } from "@/components/stock/SupplyRequestsPanel";
+import { Package, Truck, Bell, Send } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -31,10 +33,20 @@ export default function Stock() {
         <TabsList>
           <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
           {canManageTransfers && (
-            <TabsTrigger value="transfers" className="flex items-center gap-2">
-              <Truck className="w-4 h-4" />
-              Stock Livreurs
-            </TabsTrigger>
+            <>
+              <TabsTrigger value="transfers" className="flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                Stock Livreurs
+              </TabsTrigger>
+              <TabsTrigger value="alerts" className="flex items-center gap-2">
+                <Bell className="w-4 h-4" />
+                Alertes
+              </TabsTrigger>
+              <TabsTrigger value="requests" className="flex items-center gap-2">
+                <Send className="w-4 h-4" />
+                Demandes
+              </TabsTrigger>
+            </>
           )}
         </TabsList>
 

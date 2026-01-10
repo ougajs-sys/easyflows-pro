@@ -784,6 +784,66 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          current_quantity: number
+          delivery_person_id: string | null
+          id: string
+          is_acknowledged: boolean | null
+          product_id: string
+          severity: string
+          threshold: number
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          current_quantity?: number
+          delivery_person_id?: string | null
+          id?: string
+          is_acknowledged?: boolean | null
+          product_id: string
+          severity?: string
+          threshold?: number
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          current_quantity?: number
+          delivery_person_id?: string | null
+          id?: string
+          is_acknowledged?: boolean | null
+          product_id?: string
+          severity?: string
+          threshold?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_alerts_delivery_person_id_fkey"
+            columns: ["delivery_person_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_movements: {
         Row: {
           created_at: string
@@ -828,6 +888,113 @@ export type Database = {
           },
           {
             foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_thresholds: {
+        Row: {
+          created_at: string
+          critical_threshold: number
+          id: string
+          location_type: string
+          product_id: string
+          updated_at: string
+          warning_threshold: number
+        }
+        Insert: {
+          created_at?: string
+          critical_threshold?: number
+          id?: string
+          location_type: string
+          product_id: string
+          updated_at?: string
+          warning_threshold?: number
+        }
+        Update: {
+          created_at?: string
+          critical_threshold?: number
+          id?: string
+          location_type?: string
+          product_id?: string
+          updated_at?: string
+          warning_threshold?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_thresholds_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supply_requests: {
+        Row: {
+          created_at: string
+          delivery_person_id: string | null
+          fulfilled_at: string | null
+          id: string
+          notes: string | null
+          product_id: string
+          quantity_approved: number | null
+          quantity_requested: number
+          reason: string | null
+          requested_by: string
+          requester_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_person_id?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity_approved?: number | null
+          quantity_requested: number
+          reason?: string | null
+          requested_by: string
+          requester_type: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_person_id?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity_approved?: number | null
+          quantity_requested?: number
+          reason?: string | null
+          requested_by?: string
+          requester_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supply_requests_delivery_person_id_fkey"
+            columns: ["delivery_person_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supply_requests_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
