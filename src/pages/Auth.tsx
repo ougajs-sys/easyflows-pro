@@ -117,12 +117,42 @@ export default function Auth() {
       });
       setIsLoading(false);
     } else {
+      // After successful login, check if the selected role matches the user's actual role
+      const { data: session } = await supabase.auth.getSession();
+      if (session?.session?.user) {
+        const { data: userRole } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.session.user.id)
+          .single();
+
+        if (userRole && userRole.role !== selectedLoginRole) {
+          const roleLabels: Record<AppRole, string> = {
+            'appelant': 'Appelant',
+            'livreur': 'Livreur',
+            'superviseur': 'Superviseur',
+            'administrateur': 'Administrateur'
+          };
+          
+          toast({
+            title: 'Accès refusé',
+            description: `Vous êtes ${roleLabels[userRole.role]}, pas ${roleLabels[selectedLoginRole]}. Vous allez être redirigé vers votre espace.`,
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          // Redirect to their actual role space
+          navigate(getRedirectPathForRole(userRole.role));
+          return;
+        }
+      }
+      
       toast({
         title: 'Connexion réussie',
         description: 'Redirection vers votre espace...',
       });
-      // Redirect based on selected role if user's actual role matches, otherwise redirect by actual role
-      // The useEffect will handle actual role-based redirection
+      // Redirect to selected role space
+      navigate(getRedirectPathForRole(selectedLoginRole));
+      setIsLoading(false);
     }
   };
 
