@@ -79,6 +79,17 @@ export default function Stock() {
             <StockTransferManager />
           </TabsContent>
         )}
+        {canManageTransfers && (
+          <TabsContent value="alerts">
+            <StockAlertsPanel />
+          </TabsContent>
+        )}
+
+        {canManageTransfers && (
+          <TabsContent value="requests">
+            <SupplyRequestsPanel />
+          </TabsContent>
+        )}
       </Tabs>
     </DashboardLayout>
   );

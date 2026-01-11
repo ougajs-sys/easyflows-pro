@@ -12,7 +12,8 @@ import {
   LogOut,
   Moon,
   Sun,
-  Boxes
+  Boxes,
+  Send
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +36,7 @@ const menuItems = [
   { id: "dashboard", label: "Mon espace", icon: Home },
   { id: "orders", label: "Commandes", icon: Package },
   { id: "stock", label: "Mon Stock", icon: Boxes },
+  { id: "supply", label: "Approvisionnement", icon: Send },
   { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "training", label: "Formation", icon: GraduationCap },
 ];
