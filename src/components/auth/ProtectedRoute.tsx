@@ -10,6 +10,20 @@ interface ProtectedRouteProps {
   allowedRoles?: AppRole[];
 }
 
+// Fonction helper pour obtenir le chemin par défaut selon le rôle
+const getDefaultPathForRole = (userRole: AppRole | null): string => {
+  switch (userRole) {
+    case 'livreur':
+      return '/delivery';
+    case 'superviseur':
+    case 'administrateur':
+      return '/supervisor';
+    case 'appelant':
+    default:
+      return '/dashboard';
+  }
+};
+
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, role, loading } = useAuth();
   const location = useLocation();
@@ -29,18 +43,9 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
+  // Si l'utilisateur n'a pas le bon rôle, rediriger vers son espace approprié
   if (allowedRoles && role && !allowedRoles.includes(role)) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold text-foreground">Accès refusé</h1>
-          <p className="text-muted-foreground">
-            Vous n'avez pas les permissions nécessaires pour accéder à cette page.
-          </p>
-          <Navigate to="/dashboard" replace />
-        </div>
-      </div>
-    );
+    return <Navigate to={getDefaultPathForRole(role)} replace />;
   }
 
   return <>{children}</>;
