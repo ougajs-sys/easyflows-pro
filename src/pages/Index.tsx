@@ -5,17 +5,24 @@ import { Loader2 } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
 
   useEffect(() => {
     if (!loading) {
-      if (user) {
-        navigate("/dashboard");
-      } else {
+      if (user && role) {
+        // Redirection selon le rôle
+        if (role === 'livreur') {
+          navigate("/delivery");
+        } else if (role === 'superviseur' || role === 'administrateur') {
+          navigate("/supervisor");
+        } else {
+          navigate("/dashboard");
+        }
+      } else if (!user) {
         navigate("/auth");
       }
     }
-  }, [user, loading, navigate]);
+  }, [user, role, loading, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
