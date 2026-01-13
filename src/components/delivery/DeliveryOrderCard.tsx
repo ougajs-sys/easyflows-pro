@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Database } from "@/integrations/supabase/types";
+import { ReportOrderDialog } from "./ReportOrderDialog";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -43,7 +44,7 @@ interface DeliveryOrderCardProps {
       name: string;
     } | null;
   };
-  onUpdateStatus: (orderId: string, status: OrderStatus, amountPaid?: number) => void;
+  onUpdateStatus: (orderId: string, status: OrderStatus, amountPaid?: number, scheduledAt?: Date, reason?: string) => void;
   isUpdating: boolean;
 }
 
@@ -60,6 +61,7 @@ const statusConfig: Record<OrderStatus, { label: string; color: string }> = {
 export function DeliveryOrderCard({ order, onUpdateStatus, isUpdating }: DeliveryOrderCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
   const [amountCollected, setAmountCollected] = useState(order.amount_due?.toString() || order.total_amount.toString());
 
   const handleStartDelivery = () => {
@@ -78,8 +80,9 @@ export function DeliveryOrderCard({ order, onUpdateStatus, isUpdating }: Deliver
     setShowDeliveryDialog(false);
   };
 
-  const handleReportOrder = () => {
-    onUpdateStatus(order.id, "reported");
+  const handleReportOrder = (scheduledAt: Date, reason: string) => {
+    onUpdateStatus(order.id, "reported", undefined, scheduledAt, reason);
+    setShowReportDialog(false);
   };
 
   const amountDue = order.amount_due ?? (order.total_amount - order.amount_paid);
@@ -204,7 +207,7 @@ export function DeliveryOrderCard({ order, onUpdateStatus, isUpdating }: Deliver
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={handleReportOrder}
+                  onClick={() => setShowReportDialog(true)}
                   disabled={isUpdating}
                 >
                   Reporter
@@ -258,6 +261,15 @@ export function DeliveryOrderCard({ order, onUpdateStatus, isUpdating }: Deliver
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Report Order Dialog */}
+      <ReportOrderDialog
+        open={showReportDialog}
+        onOpenChange={setShowReportDialog}
+        onConfirm={handleReportOrder}
+        isLoading={isUpdating}
+        orderNumber={order.order_number || undefined}
+      />
     </>
   );
 }

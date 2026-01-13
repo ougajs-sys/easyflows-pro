@@ -283,12 +283,21 @@ export function StockTransferManager() {
                     <SelectValue placeholder="Sélectionner un livreur" />
                   </SelectTrigger>
                   <SelectContent>
-                    {deliveryPersons?.map((person) => (
-                      <SelectItem key={person.id} value={person.id}>
-                        {person.profile?.full_name || "Livreur"} 
-                        <Badge variant="outline" className="ml-2">{person.status}</Badge>
-                      </SelectItem>
-                    ))}
+                    {deliveryPersons?.map((person) => {
+                      const displayName = person.profile?.full_name || "Livreur";
+                      return (
+                        <SelectItem 
+                          key={person.id} 
+                          value={person.id}
+                          textValue={`${displayName} - ${person.status}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>{displayName}</span>
+                            <Badge variant="outline" className="text-xs">{person.status}</Badge>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -366,11 +375,18 @@ export function StockTransferManager() {
                     <SelectValue placeholder="Sélectionner un livreur" />
                   </SelectTrigger>
                   <SelectContent>
-                    {deliveryPersons?.map((person) => (
-                      <SelectItem key={person.id} value={person.id}>
-                        {person.profile?.full_name || "Livreur"}
-                      </SelectItem>
-                    ))}
+                    {deliveryPersons?.map((person) => {
+                      const displayName = person.profile?.full_name || "Livreur";
+                      return (
+                        <SelectItem 
+                          key={person.id} 
+                          value={person.id}
+                          textValue={displayName}
+                        >
+                          {displayName}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
