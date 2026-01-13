@@ -116,20 +116,37 @@ export function useFollowUps() {
   // Generate follow-ups for orders with partial payments or reported status
   const generateAutoFollowUps = useMutation({
     mutationFn: async (userId: string) => {
-      // Get orders that need follow-up
-      const { data: orders, error: ordersError } = await supabase
+      // Get orders that need follow-up (partial with amount_due OR reported regardless of amount)
+      const { data: partialOrders, error: partialError } = await supabase
         .from('orders')
         .select(`
           id,
           client_id,
           order_number,
           status,
-          amount_due
+          amount_due,
+          scheduled_at
         `)
-        .or('status.eq.partial,status.eq.reported')
+        .eq('status', 'partial')
         .gt('amount_due', 0);
 
-      if (ordersError) throw ordersError;
+      if (partialError) throw partialError;
+
+      const { data: reportedOrders, error: reportedError } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          client_id,
+          order_number,
+          status,
+          amount_due,
+          scheduled_at
+        `)
+        .eq('status', 'reported');
+
+      if (reportedError) throw reportedError;
+
+      const orders = [...(partialOrders || []), ...(reportedOrders || [])];
 
       // Get existing pending follow-ups for these orders
       const orderIds = orders.map(o => o.id);
@@ -146,17 +163,24 @@ export function useFollowUps() {
       // Create follow-ups for orders without pending follow-ups
       const newFollowUps: FollowUpInsert[] = orders
         .filter(order => !existingOrderIds.has(order.id))
-        .map(order => ({
-          client_id: order.client_id,
-          order_id: order.id,
-          type: order.status === 'partial' ? 'partial_payment' as FollowUpType : 'rescheduled' as FollowUpType,
-          status: 'pending' as FollowUpStatus,
-          scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
-          created_by: userId,
-          notes: order.status === 'partial' 
-            ? `Relance automatique - Paiement partiel pour ${order.order_number}`
-            : `Relance automatique - Commande reportée ${order.order_number}`,
-        }));
+        .map(order => {
+          // Use scheduled_at from order if available (for reported orders), otherwise tomorrow
+          const followUpDate = order.scheduled_at 
+            ? new Date(order.scheduled_at).toISOString()
+            : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          
+          return {
+            client_id: order.client_id,
+            order_id: order.id,
+            type: order.status === 'partial' ? 'partial_payment' as FollowUpType : 'rescheduled' as FollowUpType,
+            status: 'pending' as FollowUpStatus,
+            scheduled_at: followUpDate,
+            created_by: userId,
+            notes: order.status === 'partial' 
+              ? `Relance automatique - Paiement partiel pour ${order.order_number}`
+              : `Relance automatique - Commande reportée ${order.order_number}`,
+          };
+        });
 
       if (newFollowUps.length > 0) {
         const { error: insertError } = await supabase

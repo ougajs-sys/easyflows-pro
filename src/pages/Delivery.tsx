@@ -43,9 +43,15 @@ export default function Delivery() {
     }
   };
 
-  const handleOrderStatusChange = async (orderId: string, status: OrderStatus, amountPaid?: number) => {
+  const handleOrderStatusChange = async (
+    orderId: string, 
+    status: OrderStatus, 
+    amountPaid?: number,
+    scheduledAt?: Date,
+    reason?: string
+  ) => {
     try {
-      await updateOrderStatus.mutateAsync({ orderId, status, amountPaid });
+      await updateOrderStatus.mutateAsync({ orderId, status, amountPaid, scheduledAt, reason });
       const statusMessages: Record<string, string> = {
         in_transit: "Livraison démarrée",
         delivered: "Livraison confirmée",

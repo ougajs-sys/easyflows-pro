@@ -187,11 +187,32 @@ export function useDeliveryPerson() {
 
   // Update order status
   const updateOrderStatus = useMutation({
-    mutationFn: async ({ orderId, status, amountPaid }: { orderId: string; status: OrderStatus; amountPaid?: number }) => {
+    mutationFn: async ({ 
+      orderId, 
+      status, 
+      amountPaid,
+      scheduledAt,
+      reason 
+    }: { 
+      orderId: string; 
+      status: OrderStatus; 
+      amountPaid?: number;
+      scheduledAt?: Date;
+      reason?: string;
+    }) => {
       const updateData: Record<string, unknown> = { status };
       
       if (status === 'delivered') {
         updateData.delivered_at = new Date().toISOString();
+      }
+      
+      if (status === 'reported') {
+        if (scheduledAt) {
+          updateData.scheduled_at = scheduledAt.toISOString();
+        }
+        if (reason) {
+          updateData.report_reason = reason;
+        }
       }
       
       if (amountPaid !== undefined) {
@@ -214,6 +235,7 @@ export function useDeliveryPerson() {
       queryClient.invalidateQueries({ queryKey: ['delivery-reported'] });
       queryClient.invalidateQueries({ queryKey: ['delivery-cancelled'] });
       queryClient.invalidateQueries({ queryKey: ['delivery-person'] });
+      queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
     },
   });
 

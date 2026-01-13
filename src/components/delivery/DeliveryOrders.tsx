@@ -35,7 +35,7 @@ interface DeliveryOrdersProps {
   deliveredOrders: Order[];
   reportedOrders: Order[];
   cancelledOrders: Order[];
-  onUpdateStatus: (orderId: string, status: OrderStatus, amountPaid?: number) => void;
+  onUpdateStatus: (orderId: string, status: OrderStatus, amountPaid?: number, scheduledAt?: Date, reason?: string) => void;
   isUpdating: boolean;
 }
 
