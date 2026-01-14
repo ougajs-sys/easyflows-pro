@@ -16,12 +16,13 @@ interface DeliveryDashboardProps {
   deliveredCount: number;
   reportedCount: number;
   cancelledCount: number;
-  deliveryFee: number;
+  deliveryFee?: number;
   todayRevenue: number;
   amountToReturn: number;
 }
 
 const WAVE_PAYMENT_LINK = "https://pay.wave.com/m/M_ci_vNYXDd3MiHes/c/ci/";
+const DEFAULT_DELIVERY_FEE = 1500; // Updated to 1500 FCFA
 
 export function DeliveryDashboard({
   receivedCount,
@@ -63,7 +64,8 @@ export function DeliveryDashboard({
     },
   ];
 
-  const delivererRevenue = deliveredCount * deliveryFee;
+  const actualDeliveryFee = deliveryFee ?? DEFAULT_DELIVERY_FEE;
+  const delivererRevenue = deliveredCount * actualDeliveryFee;
 
   return (
     <div className="space-y-6">
@@ -113,7 +115,7 @@ export function DeliveryDashboard({
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Frais par livraison</span>
-                <span className="font-medium text-foreground">{deliveryFee.toLocaleString()} F</span>
+                <span className="font-medium text-foreground">{actualDeliveryFee.toLocaleString()} F</span>
               </div>
               <div className="pt-3 border-t border-border">
                 <div className="flex justify-between items-center">
