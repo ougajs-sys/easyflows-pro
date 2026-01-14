@@ -7,6 +7,7 @@ import { SupervisorStats } from "@/components/supervisor/SupervisorStats";
 import { RecentOrders } from "@/components/supervisor/RecentOrders";
 import { ConfirmedOrdersDispatch } from "@/components/supervisor/ConfirmedOrdersDispatch";
 import { DeliveryStatus } from "@/components/dashboard/DeliveryStatus";
+import { StockOverviewPanel } from "@/components/supervisor/StockOverviewPanel";
 
 export default function SupervisorDashboard() {
   return (
@@ -24,7 +25,12 @@ export default function SupervisorDashboard() {
       {/* Stats Overview */}
       <SupervisorStats />
 
-      {/* Confirmed Orders to Dispatch - NEW SECTION */}
+      {/* Stock Overview - NEW */}
+      <div className="mt-6">
+        <StockOverviewPanel />
+      </div>
+
+      {/* Confirmed Orders to Dispatch */}
       <div className="mt-6">
         <ConfirmedOrdersDispatch />
       </div>
@@ -34,7 +40,7 @@ export default function SupervisorDashboard() {
         {/* Delivery Performance */}
         <DeliveryPerformance />
 
-        {/* Active Delivery Persons - Moved from Dashboard */}
+        {/* Active Delivery Persons */}
         <DeliveryStatus />
       </div>
 
