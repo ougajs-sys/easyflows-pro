@@ -74,9 +74,10 @@ const menuItems: MenuItem[] = [
   { id: 12, label: "Rôles & Accès", icon: ShieldCheck, path: "/roles", color: "text-red-400", allowedRoles: ["administrateur"] },
   { id: 13, label: "Tableau Admin", icon: Users, path: "/admin", color: "text-purple-400", allowedRoles: ["administrateur"] },
   
-  // Commun à tous (sauf livreur pour certains)
-  { id: 14, label: "Notifications", icon: Bell, path: "/notifications", color: "text-yellow-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 15, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
+  // Commun à tous
+  { id: 14, label: "Chat", icon: MessageSquare, path: "/chat", color: "text-emerald-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
+  { id: 15, label: "Notifications", icon: Bell, path: "/notifications", color: "text-yellow-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
+  { id: 16, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
 ];
 
 function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: { 

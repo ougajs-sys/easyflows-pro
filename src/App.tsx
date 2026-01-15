@@ -32,6 +32,7 @@ import Roles from "./pages/Roles";
 import WebhookTest from "./pages/WebhookTest";
 import EmbedOrderForm from "./pages/EmbedOrderForm";
 import EmbedFormsAdmin from "./pages/EmbedFormsAdmin";
+import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -213,6 +214,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
                     <EmbedFormsAdmin />
+              </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chat"
+                element={
+                  <ProtectedRoute>
+                    <Chat />
                   </ProtectedRoute>
                 }
               />
