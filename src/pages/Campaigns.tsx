@@ -15,6 +15,7 @@ import { useSmsTemplates, SmsTemplate } from "@/hooks/useSmsTemplates";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { SmsTemplatesManager } from "@/components/campaigns/SmsTemplatesManager";
+import { CampaignSegmentSelector } from "@/components/campaigns/CampaignSegmentSelector";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { 
@@ -39,12 +40,16 @@ import {
 const Campaigns = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showSegmentSelector, setShowSegmentSelector] = useState(false);
   const [activeTab, setActiveTab] = useState<'campaigns' | 'templates'>('campaigns');
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const { campaigns, isLoading, createCampaign, updateCampaign, sendCampaign } = useCampaigns();
   const { templates, templatesByCategory, isLoading: templatesLoading } = useSmsTemplates();
+
+  const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
+  const [excludedSegments, setExcludedSegments] = useState<string[]>([]);
 
   const [newCampaign, setNewCampaign] = useState({
     name: "",
@@ -254,22 +259,52 @@ const Campaigns = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Segment cible</Label>
-                  <Select 
-                    value={newCampaign.segment} 
-                    onValueChange={(v: 'all' | 'new' | 'regular' | 'vip' | 'inactive') => setNewCampaign({ ...newCampaign, segment: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous les clients</SelectItem>
-                      <SelectItem value="new">Nouveaux clients</SelectItem>
-                      <SelectItem value="regular">Clients réguliers</SelectItem>
-                      <SelectItem value="vip">Clients VIP</SelectItem>
-                      <SelectItem value="inactive">Clients inactifs</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center justify-between">
+                    <Label>Segment cible</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSegmentSelector(!showSegmentSelector)}
+                      className="text-primary gap-1"
+                    >
+                      <Users className="h-3 w-3" />
+                      {showSegmentSelector ? "Mode simple" : "Segmentation avancée"}
+                    </Button>
+                  </div>
+                  
+                  {showSegmentSelector ? (
+                    <div className="border border-border rounded-lg p-3 bg-muted/20 max-h-[300px] overflow-y-auto">
+                      <CampaignSegmentSelector
+                        selectedSegments={selectedSegments}
+                        excludedSegments={excludedSegments}
+                        onSelectionChange={(selected, excluded) => {
+                          setSelectedSegments(selected);
+                          setExcludedSegments(excluded);
+                          // Use first selected segment or 'all' for the campaign
+                          if (selected.length > 0) {
+                            setNewCampaign({ ...newCampaign, segment: selected[0] as 'all' | 'new' | 'regular' | 'vip' | 'inactive' });
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <Select 
+                      value={newCampaign.segment} 
+                      onValueChange={(v: 'all' | 'new' | 'regular' | 'vip' | 'inactive') => setNewCampaign({ ...newCampaign, segment: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous les clients</SelectItem>
+                        <SelectItem value="new">Nouveaux clients</SelectItem>
+                        <SelectItem value="regular">Clients réguliers</SelectItem>
+                        <SelectItem value="vip">Clients VIP</SelectItem>
+                        <SelectItem value="inactive">Clients inactifs</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
