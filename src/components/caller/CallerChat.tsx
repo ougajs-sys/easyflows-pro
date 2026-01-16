@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Send, 
   MessageSquare, 
@@ -19,22 +20,27 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
-interface Message {
+interface ChatMessage {
   id: string;
+  sender_id: string;
   content: string;
-  sender: "caller" | "supervisor" | "system";
-  timestamp: Date;
-  type?: "text" | "order-alert";
-  orderNumber?: string;
-  orderStatus?: string;
+  created_at: string;
+  channel: string;
+  sender?: {
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+  };
 }
+
+const CHANNEL_NAME = "internal-appelants";
 
 export function CallerChat() {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const queryClient = useQueryClient();
   const [newMessage, setNewMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Fetch reported and cancelled orders for automatic alerts
@@ -61,175 +67,220 @@ export function CallerChat() {
     refetchInterval: 60000,
   });
 
-  // Generate system messages for alerts
+  // Fetch messages from Supabase
+  const { data: messages = [], isLoading } = useQuery({
+    queryKey: ["caller-chat-messages", CHANNEL_NAME],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const { data: messagesData, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("channel", CHANNEL_NAME)
+        .order("created_at", { ascending: true })
+        .limit(100);
+
+      if (error) throw error;
+
+      // Get sender profiles
+      const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
+      if (senderIds.length === 0) return [];
+
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", senderIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      return messagesData.map(msg => ({
+        ...msg,
+        sender: profileMap.get(msg.sender_id) || { id: msg.sender_id, full_name: "Utilisateur", avatar_url: null }
+      })) as ChatMessage[];
+    },
+    enabled: !!user?.id,
+    refetchInterval: 5000,
+  });
+
+  // Send message mutation
+  const sendMessageMutation = useMutation({
+    mutationFn: async (content: string) => {
+      if (!user?.id) throw new Error("Not authenticated");
+
+      const { error } = await supabase.from("messages").insert({
+        sender_id: user.id,
+        receiver_id: null,
+        channel: CHANNEL_NAME,
+        content,
+        message_type: "text",
+        is_read: false,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["caller-chat-messages", CHANNEL_NAME] });
+    },
+    onError: (error) => {
+      console.error("Error sending message:", error);
+      toast.error("Erreur lors de l'envoi du message");
+    },
+  });
+
+  // Real-time subscription
   useEffect(() => {
-    if (!alertOrders) return;
+    if (!user?.id) return;
 
-    const systemMessages: Message[] = alertOrders.map((order) => ({
-      id: `order-${order.id}`,
-      content: order.status === "cancelled" 
-        ? `Commande ${order.order_number} annulée - Client: ${order.client?.full_name || "Inconnu"}. Relance recommandée.`
-        : `Commande ${order.order_number} reportée - Client: ${order.client?.full_name || "Inconnu"}. À rappeler.`,
-      sender: "system",
-      timestamp: new Date(order.created_at),
-      type: "order-alert",
-      orderNumber: order.order_number || undefined,
-      orderStatus: order.status,
-    }));
+    const realtimeChannel = supabase
+      .channel(`caller-chat-${CHANNEL_NAME}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `channel=eq.${CHANNEL_NAME}`,
+        },
+        (payload) => {
+          const newMsg = payload.new as ChatMessage;
+          queryClient.invalidateQueries({ queryKey: ["caller-chat-messages", CHANNEL_NAME] });
+          
+          if (newMsg.sender_id !== user.id) {
+            toast.info("Nouveau message", {
+              description: newMsg.content.substring(0, 50) + (newMsg.content.length > 50 ? "..." : ""),
+            });
+          }
+        }
+      )
+      .subscribe();
 
-    // Merge with existing messages, avoiding duplicates
-    setMessages((prev) => {
-      const existingIds = new Set(prev.map((m) => m.id));
-      const newMessages = systemMessages.filter((m) => !existingIds.has(m.id));
-      return [...newMessages, ...prev.filter((m) => m.sender !== "system")].sort(
-        (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-      );
-    });
-  }, [alertOrders]);
+    return () => {
+      supabase.removeChannel(realtimeChannel);
+    };
+  }, [user?.id, queryClient]);
 
   // Scroll to bottom when new messages
   useEffect(() => {
     if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
     }
   }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || isSending) return;
-
-    setIsSending(true);
-    const message: Message = {
-      id: `msg-${Date.now()}`,
-      content: newMessage.trim(),
-      sender: "caller",
-      timestamp: new Date(),
-      type: "text",
-    };
-
-    setMessages((prev) => [...prev, message]);
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || sendMessageMutation.isPending) return;
+    sendMessageMutation.mutate(newMessage.trim());
     setNewMessage("");
-
-    // Simulate supervisor response after delay
-    setTimeout(() => {
-      const supervisorResponse: Message = {
-        id: `msg-${Date.now()}-supervisor`,
-        content: "Message bien reçu. Je vérifie et vous reviens rapidement.",
-        sender: "supervisor",
-        timestamp: new Date(),
-        type: "text",
-      };
-      setMessages((prev) => [...prev, supervisorResponse]);
-      setIsSending(false);
-    }, 1500);
   };
 
-  const getMessageStyle = (sender: string) => {
-    switch (sender) {
-      case "caller":
-        return "ml-auto bg-primary text-primary-foreground";
-      case "supervisor":
-        return "mr-auto bg-secondary";
-      case "system":
-        return "mx-auto bg-warning/10 border border-warning/30 text-warning-foreground";
-      default:
-        return "";
-    }
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "U";
+    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] lg:h-[calc(100vh-6rem)]">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold">Chat Superviseur</h1>
-        <p className="text-muted-foreground">Communiquez avec votre superviseur</p>
+        <h1 className="text-2xl font-bold">Chat Appelants</h1>
+        <p className="text-muted-foreground">Communiquez avec les superviseurs et autres appelants</p>
       </div>
 
       <Card className="flex-1 flex flex-col overflow-hidden">
         <CardHeader className="py-3 border-b">
           <CardTitle className="text-base flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            Superviseur en ligne
+            <MessageSquare className="w-4 h-4 text-primary" />
+            Canal Appelants
+            <span className="ml-auto flex items-center gap-1 text-xs text-success">
+              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              En ligne
+            </span>
           </CardTitle>
         </CardHeader>
 
         <CardContent className="flex-1 p-0 overflow-hidden">
           <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
-            <div className="space-y-4">
-              {messages.length === 0 ? (
-                <div className="text-center py-12">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground">Aucun message</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Les alertes des commandes reportées/annulées apparaîtront ici
-                  </p>
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "max-w-[85%] rounded-lg p-3",
-                      getMessageStyle(msg.sender)
-                    )}
-                  >
-                    {msg.type === "order-alert" ? (
-                      <div className="flex items-start gap-2">
-                        {msg.orderStatus === "cancelled" ? (
-                          <XCircle className="w-4 h-4 mt-0.5 text-destructive" />
-                        ) : (
-                          <Clock className="w-4 h-4 mt-0.5 text-warning" />
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : messages.length > 0 ? (
+              <div className="space-y-4">
+                {messages.map((msg, index) => {
+                  const isOwn = msg.sender_id === user?.id;
+                  const showAvatar = index === 0 || messages[index - 1]?.sender_id !== msg.sender_id;
+                  
+                  return (
+                    <div
+                      key={msg.id}
+                      className={cn(
+                        "flex gap-3",
+                        isOwn ? "flex-row-reverse" : "flex-row"
+                      )}
+                    >
+                      {showAvatar ? (
+                        <Avatar className="w-8 h-8 flex-shrink-0">
+                          <AvatarImage src={msg.sender?.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {getInitials(msg.sender?.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className="w-8 flex-shrink-0" />
+                      )}
+                      <div className={cn("max-w-[70%]", isOwn && "text-right")}>
+                        {showAvatar && (
+                          <p className={cn(
+                            "text-xs font-medium mb-1",
+                            isOwn ? "text-primary" : "text-muted-foreground"
+                          )}>
+                            {isOwn ? "Vous" : msg.sender?.full_name || "Utilisateur"}
+                          </p>
                         )}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="text-xs">
-                              <Package className="w-3 h-3 mr-1" />
-                              {msg.orderNumber}
-                            </Badge>
-                            <Badge 
-                              variant="outline" 
-                              className={cn(
-                                "text-xs",
-                                msg.orderStatus === "cancelled" 
-                                  ? "border-destructive/30 text-destructive" 
-                                  : "border-warning/30 text-warning"
-                              )}
-                            >
-                              {msg.orderStatus === "cancelled" ? "Annulée" : "Reportée"}
-                            </Badge>
-                          </div>
-                          <p className="text-sm">{msg.content}</p>
+                        <div
+                          className={cn(
+                            "rounded-lg px-4 py-2 inline-block",
+                            isOwn
+                              ? "bg-primary text-primary-foreground rounded-br-sm"
+                              : "bg-secondary text-secondary-foreground rounded-bl-sm"
+                          )}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                         </div>
+                        <p className="text-xs mt-1 text-muted-foreground">
+                          {format(new Date(msg.created_at), "HH:mm", { locale: fr })}
+                        </p>
                       </div>
-                    ) : (
-                      <p className="text-sm">{msg.content}</p>
-                    )}
-                    <p className="text-xs opacity-60 mt-1">
-                      {format(msg.timestamp, "HH:mm", { locale: fr })}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <MessageSquare className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                <p className="text-muted-foreground">Aucun message</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Démarrez la conversation !
+                </p>
+              </div>
+            )}
           </ScrollArea>
         </CardContent>
 
         {/* Message Input */}
         <div className="p-4 border-t">
-          <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="flex gap-2"
-          >
+          <form onSubmit={handleSendMessage} className="flex gap-2">
             <Input
               placeholder="Écrire un message..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              disabled={isSending}
+              disabled={sendMessageMutation.isPending}
               className="flex-1"
             />
-            <Button type="submit" size="icon" disabled={!newMessage.trim() || isSending}>
-              {isSending ? (
+            <Button type="submit" size="icon" disabled={!newMessage.trim() || sendMessageMutation.isPending}>
+              {sendMessageMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Send className="w-4 h-4" />
@@ -253,6 +304,28 @@ export function CallerChat() {
                   Commandes reportées ou annulées aujourd'hui
                 </p>
               </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3">
+              {alertOrders.map((order) => (
+                <Badge 
+                  key={order.id} 
+                  variant="outline" 
+                  className={cn(
+                    "text-xs",
+                    order.status === "cancelled" 
+                      ? "border-destructive/30 text-destructive bg-destructive/10" 
+                      : "border-warning/30 text-warning bg-warning/10"
+                  )}
+                >
+                  {order.status === "cancelled" ? (
+                    <XCircle className="w-3 h-3 mr-1" />
+                  ) : (
+                    <Clock className="w-3 h-3 mr-1" />
+                  )}
+                  <Package className="w-3 h-3 mr-1" />
+                  {order.order_number}
+                </Badge>
+              ))}
             </div>
           </CardContent>
         </Card>
