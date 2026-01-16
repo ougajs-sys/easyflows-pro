@@ -87,18 +87,32 @@ export function StockTransferManager() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("delivery_persons")
-        .select(`
-          id,
-          user_id,
-          status,
-          zone,
-          profile:profiles!delivery_persons_user_id_fkey(full_name)
-        `)
+        .select("id, user_id, status, zone, is_active")
         .eq("is_active", true)
         .order("status");
 
       if (error) throw error;
-      return (data || []) as unknown as DeliveryPerson[];
+
+      const persons = (data || []) as unknown as DeliveryPerson[];
+      const userIds = Array.from(new Set(persons.map((p) => p.user_id).filter(Boolean)));
+
+      if (userIds.length === 0) return persons;
+
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      const profileById = new Map(
+        (profiles || []).map((p) => [p.id, (p as { id: string; full_name: string | null }).full_name])
+      );
+
+      return persons.map((p) => ({
+        ...p,
+        profile: { full_name: profileById.get(p.user_id) ?? null },
+      }));
     },
   });
 
@@ -123,7 +137,8 @@ export function StockTransferManager() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("delivery_person_stock")
-        .select(`
+        .select(
+          `
           id,
           delivery_person_id,
           product_id,
@@ -131,14 +146,46 @@ export function StockTransferManager() {
           product:products(name, price),
           delivery_person:delivery_persons!delivery_person_stock_delivery_person_id_fkey(
             id,
-            profile:profiles!delivery_persons_user_id_fkey(full_name)
+            user_id
           )
-        `)
+        `
+        )
         .gt("quantity", 0)
         .order("quantity", { ascending: false });
 
       if (error) throw error;
-      return (data || []) as unknown as DeliveryStock[];
+
+      const rows = (data || []) as unknown as Array<
+        Omit<DeliveryStock, "delivery_person"> & {
+          delivery_person: { id: string; user_id: string };
+        }
+      >;
+
+      const userIds = Array.from(
+        new Set(rows.map((r) => r.delivery_person?.user_id).filter(Boolean))
+      ) as string[];
+
+      let profileById = new Map<string, string | null>();
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
+
+        if (profilesError) throw profilesError;
+
+        profileById = new Map(
+          (profiles || []).map((p) => [p.id, (p as { id: string; full_name: string | null }).full_name])
+        );
+      }
+
+      return rows.map((r) => ({
+        ...r,
+        delivery_person: {
+          id: r.delivery_person.id,
+          profile: { full_name: profileById.get(r.delivery_person.user_id) ?? null },
+        },
+      })) as unknown as DeliveryStock[];
     },
   });
 

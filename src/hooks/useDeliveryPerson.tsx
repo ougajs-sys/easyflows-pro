@@ -8,8 +8,8 @@ type DeliveryPerson = Database['public']['Tables']['delivery_persons']['Row'];
 type DeliveryStatus = Database['public']['Enums']['delivery_status'];
 type OrderStatus = Database['public']['Enums']['order_status'];
 
-// Delivery fee per order (can be made configurable later)
-const DELIVERY_FEE = 500;
+// Frais de livraison par commande (configurable plus tard)
+const DELIVERY_FEE = 1500;
 
 export function useDeliveryPerson() {
   const queryClient = useQueryClient();
