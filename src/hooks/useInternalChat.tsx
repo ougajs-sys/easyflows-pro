@@ -57,12 +57,17 @@ export function useInternalChat(selectedChannel: ChatChannel = "general", select
 
       const { data: messagesData, error } = await supabase
         .from("messages")
-        .select("*")
+        .select("id, sender_id, receiver_id, channel, content, message_type, order_id, is_read, created_at")
         .eq("channel", channelName)
         .order("created_at", { ascending: true })
         .limit(100);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching messages:", error);
+        throw error;
+      }
+
+      if (!messagesData || messagesData.length === 0) return [];
 
       // Get sender profiles
       const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
@@ -79,7 +84,7 @@ export function useInternalChat(selectedChannel: ChatChannel = "general", select
       })) as ChatMessage[];
     },
     enabled: !!user?.id,
-    refetchInterval: 5000, // Polling every 5 seconds as fallback
+    refetchInterval: 3000, // Polling every 3 seconds as fallback
   });
 
   // Fetch users for direct messaging
@@ -127,16 +132,28 @@ export function useInternalChat(selectedChannel: ChatChannel = "general", select
 
       const channelName = getChannelName();
 
-      const { error } = await supabase.from("messages").insert({
+      const insertData: {
+        sender_id: string;
+        receiver_id: string | null;
+        channel: string;
+        content: string;
+        message_type: string;
+        is_read: boolean;
+      } = {
         sender_id: user.id,
-        receiver_id: selectedChannel === "direct" ? selectedUserId : null,
+        receiver_id: selectedChannel === "direct" ? selectedUserId ?? null : null,
         channel: channelName,
         content,
         message_type: "text",
         is_read: false,
-      });
+      };
 
-      if (error) throw error;
+      const { error } = await supabase.from("messages").insert(insertData);
+
+      if (error) {
+        console.error("Error sending message:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["internal-chat-messages", getChannelName()] });
