@@ -33,6 +33,7 @@ import WebhookTest from "./pages/WebhookTest";
 import EmbedOrderForm from "./pages/EmbedOrderForm";
 import EmbedFormsAdmin from "./pages/EmbedFormsAdmin";
 import Chat from "./pages/Chat";
+import AIAgent from "./pages/AIAgent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -222,6 +223,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Chat />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/ai-agent"
+                element={
+                  <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                    <AIAgent />
                   </ProtectedRoute>
                 }
               />

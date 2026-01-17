@@ -14,6 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_execution_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          instruction_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          instruction_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          instruction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_execution_logs_instruction_id_fkey"
+            columns: ["instruction_id"]
+            isOneToOne: false
+            referencedRelation: "ai_instructions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_instructions: {
+        Row: {
+          affected_count: number | null
+          created_at: string
+          created_by: string
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          instruction: string
+          instruction_type: string
+          result: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          affected_count?: number | null
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          instruction: string
+          instruction_type?: string
+          result?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          affected_count?: number | null
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          instruction?: string
+          instruction_type?: string
+          result?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       caller_achievements: {
         Row: {
           achievement_name: string
@@ -425,6 +505,7 @@ export type Database = {
         Row: {
           amount_due: number | null
           amount_paid: number
+          assigned_to: string | null
           cancellation_reason: string | null
           client_id: string
           created_at: string
@@ -447,6 +528,7 @@ export type Database = {
         Insert: {
           amount_due?: number | null
           amount_paid?: number
+          assigned_to?: string | null
           cancellation_reason?: string | null
           client_id: string
           created_at?: string
@@ -469,6 +551,7 @@ export type Database = {
         Update: {
           amount_due?: number | null
           amount_paid?: number
+          assigned_to?: string | null
           cancellation_reason?: string | null
           client_id?: string
           created_at?: string
