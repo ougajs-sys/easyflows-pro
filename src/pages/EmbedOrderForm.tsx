@@ -186,7 +186,7 @@ export default function EmbedOrderForm() {
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" autoComplete="off">
             {/* Product Selection */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2 text-sm font-medium">
@@ -232,6 +232,10 @@ export default function EmbedOrderForm() {
                 {...register('client_name')}
                 placeholder="Votre nom"
                 className="h-12"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
               />
               {errors.client_name && (
                 <p className="text-sm text-destructive">{errors.client_name.message}</p>
@@ -249,6 +253,11 @@ export default function EmbedOrderForm() {
                 type="tel"
                 placeholder="+225 XX XX XX XX"
                 className="h-12"
+                autoComplete="new-password"
+                autoCorrect="off"
+                inputMode="numeric"
+                data-form-type="other"
+                data-lpignore="true"
               />
               {errors.phone && (
                 <p className="text-sm text-destructive">{errors.phone.message}</p>
@@ -266,6 +275,7 @@ export default function EmbedOrderForm() {
                 type="number"
                 min="1"
                 className="h-12"
+                autoComplete="off"
               />
               {errors.quantity && (
                 <p className="text-sm text-destructive">{errors.quantity.message}</p>
@@ -282,6 +292,9 @@ export default function EmbedOrderForm() {
                 {...register('address')}
                 placeholder="Votre adresse complète"
                 className="min-h-[80px] resize-none"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck="false"
               />
               {errors.address && (
                 <p className="text-sm text-destructive">{errors.address.message}</p>
@@ -297,6 +310,8 @@ export default function EmbedOrderForm() {
                 {...register('city')}
                 placeholder="Abidjan, Bouaké..."
                 className="h-12"
+                autoComplete="off"
+                autoCorrect="off"
               />
             </div>
 
