@@ -223,10 +223,58 @@ export function useDeliveryPerson() {
         .from('orders')
         .update(updateData)
         .eq('id', orderId)
-        .select()
+        .select(`
+          *,
+          client:clients(*)
+        `)
         .single();
 
       if (error) throw error;
+
+      // Create scheduled followup for reported orders with a scheduled date
+      if (status === 'reported' && scheduledAt && data.client_id) {
+        // First, cancel any existing pending followups for this order
+        await supabase
+          .from('scheduled_followups')
+          .update({ status: 'cancelled' })
+          .eq('order_id', orderId)
+          .eq('status', 'pending');
+
+        // Create a new scheduled followup for the rescheduled date
+        const { error: followupError } = await supabase
+          .from('scheduled_followups')
+          .insert({
+            order_id: orderId,
+            client_id: data.client_id,
+            scheduled_at: scheduledAt.toISOString(),
+            followup_type: 'call',
+            sms_content: `Rappel: Livraison reportée pour le ${scheduledAt.toLocaleDateString('fr-FR')}. ${reason || ''}`.trim(),
+            status: 'pending',
+            created_by: user?.id,
+          });
+
+        if (followupError) {
+          console.error('Error creating scheduled followup:', followupError);
+        }
+
+        // Also create a follow_up entry for visibility in the follow-ups page
+        const { error: followUpTableError } = await supabase
+          .from('follow_ups')
+          .insert({
+            order_id: orderId,
+            client_id: data.client_id,
+            scheduled_at: scheduledAt.toISOString(),
+            type: 'rescheduled',
+            notes: reason || 'Livraison reportée par le livreur',
+            status: 'pending',
+            created_by: user?.id,
+          });
+
+        if (followUpTableError) {
+          console.error('Error creating follow-up entry:', followUpTableError);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -236,6 +284,7 @@ export function useDeliveryPerson() {
       queryClient.invalidateQueries({ queryKey: ['delivery-cancelled'] });
       queryClient.invalidateQueries({ queryKey: ['delivery-person'] });
       queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
+      queryClient.invalidateQueries({ queryKey: ['scheduled-followups'] });
     },
   });
 
