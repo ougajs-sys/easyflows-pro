@@ -88,7 +88,7 @@ serve(async (req) => {
 
     // Get context data for AI
     const [ordersResult, callersResult, productsResult, clientsResult, followupsResult, deliveryPersonsResult] = await Promise.all([
-      supabase.from("orders").select("id, status, assigned_to, delivery_person_id, client_id, product_id, quantity, total_amount, created_at, delivery_address").order("created_at", { ascending: false }).limit(100),
+      supabase.from("orders").select("id, status, assigned_to, delivery_person_id, client_id, product_id, quantity, total_amount, created_at, delivery_address, clients(zone)").order("created_at", { ascending: false }).limit(100),
       supabase.from("user_roles").select("user_id, role").eq("role", "appelant"),
       supabase.from("products").select("id, name, stock, price, is_active"),
       supabase.from("clients").select("id, full_name, phone, segment, total_orders, total_spent").order("created_at", { ascending: false }).limit(200),
@@ -186,12 +186,13 @@ RÈGLES IMPORTANTES:
             type: "function",
             function: {
               name: "distribute_to_delivery",
-              description: "Distribue les commandes confirmées aux livreurs disponibles de manière équitable",
+              description: "Distribue les commandes confirmées aux livreurs disponibles de manière équitable, en tenant compte des zones",
               parameters: {
                 type: "object",
                 properties: {
                   order_ids: { type: "array", items: { type: "string" }, description: "IDs des commandes confirmées à distribuer" },
                   delivery_person_ids: { type: "array", items: { type: "string" }, description: "IDs des livreurs (optionnel, sinon tous les disponibles)" },
+                  zones: { type: "array", items: { type: "string" }, description: "Zones géographiques pour filtrer les commandes" },
                   only_available: { type: "boolean", description: "Distribuer uniquement aux livreurs disponibles (true par défaut)" },
                   balance_by_workload: { type: "boolean", description: "Équilibrer selon la charge de travail actuelle (true par défaut)" },
                 },
@@ -375,6 +376,14 @@ RÈGLES IMPORTANTES:
             
             if (args.order_ids?.length > 0) {
               ordersToDistribute = ordersToDistribute.filter(o => args.order_ids.includes(o.id));
+            }
+
+            // Filter by zones if specified in instruction
+            if (args.zones?.length > 0) {
+              ordersToDistribute = ordersToDistribute.filter(o => {
+                const clientZone = (o as any).clients?.zone;
+                return clientZone && args.zones.includes(clientZone);
+              });
             }
 
             // Get available delivery persons
