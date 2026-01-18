@@ -87,37 +87,53 @@ serve(async (req) => {
     }
 
     // Get context data for AI
-    const [ordersResult, callersResult, productsResult, clientsResult, followupsResult] = await Promise.all([
-      supabase.from("orders").select("id, status, assigned_to, client_id, product_id, quantity, total_amount, created_at").order("created_at", { ascending: false }).limit(100),
+    const [ordersResult, callersResult, productsResult, clientsResult, followupsResult, deliveryPersonsResult] = await Promise.all([
+      supabase.from("orders").select("id, status, assigned_to, delivery_person_id, client_id, product_id, quantity, total_amount, created_at, delivery_address").order("created_at", { ascending: false }).limit(100),
       supabase.from("user_roles").select("user_id, role").eq("role", "appelant"),
       supabase.from("products").select("id, name, stock, price, is_active"),
       supabase.from("clients").select("id, full_name, phone, segment, total_orders, total_spent").order("created_at", { ascending: false }).limit(200),
       supabase.from("follow_ups").select("id, client_id, order_id, status, scheduled_at, type").eq("status", "pending").limit(100),
+      supabase.from("delivery_persons").select("id, user_id, status, is_active, zone, daily_deliveries").eq("is_active", true),
     ]);
 
-    // Get caller profiles
+    // Get caller and delivery person profiles
     const callerIds = callersResult.data?.map(c => c.user_id) || [];
-    const { data: callerProfiles } = await supabase
+    const deliveryUserIds = deliveryPersonsResult.data?.map(d => d.user_id) || [];
+    const allUserIds = [...new Set([...callerIds, ...deliveryUserIds])];
+    
+    const { data: userProfiles } = await supabase
       .from("profiles")
       .select("id, full_name")
-      .in("id", callerIds);
+      .in("id", allUserIds);
 
     const contextData = {
       orders: ordersResult.data || [],
       callers: callersResult.data?.map(c => ({
         user_id: c.user_id,
-        name: callerProfiles?.find(p => p.id === c.user_id)?.full_name || "Unknown"
+        name: userProfiles?.find(p => p.id === c.user_id)?.full_name || "Unknown"
+      })) || [],
+      delivery_persons: deliveryPersonsResult.data?.map(d => ({
+        id: d.id,
+        user_id: d.user_id,
+        name: userProfiles?.find(p => p.id === d.user_id)?.full_name || "Unknown",
+        status: d.status,
+        zone: d.zone,
+        daily_deliveries: d.daily_deliveries,
       })) || [],
       products: productsResult.data || [],
       clients: clientsResult.data || [],
       pending_followups: followupsResult.data || [],
     };
 
+    // Get available delivery persons
+    const availableDeliveryPersons = contextData.delivery_persons.filter(d => d.status === "available");
+    
     const systemPrompt = `Tu es un assistant IA pour une plateforme de gestion de commandes et livraisons. Tu peux exécuter des actions sur la base de données.
 
 CONTEXTE ACTUEL:
-- ${contextData.orders.length} commandes (statuts: pending, confirmed, delivered, cancelled, partial, reported)
+- ${contextData.orders.length} commandes (statuts: pending, confirmed, in_transit, delivered, cancelled, partial, reported)
 - ${contextData.callers.length} appelants actifs: ${contextData.callers.map(c => c.name).join(", ")}
+- ${contextData.delivery_persons.length} livreurs (${availableDeliveryPersons.length} disponibles): ${contextData.delivery_persons.map(d => `${d.name} (${d.status})`).join(", ")}
 - ${contextData.products.length} produits en catalogue
 - ${contextData.clients.length} clients enregistrés
 - ${contextData.pending_followups.length} relances en attente
@@ -125,12 +141,16 @@ CONTEXTE ACTUEL:
 COMMANDES PAR STATUT:
 ${JSON.stringify(contextData.orders.reduce((acc, o) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {} as Record<string, number>))}
 
+LIVREURS DISPONIBLES:
+${availableDeliveryPersons.length > 0 ? availableDeliveryPersons.map(d => `- ${d.name}: Zone ${d.zone || "non définie"}, ${d.daily_deliveries} livraisons aujourd'hui`).join("\n") : "Aucun livreur disponible actuellement"}
+
 RÈGLES IMPORTANTES:
-1. Pour distribuer des commandes, utilise l'action "distribute_orders" avec les IDs des commandes et des appelants
-2. Pour créer des relances, utilise l'action "create_followups" avec les IDs des commandes/clients concernés
-3. Pour les alertes stock, utilise l'action "stock_alerts" pour identifier les produits à faible stock
-4. Pour le suivi clients, utilise "client_analysis" pour segmenter ou identifier des clients spécifiques
-5. Confirme toujours ce que tu vas faire avant d'exécuter des actions massives`;
+1. Pour distribuer des commandes aux appelants, utilise l'action "distribute_orders" avec les IDs des commandes et des appelants
+2. Pour distribuer des commandes confirmées aux livreurs, utilise l'action "distribute_to_delivery" - priorise les livreurs disponibles avec le moins de livraisons
+3. Pour créer des relances, utilise l'action "create_followups" avec les IDs des commandes/clients concernés
+4. Pour les alertes stock, utilise l'action "stock_alerts" pour identifier les produits à faible stock
+5. Pour le suivi clients, utilise "client_analysis" pour segmenter ou identifier des clients spécifiques
+6. Confirme toujours ce que tu vas faire avant d'exécuter des actions massives`;
 
     // Call Lovable AI with tool calling
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -157,6 +177,23 @@ RÈGLES IMPORTANTES:
                   order_ids: { type: "array", items: { type: "string" }, description: "IDs des commandes à distribuer" },
                   caller_ids: { type: "array", items: { type: "string" }, description: "IDs des appelants" },
                   filter_status: { type: "string", description: "Filtrer par statut (pending, confirmed, etc.)" },
+                },
+                required: [],
+              },
+            },
+          },
+          {
+            type: "function",
+            function: {
+              name: "distribute_to_delivery",
+              description: "Distribue les commandes confirmées aux livreurs disponibles de manière équitable",
+              parameters: {
+                type: "object",
+                properties: {
+                  order_ids: { type: "array", items: { type: "string" }, description: "IDs des commandes confirmées à distribuer" },
+                  delivery_person_ids: { type: "array", items: { type: "string" }, description: "IDs des livreurs (optionnel, sinon tous les disponibles)" },
+                  only_available: { type: "boolean", description: "Distribuer uniquement aux livreurs disponibles (true par défaut)" },
+                  balance_by_workload: { type: "boolean", description: "Équilibrer selon la charge de travail actuelle (true par défaut)" },
                 },
                 required: [],
               },
@@ -327,6 +364,100 @@ RÈGLES IMPORTANTES:
             ).join("\n");
             
             resultMessage = `✅ ${affectedCount} commandes distribuées entre ${callerList.length} appelants:\n${distributionSummary}`;
+            break;
+          }
+
+          case "distribute_to_delivery": {
+            // Get confirmed orders without delivery person assigned
+            let ordersToDistribute = contextData.orders.filter(o => 
+              o.status === "confirmed" && !o.delivery_person_id
+            );
+            
+            if (args.order_ids?.length > 0) {
+              ordersToDistribute = ordersToDistribute.filter(o => args.order_ids.includes(o.id));
+            }
+
+            // Get available delivery persons
+            let deliveryPersons = contextData.delivery_persons;
+            
+            if (args.only_available !== false) {
+              deliveryPersons = deliveryPersons.filter(d => d.status === "available");
+            }
+            
+            if (args.delivery_person_ids?.length > 0) {
+              deliveryPersons = deliveryPersons.filter(d => args.delivery_person_ids.includes(d.id));
+            }
+
+            if (deliveryPersons.length === 0) {
+              resultMessage = "❌ Aucun livreur disponible pour la distribution. Vérifiez que des livreurs sont en statut 'disponible'.";
+              break;
+            }
+
+            if (ordersToDistribute.length === 0) {
+              resultMessage = "✅ Aucune commande confirmée à distribuer (toutes déjà assignées ou aucune commande confirmée).";
+              break;
+            }
+
+            // Sort delivery persons by workload (ascending) if balance requested
+            if (args.balance_by_workload !== false) {
+              deliveryPersons.sort((a, b) => a.daily_deliveries - b.daily_deliveries);
+            }
+
+            // Distribute orders evenly, prioritizing those with less workload
+            const distribution: Record<string, { name: string; orderIds: string[] }> = {};
+            deliveryPersons.forEach(d => { 
+              distribution[d.id] = { name: d.name, orderIds: [] }; 
+            });
+
+            // Track current assignment counts for balanced distribution
+            const currentCounts = deliveryPersons.map(d => ({ 
+              id: d.id, 
+              count: d.daily_deliveries 
+            }));
+
+            for (const order of ordersToDistribute) {
+              // Find delivery person with least current assignments
+              currentCounts.sort((a, b) => a.count - b.count);
+              const assignTo = currentCounts[0];
+              
+              distribution[assignTo.id].orderIds.push(order.id);
+              assignTo.count++;
+            }
+
+            // Update orders with delivery person assignments
+            for (const [deliveryPersonId, data] of Object.entries(distribution)) {
+              if (data.orderIds.length > 0) {
+                await supabase
+                  .from("orders")
+                  .update({ 
+                    delivery_person_id: deliveryPersonId,
+                    status: "in_transit"
+                  })
+                  .in("id", data.orderIds);
+
+                // Log each assignment
+                for (const orderId of data.orderIds) {
+                  await supabase.from("ai_execution_logs").insert({
+                    instruction_id: instructionRecord.id,
+                    action_type: "assign_delivery",
+                    entity_type: "order",
+                    entity_id: orderId,
+                    details: { 
+                      delivery_person_id: deliveryPersonId,
+                      delivery_person_name: data.name
+                    },
+                  });
+                }
+              }
+            }
+
+            affectedCount = ordersToDistribute.length;
+            const deliverySummary = Object.entries(distribution)
+              .filter(([_, data]) => data.orderIds.length > 0)
+              .map(([_, data]) => `- ${data.name}: ${data.orderIds.length} commandes`)
+              .join("\n");
+            
+            resultMessage = `✅ ${affectedCount} commandes confirmées distribuées entre ${deliveryPersons.length} livreurs et passées "en transit":\n${deliverySummary}`;
             break;
           }
 
