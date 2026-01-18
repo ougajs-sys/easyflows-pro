@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useAIAgent } from "@/hooks/useAIAgent";
+import { QuickActionConfigDialog } from "@/components/ai-agent/QuickActionConfigDialog";
 import { 
   Bot, 
   Send, 
@@ -20,10 +20,20 @@ import {
   CheckCircle2,
   XCircle,
   Zap,
-  MessageSquare
+  MessageSquare,
+  Truck,
+  Phone,
+  Settings2
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+
+interface QuickAction {
+  id: string;
+  label: string;
+  instruction: string;
+  icon: string;
+}
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Users,
@@ -31,11 +41,15 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   CreditCard,
   AlertTriangle,
   Star,
+  Truck,
+  Phone,
 };
 
 export default function AIAgent() {
   const [instruction, setInstruction] = useState("");
   const [lastResponse, setLastResponse] = useState<string | null>(null);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<QuickAction | null>(null);
   const { instructions, isLoadingHistory, isProcessing, sendInstruction, quickActions } = useAIAgent();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,10 +65,29 @@ export default function AIAgent() {
     }
   };
 
-  const handleQuickAction = async (actionInstruction: string) => {
+  const handleQuickActionClick = (action: QuickAction) => {
+    // Actions that need configuration (distribution)
+    const configurableActions = [
+      "distribute-pending",
+      "distribute-confirmed-callers",
+      "distribute-confirmed-delivery",
+    ];
+
+    if (configurableActions.includes(action.id)) {
+      setSelectedAction(action);
+      setConfigDialogOpen(true);
+    } else {
+      // Execute directly for non-configurable actions
+      handleExecuteAction(action.instruction);
+    }
+  };
+
+  const handleExecuteAction = async (actionInstruction: string) => {
     try {
       const result = await sendInstruction.mutateAsync(actionInstruction);
       setLastResponse(result.message);
+      setConfigDialogOpen(false);
+      setSelectedAction(null);
     } catch (error) {
       // Error handled by mutation
     }
@@ -159,26 +192,37 @@ export default function AIAgent() {
                   Actions rapides
                 </CardTitle>
                 <CardDescription>
-                  Cliquez sur une action pour l'exécuter immédiatement
+                  Cliquez sur une action pour la configurer et l'exécuter
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {quickActions.map((action) => {
                     const Icon = iconMap[action.icon] || Package;
+                    const isConfigurable = [
+                      "distribute-pending",
+                      "distribute-confirmed-callers",
+                      "distribute-confirmed-delivery",
+                    ].includes(action.id);
+
                     return (
                       <Button
                         key={action.id}
                         variant="outline"
-                        className="h-auto py-4 px-4 justify-start gap-3 hover:bg-primary/10 hover:border-primary/50"
-                        onClick={() => handleQuickAction(action.instruction)}
+                        className="h-auto py-4 px-4 justify-start gap-3 hover:bg-primary/10 hover:border-primary/50 group"
+                        onClick={() => handleQuickActionClick(action)}
                         disabled={isProcessing}
                       >
                         <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
                           <Icon className="w-5 h-5 text-primary" />
                         </div>
-                        <div className="text-left">
-                          <p className="font-medium">{action.label}</p>
+                        <div className="text-left flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{action.label}</p>
+                            {isConfigurable && (
+                              <Settings2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground line-clamp-1">
                             {action.instruction}
                           </p>
@@ -249,6 +293,15 @@ export default function AIAgent() {
             </Card>
           </div>
         </div>
+
+        {/* Configuration Dialog */}
+        <QuickActionConfigDialog
+          open={configDialogOpen}
+          onOpenChange={setConfigDialogOpen}
+          action={selectedAction}
+          onConfirm={handleExecuteAction}
+          isProcessing={isProcessing}
+        />
       </div>
     </DashboardLayout>
   );
