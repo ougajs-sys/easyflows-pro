@@ -112,10 +112,16 @@ export function useAIAgent() {
       icon: "Users",
     },
     {
-      id: "distribute-confirmed",
-      label: "Distribuer commandes confirmées",
+      id: "distribute-confirmed-callers",
+      label: "Distribuer confirmées aux appelants",
       instruction: "Distribue équitablement toutes les commandes confirmées non assignées entre les appelants actifs",
-      icon: "Package",
+      icon: "Phone",
+    },
+    {
+      id: "distribute-confirmed-delivery",
+      label: "Distribuer confirmées aux livreurs",
+      instruction: "Distribue équitablement toutes les commandes confirmées aux livreurs disponibles en équilibrant selon leur charge de travail actuelle",
+      icon: "Truck",
     },
     {
       id: "create-payment-followups",
