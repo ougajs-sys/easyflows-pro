@@ -50,6 +50,8 @@ interface Order {
   amount_due: number | null;
   quantity: number;
   created_at: string;
+  created_by: string | null;
+  assigned_to: string | null;
   delivery_address: string | null;
   delivery_notes: string | null;
   client: {
@@ -101,12 +103,14 @@ export function CallerOrders() {
           amount_due,
           quantity,
           created_at,
+          created_by,
+          assigned_to,
           delivery_address,
           delivery_notes,
           client:clients (id, full_name, phone, phone_secondary, address, zone),
           product:products (name, price)
         `)
-        .eq("created_by", user.id)
+        .or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -240,6 +244,7 @@ export function CallerOrders() {
 
   const OrderCard = ({ order }: { order: Order }) => {
     const StatusIcon = statusConfig[order.status]?.icon || Package;
+    const isAssigned = order.assigned_to === user?.id && order.created_by !== user?.id;
     
     return (
       <Card 
@@ -248,9 +253,16 @@ export function CallerOrders() {
       >
         <CardContent className="p-4">
           <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="font-mono text-sm text-primary">{order.order_number}</p>
-              <p className="font-medium">{order.client?.full_name || "Client inconnu"}</p>
+            <div className="flex items-center gap-2">
+              <div>
+                <p className="font-mono text-sm text-primary">{order.order_number}</p>
+                <p className="font-medium">{order.client?.full_name || "Client inconnu"}</p>
+              </div>
+              {isAssigned && (
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30 text-xs">
+                  Assignée
+                </Badge>
+              )}
             </div>
             <Badge className={cn("border", statusConfig[order.status]?.class)}>
               <StatusIcon className="w-3 h-3 mr-1" />

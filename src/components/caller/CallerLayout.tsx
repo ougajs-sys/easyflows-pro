@@ -29,7 +29,6 @@ interface CallerLayoutProps {
 const menuItems = [
   { id: "dashboard", label: "Mon espace", icon: Home },
   { id: "orders", label: "Mes Commandes", icon: Package },
-  { id: "all-orders", label: "Toutes Commandes", icon: Package },
   { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "clients", label: "Suivi Clients", icon: Users },
   { id: "followups", label: "Relances", icon: RefreshCw },

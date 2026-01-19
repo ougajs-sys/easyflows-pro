@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { CallerLayout } from "@/components/caller/CallerLayout";
 import { CallerDashboard } from "@/components/caller/CallerDashboard";
 import { CallerOrders } from "@/components/caller/CallerOrders";
-import { CallerOrdersAll } from "@/components/caller/CallerOrdersAll";
 import { CallerChat } from "@/components/caller/CallerChat";
 import { CallerClients } from "@/components/caller/CallerClients";
 import { CallerFollowUps } from "@/components/caller/CallerFollowUps";
@@ -34,8 +33,6 @@ export default function Dashboard() {
         return <CallerDashboard />;
       case "orders":
         return <CallerOrders />;
-      case "all-orders":
-        return <CallerOrdersAll />;
       case "chat":
         return <CallerChat />;
       case "clients":
