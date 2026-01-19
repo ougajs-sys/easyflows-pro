@@ -6,6 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   RefreshCw, 
   Phone, 
@@ -14,12 +21,19 @@ import {
   AlertCircle,
   Package,
   Loader2,
-  Bell
+  Bell,
+  ChevronDown,
+  XCircle,
+  Truck,
+  ShoppingCart
 } from "lucide-react";
 import { formatDistanceToNow, format, isToday, isPast } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type OrderStatus = Database["public"]["Enums"]["order_status"];
 
 interface FollowUp {
   id: string;
@@ -110,6 +124,58 @@ export function CallerFollowUps() {
         title: "Relance annulée",
       });
     },
+  });
+
+  // Mutation pour mettre à jour le statut de la commande
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: async ({ orderId, status, followUpId }: { orderId: string; status: OrderStatus; followUpId: string }) => {
+      // Mettre à jour le statut de la commande
+      const { error: orderError } = await supabase
+        .from("orders")
+        .update({ status })
+        .eq("id", orderId);
+
+      if (orderError) throw orderError;
+
+      // Compléter automatiquement la relance
+      const { error: followUpError } = await supabase
+        .from("follow_ups")
+        .update({ 
+          status: "completed",
+          completed_at: new Date().toISOString()
+        })
+        .eq("id", followUpId);
+
+      if (followUpError) throw followUpError;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["caller-followups"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["caller-orders"] });
+      
+      const statusLabels: Record<OrderStatus, string> = {
+        pending: "En attente",
+        confirmed: "Confirmée",
+        in_transit: "En cours de livraison",
+        delivered: "Livrée",
+        partial: "Partielle",
+        cancelled: "Annulée",
+        reported: "Signalée"
+      };
+      
+      toast({
+        title: "Commande mise à jour",
+        description: `La commande a été marquée comme "${statusLabels[variables.status]}"`,
+      });
+    },
+    onError: (error) => {
+      console.error("Error updating order status:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour le statut de la commande",
+        variant: "destructive",
+      });
+    }
   });
 
   const formatCurrency = (amount: number) => {
@@ -296,32 +362,123 @@ export function CallerFollowUps() {
                         )}
 
                         {followUp.status === "pending" && (
-                          <div className="flex gap-2">
+                          <div className="flex flex-col gap-2">
+                            {/* Actions principales : Appeler */}
                             {followUp.client?.phone && (
                               <a
                                 href={`tel:${followUp.client.phone}`}
-                                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
+                                className="flex items-center justify-center gap-2 py-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
                               >
                                 <Phone className="w-4 h-4" />
                                 <span className="text-sm font-medium">Appeler</span>
                               </a>
                             )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                              onClick={() => completeFollowUpMutation.mutate(followUp.id)}
-                              disabled={completeFollowUpMutation.isPending}
-                            >
-                              {completeFollowUpMutation.isPending ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <CheckCircle2 className="w-4 h-4 mr-1" />
-                                  Terminé
-                                </>
-                              )}
-                            </Button>
+
+                            {/* Actions sur la commande */}
+                            {followUp.order && (
+                              <div className="flex gap-2">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="flex-1 bg-primary hover:bg-primary/90"
+                                      disabled={updateOrderStatusMutation.isPending}
+                                    >
+                                      {updateOrderStatusMutation.isPending ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <>
+                                          <ShoppingCart className="w-4 h-4 mr-1" />
+                                          Statut commande
+                                          <ChevronDown className="w-4 h-4 ml-1" />
+                                        </>
+                                      )}
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="center" className="w-48">
+                                    <DropdownMenuItem
+                                      onClick={() => updateOrderStatusMutation.mutate({
+                                        orderId: followUp.order!.id,
+                                        status: "confirmed",
+                                        followUpId: followUp.id
+                                      })}
+                                      className="text-success"
+                                    >
+                                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                                      Confirmer
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => updateOrderStatusMutation.mutate({
+                                        orderId: followUp.order!.id,
+                                        status: "pending",
+                                        followUpId: followUp.id
+                                      })}
+                                      className="text-warning"
+                                    >
+                                      <Clock className="w-4 h-4 mr-2" />
+                                      En attente
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => updateOrderStatusMutation.mutate({
+                                        orderId: followUp.order!.id,
+                                        status: "in_transit",
+                                        followUpId: followUp.id
+                                      })}
+                                      className="text-blue-500"
+                                    >
+                                      <Truck className="w-4 h-4 mr-2" />
+                                      En livraison
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => updateOrderStatusMutation.mutate({
+                                        orderId: followUp.order!.id,
+                                        status: "cancelled",
+                                        followUpId: followUp.id
+                                      })}
+                                      className="text-destructive"
+                                    >
+                                      <XCircle className="w-4 h-4 mr-2" />
+                                      Annuler
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => completeFollowUpMutation.mutate(followUp.id)}
+                                  disabled={completeFollowUpMutation.isPending}
+                                >
+                                  {completeFollowUpMutation.isPending ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Si pas de commande liée, juste le bouton terminé */}
+                            {!followUp.order && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => completeFollowUpMutation.mutate(followUp.id)}
+                                disabled={completeFollowUpMutation.isPending}
+                              >
+                                {completeFollowUpMutation.isPending ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="w-4 h-4 mr-1" />
+                                    Terminé
+                                  </>
+                                )}
+                              </Button>
+                            )}
                           </div>
                         )}
 
