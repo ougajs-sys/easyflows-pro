@@ -8,7 +8,7 @@ type OrderStatus = Database['public']['Enums']['order_status'];
 
 interface Notification {
   id: string;
-  type: 'new_order' | 'status_change' | 'payment' | 'follow_up';
+  type: 'new_order' | 'status_change' | 'payment' | 'follow_up' | 'order_assigned';
   title: string;
   message: string;
   data?: any;
@@ -111,8 +111,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         async (payload) => {
           const oldStatus = (payload.old as any).status;
           const newStatus = payload.new.status;
+          const oldAssignedTo = (payload.old as any).assigned_to;
+          const newAssignedTo = payload.new.assigned_to;
 
-          // Only notify on status changes
+          // Notify on status changes
           if (oldStatus !== newStatus) {
             console.log('Order status changed:', payload);
 
@@ -126,6 +128,30 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               type: 'status_change',
               title: '📦 Statut modifié',
               message: `${payload.new.order_number}: ${statusLabels[oldStatus as OrderStatus] || oldStatus} → ${statusLabels[newStatus as OrderStatus] || newStatus}`,
+              data: payload.new,
+            });
+          }
+
+          // Notify caller when order is assigned to them
+          if (oldAssignedTo !== newAssignedTo && newAssignedTo === user?.id) {
+            console.log('Order assigned to current user:', payload);
+
+            const { data: client } = await supabase
+              .from('clients')
+              .select('full_name')
+              .eq('id', payload.new.client_id)
+              .single();
+
+            const { data: product } = await supabase
+              .from('products')
+              .select('name')
+              .eq('id', payload.new.product_id)
+              .single();
+
+            addNotification({
+              type: 'order_assigned',
+              title: '📋 Commande assignée',
+              message: `${payload.new.order_number} - ${client?.full_name || 'Client'} (${product?.name || 'Produit'})`,
               data: payload.new,
             });
           }

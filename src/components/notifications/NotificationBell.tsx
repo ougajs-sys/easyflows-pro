@@ -13,13 +13,14 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { Package, CreditCard, Phone } from 'lucide-react';
+import { Package, CreditCard, Phone, UserPlus } from 'lucide-react';
 
 const notificationIcons = {
   new_order: Package,
   status_change: Package,
   payment: CreditCard,
   follow_up: Phone,
+  order_assigned: UserPlus,
 };
 
 const notificationColors = {
@@ -27,6 +28,7 @@ const notificationColors = {
   status_change: 'text-orange-500',
   payment: 'text-green-500',
   follow_up: 'text-purple-500',
+  order_assigned: 'text-indigo-500',
 };
 
 export function NotificationBell() {
