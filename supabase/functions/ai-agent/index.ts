@@ -209,7 +209,7 @@ RÈGLES IMPORTANTES:
                 type: "object",
                 properties: {
                   order_ids: { type: "array", items: { type: "string" }, description: "IDs des commandes pour lesquelles créer des relances" },
-                  followup_type: { type: "string", enum: ["payment", "satisfaction", "rescheduled", "complaint"], description: "Type de relance" },
+                  followup_type: { type: "string", enum: ["reminder", "partial_payment", "rescheduled", "retargeting"], description: "Type de relance (reminder=rappel, partial_payment=paiement partiel, rescheduled=reprogrammée, retargeting=relance)" },
                   days_since_order: { type: "number", description: "Créer relances pour commandes de plus de X jours" },
                   filter_status: { type: "string", description: "Filtrer les commandes par statut" },
                 },
