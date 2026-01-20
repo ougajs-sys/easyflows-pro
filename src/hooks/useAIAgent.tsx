@@ -53,30 +53,31 @@ export function useAIAgent() {
         throw new Error("Non authentifié");
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-agent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${sessionData.session.access_token}`,
-          },
-          body: JSON.stringify({ instruction }),
-        }
-      );
+      console.log("Calling AI Agent with instruction:", instruction);
+      
+      const { data, error } = await supabase.functions.invoke("ai-agent", {
+        body: { instruction },
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 429) {
+      console.log("AI Agent response:", { data, error });
+
+      if (error) {
+        // Check for specific error messages
+        const errorMessage = error.message || "Erreur lors de l'exécution";
+        if (errorMessage.includes("429") || errorMessage.includes("rate limit")) {
           throw new Error("Limite de requêtes atteinte. Réessayez dans quelques minutes.");
         }
-        if (response.status === 403) {
+        if (errorMessage.includes("403") || errorMessage.includes("Access denied")) {
           throw new Error("Accès refusé. Seuls les superviseurs et administrateurs peuvent utiliser l'Agent IA.");
         }
-        throw new Error(errorData.error || "Erreur lors de l'exécution");
+        throw new Error(errorMessage);
       }
 
-      return response.json();
+      if (!data) {
+        throw new Error("Aucune réponse reçue de l'Agent IA");
+      }
+
+      return data as AIResponse;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["ai-instructions"] });
