@@ -128,6 +128,14 @@ class RateLimiter {
       this.cleanupInterval = null;
     }
   }
+
+  /**
+   * Get the configuration
+   * @returns Configuration object
+   */
+  getConfig(): RateLimiterConfig {
+    return { ...this.config };
+  }
 }
 
 /**
@@ -195,6 +203,8 @@ export function applyRateLimit(
   if (!result.allowed) {
     console.warn(`⚠️ Rate limit exceeded for ${identifier}`);
     
+    const config = limiter.getConfig();
+    
     return new Response(
       JSON.stringify({
         error: "Too many requests",
@@ -206,7 +216,7 @@ export function applyRateLimit(
         headers: {
           "Content-Type": "application/json",
           "Retry-After": String(result.retryAfter || 60),
-          "X-RateLimit-Limit": String(limiter['config'].maxRequests),
+          "X-RateLimit-Limit": String(config.maxRequests),
           "X-RateLimit-Remaining": "0",
           "X-RateLimit-Reset": String(result.resetAt),
         },
@@ -229,17 +239,18 @@ export function getRateLimitHeaders(
   identifier: string
 ): Record<string, string> {
   const stats = limiter.getStats(identifier);
+  const config = limiter.getConfig();
   
   if (!stats) {
     return {
-      "X-RateLimit-Limit": String(limiter['config'].maxRequests),
-      "X-RateLimit-Remaining": String(limiter['config'].maxRequests),
+      "X-RateLimit-Limit": String(config.maxRequests),
+      "X-RateLimit-Remaining": String(config.maxRequests),
     };
   }
 
   return {
-    "X-RateLimit-Limit": String(limiter['config'].maxRequests),
-    "X-RateLimit-Remaining": String(limiter['config'].maxRequests - stats.count),
+    "X-RateLimit-Limit": String(config.maxRequests),
+    "X-RateLimit-Remaining": String(config.maxRequests - stats.count),
     "X-RateLimit-Reset": String(stats.resetAt),
   };
 }
