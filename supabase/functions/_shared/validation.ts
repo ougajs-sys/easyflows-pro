@@ -145,8 +145,21 @@ export function validateWithZod<T>(
  * @returns Sanitized string
  */
 export function sanitizeString(input: string): string {
+  if (!input) return '';
+  
   return input
-    .replace(/[<>]/g, '') // Remove < and >
+    // Remove HTML tags
+    .replace(/<[^>]*>/g, '')
+    // Encode special HTML characters
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;')
+    // Remove any script-like content
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+=/gi, '')
     .trim()
     .substring(0, 1000); // Limit length
 }

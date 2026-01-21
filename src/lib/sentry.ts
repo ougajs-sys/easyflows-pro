@@ -55,14 +55,14 @@ export async function initializeSentry(): Promise<void> {
         if (event.request) {
           delete event.request.cookies;
           
-          // Redact authorization headers
+          // Redact authorization headers (case-insensitive)
           if (event.request.headers) {
-            if ('Authorization' in event.request.headers) {
-              event.request.headers['Authorization'] = '[Redacted]';
-            }
-            if ('authorization' in event.request.headers) {
-              event.request.headers['authorization'] = '[Redacted]';
-            }
+            const headers = event.request.headers as Record<string, string>;
+            Object.keys(headers).forEach(key => {
+              if (key.toLowerCase() === 'authorization') {
+                headers[key] = '[Redacted]';
+              }
+            });
           }
         }
 

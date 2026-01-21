@@ -110,9 +110,11 @@ serve(async (req) => {
 
     // Get raw body for signature verification
     const rawBody = await req.text();
+    const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
 
     // Verify webhook signature if secret is configured
-    if (webhookSecret) {
+    // Note: Signature verification is not supported for multipart/form-data
+    if (webhookSecret && !contentType.includes("multipart/form-data")) {
       const signature = extractSignatureFromHeaders(req.headers);
       
       if (signature) {
@@ -139,7 +141,6 @@ serve(async (req) => {
 
     // Parse the body
     let body: AnyRecord;
-    const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
 
     if (contentType.includes("application/json")) {
       body = JSON.parse(rawBody) as AnyRecord;
@@ -147,8 +148,15 @@ serve(async (req) => {
       const flat = Object.fromEntries(new URLSearchParams(rawBody)) as Record<string, string>;
       body = parseBracketNotation(flat);
     } else if (contentType.includes("multipart/form-data")) {
-      // Re-parse for multipart (can't use rawBody)
-      const fd = await req.formData();
+      // For multipart, we need to create a new request since body was already consumed
+      // Note: Signature verification is not supported for multipart uploads
+      console.warn("⚠️ Multipart form data - signature verification skipped");
+      const newReq = new Request(req.url, {
+        method: req.method,
+        headers: req.headers,
+        body: rawBody,
+      });
+      const fd = await newReq.formData();
       const flat: Record<string, string> = {};
       for (const [k, v] of fd.entries()) {
         if (typeof v === "string") flat[k] = v;

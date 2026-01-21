@@ -201,8 +201,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.audit_logs (user_id, action, table_name, record_id, old_data, new_data)
-  VALUES (auth.uid(), p_action, p_table_name, p_record_id, p_old_data, p_new_data);
+  -- Only log if user is authenticated
+  IF auth.uid() IS NOT NULL THEN
+    INSERT INTO public.audit_logs (user_id, action, table_name, record_id, old_data, new_data)
+    VALUES (auth.uid(), p_action, p_table_name, p_record_id, p_old_data, p_new_data);
+  END IF;
 END;
 $$;
 
