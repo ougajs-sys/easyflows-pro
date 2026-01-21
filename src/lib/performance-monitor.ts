@@ -3,6 +3,8 @@
  * Tracks and reports application performance metrics
  */
 
+import React from 'react';
+
 interface PerformanceEntry {
   name: string;
   duration: number;
@@ -185,6 +187,3 @@ export function withPerformanceTracking<P extends object>(
     return React.createElement(Component, props);
   };
 }
-
-// Make React available for the withPerformanceTracking function
-import React from 'react';

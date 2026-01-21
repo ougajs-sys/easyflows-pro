@@ -55,14 +55,18 @@ export async function verifySignature(
  * Timing-safe string comparison to prevent timing attacks
  */
 function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
+  // Pad strings to equal length to prevent length-based timing attacks
+  const maxLength = Math.max(a.length, b.length);
+  const paddedA = a.padEnd(maxLength, '\0');
+  const paddedB = b.padEnd(maxLength, '\0');
   
   let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < maxLength; i++) {
+    result |= paddedA.charCodeAt(i) ^ paddedB.charCodeAt(i);
   }
+  
+  // Also check original lengths to prevent padding bypass
+  result |= a.length ^ b.length;
   
   return result === 0;
 }

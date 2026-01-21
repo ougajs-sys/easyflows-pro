@@ -1,5 +1,5 @@
 import { useQuery, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { performanceMonitor } from '@/lib/performance-monitor';
 
 /**
@@ -13,9 +13,18 @@ export function useOptimizedQuery<
 >(
   options: UseQueryOptions<TQueryFnData, TError, TData, TQueryKey>
 ): UseQueryResult<TData, TError> {
+  // Use a ref to track the query key without serialization
+  const queryKeyRef = useRef<string>();
+  const currentKeyStr = options.queryKey?.toString() || '';
+  
+  // Only update if the key actually changed
+  if (queryKeyRef.current !== currentKeyStr) {
+    queryKeyRef.current = currentKeyStr;
+  }
+  
   // Memoize query options to prevent unnecessary re-renders
   const memoizedOptions = useMemo(() => options, [
-    JSON.stringify(options.queryKey),
+    queryKeyRef.current,
     options.queryFn,
     options.enabled,
   ]);
