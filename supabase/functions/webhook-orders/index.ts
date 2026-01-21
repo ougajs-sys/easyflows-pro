@@ -1,9 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyWebhookSignature, extractSignatureFromHeaders } from "./crypto-utils.ts";
+import { webhookRateLimiter, applyRateLimit, getRateLimitHeaders, getRateLimitIdentifier } from "../_shared/rate-limit.ts";
+import { sanitizeString, isValidPhone } from "../_shared/validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-signature, x-webhook-secret",
 };
 
 type AnyRecord = Record<string, unknown>;
@@ -58,40 +61,6 @@ function pickFirstNumber(...values: unknown[]) {
   return 0;
 }
 
-async function parseIncomingBody(req: Request): Promise<AnyRecord> {
-  const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
-
-  // Elementor webhook often sends application/x-www-form-urlencoded.
-  if (contentType.includes("application/json")) {
-    const json = (await req.json()) as AnyRecord;
-    return json;
-  }
-
-  if (contentType.includes("application/x-www-form-urlencoded")) {
-    const text = await req.text();
-    const flat = Object.fromEntries(new URLSearchParams(text)) as Record<string, string>;
-    return parseBracketNotation(flat);
-  }
-
-  if (contentType.includes("multipart/form-data")) {
-    const fd = await req.formData();
-    const flat: Record<string, string> = {};
-    for (const [k, v] of fd.entries()) {
-      if (typeof v === "string") flat[k] = v;
-    }
-    return parseBracketNotation(flat);
-  }
-
-  // Fallback: try JSON first, else urlencoded-ish.
-  const raw = await req.text();
-  try {
-    return JSON.parse(raw);
-  } catch {
-    const flat = Object.fromEntries(new URLSearchParams(raw)) as Record<string, string>;
-    return parseBracketNotation(flat);
-  }
-}
-
 function getField(body: AnyRecord, key: string) {
   // Accept multiple payload shapes:
   // - { phone: "..." }
@@ -124,12 +93,76 @@ serve(async (req) => {
   try {
     console.log("📦 Webhook received - Processing order");
 
+    // Apply rate limiting
+    const rateLimitResponse = applyRateLimit(req, webhookRateLimiter);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    // Get rate limit headers for successful request
+    const identifier = getRateLimitIdentifier(req);
+    const rateLimitHeaders = getRateLimitHeaders(webhookRateLimiter, identifier);
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse incoming data (JSON / urlencoded / multipart)
-    const body = await parseIncomingBody(req);
+    // Get raw body for signature verification
+    const rawBody = await req.text();
+
+    // Verify webhook signature if secret is configured
+    if (webhookSecret) {
+      const signature = extractSignatureFromHeaders(req.headers);
+      
+      if (signature) {
+        const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
+        
+        if (!isValid) {
+          console.error("❌ Invalid webhook signature");
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Invalid webhook signature",
+            }),
+            {
+              headers: { ...corsHeaders, ...rateLimitHeaders, "Content-Type": "application/json" },
+              status: 401,
+            }
+          );
+        }
+        console.log("✅ Webhook signature verified");
+      } else {
+        console.warn("⚠️ Webhook signature not provided but secret is configured");
+      }
+    }
+
+    // Parse the body
+    let body: AnyRecord;
+    const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
+
+    if (contentType.includes("application/json")) {
+      body = JSON.parse(rawBody) as AnyRecord;
+    } else if (contentType.includes("application/x-www-form-urlencoded")) {
+      const flat = Object.fromEntries(new URLSearchParams(rawBody)) as Record<string, string>;
+      body = parseBracketNotation(flat);
+    } else if (contentType.includes("multipart/form-data")) {
+      // Re-parse for multipart (can't use rawBody)
+      const fd = await req.formData();
+      const flat: Record<string, string> = {};
+      for (const [k, v] of fd.entries()) {
+        if (typeof v === "string") flat[k] = v;
+      }
+      body = parseBracketNotation(flat);
+    } else {
+      // Fallback
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        const flat = Object.fromEntries(new URLSearchParams(rawBody)) as Record<string, string>;
+        body = parseBracketNotation(flat);
+      }
+    }
 
     // Log only non-sensitive info (avoid PII)
     const topKeys = Object.keys(body ?? {}).slice(0, 30);
@@ -137,45 +170,45 @@ serve(async (req) => {
     console.log("📥 Payload top-level keys:", topKeys);
 
     // Extract order data from multiple possible formats
-    const clientName = pickFirstString(
+    const clientName = sanitizeString(pickFirstString(
       getField(body, "client_name"),
       getField(body, "customer_name"),
       getField(body, "name"),
       pickFirstString(body.billing_first_name as unknown)
         ? `${pickFirstString(body.billing_first_name)} ${pickFirstString(body.billing_last_name)}`.trim()
         : ""
-    );
+    ));
 
-    const clientPhone = pickFirstString(
+    const clientPhone = sanitizeString(pickFirstString(
       getField(body, "phone"),
       getField(body, "client_phone"),
       body.billing_phone
-    );
+    ));
 
-    const clientCity = pickFirstString(
+    const clientCity = sanitizeString(pickFirstString(
       getField(body, "city"),
       getField(body, "client_city"),
       body.billing_city
-    );
+    ));
 
-    const clientAddress = pickFirstString(
+    const clientAddress = sanitizeString(pickFirstString(
       getField(body, "address"),
       getField(body, "client_address"),
       body.billing_address_1
         ? `${pickFirstString(body.billing_address_1)}${pickFirstString(body.billing_address_2) ? ", " + pickFirstString(body.billing_address_2) : ""}`
         : ""
-    );
+    ));
 
     // Le nom du produit peut venir de: form_name (nom du formulaire), product_name, ou product
     const formName = getFormName(body);
-    const productName = pickFirstString(
+    const productName = sanitizeString(pickFirstString(
       formName,  // Priorité au nom du formulaire Elementor
       getField(body, "product_name"),
       getField(body, "product"),
       body.line_items && Array.isArray(body.line_items)
         ? (body.line_items[0] as AnyRecord)?.name
         : ""
-    );
+    ));
 
     console.log("📝 Form name (product):", formName || "(not set)");
     console.log("📦 Resolved product name:", productName);
@@ -196,11 +229,11 @@ serve(async (req) => {
         : 0
     );
 
-    const notes = pickFirstString(
+    const notes = sanitizeString(pickFirstString(
       getField(body, "notes"),
       getField(body, "order_notes"),
       body.customer_note
-    );
+    ));
 
     const externalOrderId =
       (body.id as string | undefined) ||
@@ -208,12 +241,18 @@ serve(async (req) => {
       (getField(body, "order_number") as string | undefined) ||
       null;
 
-    // Minimal server-side validation
+    // Enhanced server-side validation
     if (!clientPhone) {
       throw new Error("Téléphone obligatoire (champ 'phone').");
     }
+    if (!isValidPhone(clientPhone)) {
+      throw new Error("Format de téléphone invalide.");
+    }
     if (!productName) {
       throw new Error("Nom du produit obligatoire (champ 'product_name').");
+    }
+    if (quantity < 1 || quantity > 10000) {
+      throw new Error("Quantité invalide (doit être entre 1 et 10000).");
     }
 
     // Step 1: Find or create client
@@ -341,7 +380,7 @@ serve(async (req) => {
         sms_notification: "triggered"
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, ...rateLimitHeaders, "Content-Type": "application/json" },
         status: 200,
       }
     );
@@ -349,13 +388,17 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     console.error("❌ Webhook error:", errorMessage);
 
+    // Get rate limit headers even for errors
+    const identifier = getRateLimitIdentifier(req);
+    const rateLimitHeaders = getRateLimitHeaders(webhookRateLimiter, identifier);
+
     return new Response(
       JSON.stringify({
         success: false,
         error: errorMessage,
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, ...rateLimitHeaders, "Content-Type": "application/json" },
         status: 400,
       }
     );
