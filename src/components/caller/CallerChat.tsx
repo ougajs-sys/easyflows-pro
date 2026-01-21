@@ -1,10 +1,13 @@
-// Updated sendMessageMutation
-sendMessageMutation({
-  sender_id,
-  receiver_id,
-  channel,
-  content,
-  message_type,
-  is_read,
-  room_id: "room-appelants"
-});
+import { gql } from '@apollo/client';
+
+export const INSERT_MESSAGE = gql`
+  mutation insertMessage($content: String!) {
+    insert_messages(objects: [{ content: $content, room_id: "room-appelants" }]) {
+      returning {
+        id
+        content
+        room_id
+      }
+    }
+  }
+`;
