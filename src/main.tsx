@@ -2,15 +2,17 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { initializeSentry } from "./lib/sentry";
+import bugsnagClient from "./lib/bugsnag";
 
-// Initialize Sentry for error tracking
-initializeSentry().catch(err => {
-  console.error("Failed to initialize Sentry:", err);
-});
+// Initialize BugSnag for error tracking
+if (import.meta.env.VITE_BUGSNAG_API_KEY) {
+    console.log("✅ BugSnag initialized successfully");
+} else {
+    console.warn("⚠️ BugSnag API Key not configured. Error tracking disabled.");
+}
 
 createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>
 );
