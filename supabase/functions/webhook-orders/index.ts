@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifySignature, extractSignature } from "./crypto-utils.ts";
+import { rateLimitMiddleware, getClientIP } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-signature, x-webhook-secret",
 };
 
 type AnyRecord = Record<string, unknown>;
@@ -123,14 +125,133 @@ serve(async (req) => {
 
   try {
     console.log("📦 Webhook received - Processing order");
+    const clientIP = getClientIP(req);
+    console.log("🌐 Request from IP:", clientIP);
+
+    // ======================================
+    // SECURITY: Rate Limiting
+    // ======================================
+    const rateLimitResponse = rateLimitMiddleware(req, {
+      maxRequests: 60,
+      windowMs: 60000, // 1 minute
+      message: "Trop de requêtes webhook. Veuillez réessayer dans 1 minute.",
+    });
+
+    if (rateLimitResponse) {
+      console.warn("⚠️ Rate limit exceeded for IP:", clientIP);
+      return rateLimitResponse;
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse incoming data (JSON / urlencoded / multipart)
-    const body = await parseIncomingBody(req);
+    // ======================================
+    // SECURITY: Webhook Signature Verification
+    // ======================================
+    const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
+    
+    // Vérifier la signature si le secret est configuré
+    if (webhookSecret) {
+      const signature = extractSignature(req.headers);
+      
+      if (!signature) {
+        console.error("❌ Missing webhook signature");
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Signature webhook manquante. Configurez le header X-Webhook-Signature.",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 401,
+          }
+        );
+      }
 
+      // Parse le body pour vérifier la signature
+      const bodyText = await req.text();
+      let body: AnyRecord;
+      
+      try {
+        // Recréer la requête pour le parsing
+        const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
+        
+        if (contentType.includes("application/json")) {
+          body = JSON.parse(bodyText);
+        } else if (contentType.includes("application/x-www-form-urlencoded")) {
+          const flat = Object.fromEntries(new URLSearchParams(bodyText)) as Record<string, string>;
+          body = parseBracketNotation(flat);
+        } else {
+          body = JSON.parse(bodyText);
+        }
+      } catch (error) {
+        console.error("❌ Failed to parse body:", error);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Invalid request body",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          }
+        );
+      }
+
+      // Vérifier la signature
+      const isValid = await verifySignature(body, signature, webhookSecret);
+      
+      if (!isValid) {
+        console.error("❌ Invalid webhook signature from IP:", clientIP);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Signature webhook invalide. Vérifiez votre WEBHOOK_SECRET.",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 401,
+          }
+        );
+      }
+
+      console.log("✅ Webhook signature verified");
+      
+      // Utiliser le body déjà parsé pour le reste du traitement
+      return await processOrder(req, supabase, body);
+    } else {
+      console.warn("⚠️ WEBHOOK_SECRET not configured - signature verification disabled");
+      console.warn("⚠️ For production, please set WEBHOOK_SECRET environment variable");
+      
+      // Continuer sans vérification (mode développement)
+      const body = await parseIncomingBody(req);
+      return await processOrder(req, supabase, body);
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("❌ Webhook error:", errorMessage);
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: errorMessage,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      }
+    );
+  }
+});
+
+// ======================================
+// PROCESS ORDER - Extracted function
+// ======================================
+async function processOrder(req: Request, supabase: any, body: AnyRecord) {
+  try {
+    // Body is already parsed and passed as parameter
+    
     // Log only non-sensitive info (avoid PII)
     const topKeys = Object.keys(body ?? {}).slice(0, 30);
     console.log("📥 Payload content-type:", req.headers.get("content-type") ?? "(none)");
@@ -347,7 +468,7 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    console.error("❌ Webhook error:", errorMessage);
+    console.error("❌ Order processing error:", errorMessage);
 
     return new Response(
       JSON.stringify({
@@ -360,4 +481,4 @@ serve(async (req) => {
       }
     );
   }
-});
+}
