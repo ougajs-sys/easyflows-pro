@@ -1,9 +1,15 @@
 import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
+import react from '@vitejs/plugin-react-swc';
+import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   build: {
     rollupOptions: {
       output: {
@@ -18,14 +24,6 @@ export default defineConfig({
     assetsInlineLimit: 4096,
     sourceMap: false, // Disable source maps in production
     minify: 'esbuild',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-      },
-    },
-  },
-  optimizeDeps: {
-    include: ['vue'], // Specify dependencies to be pre-bundled
   },
   server: {
     port: 3000,
