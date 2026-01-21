@@ -42,7 +42,7 @@ function calculateDelay(
  */
 function isRetryableError(error: Error, config: Required<RetryConfig>): boolean {
   // Check if error code matches retryable errors
-  const errorCode = (error as any).code;
+  const errorCode = (error as { code?: string }).code;
   if (errorCode && config.retryableErrors.includes(errorCode)) {
     return true;
   }

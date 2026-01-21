@@ -133,7 +133,7 @@ export function clearUserContext() {
 /**
  * Capture exception manually
  */
-export function captureException(error: Error, context?: Record<string, any>) {
+export function captureException(error: Error, context?: Record<string, unknown>) {
   if (context) {
     Sentry.setContext('additional', context);
   }
@@ -153,7 +153,7 @@ export function captureMessage(message: string, level: Sentry.SeverityLevel = 'i
 export function addBreadcrumb(
   message: string,
   category: string = 'custom',
-  data?: Record<string, any>
+  data?: Record<string, unknown>
 ) {
   Sentry.addBreadcrumb({
     message,
