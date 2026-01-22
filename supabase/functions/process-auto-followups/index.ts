@@ -35,13 +35,74 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ========================================
+    // AUTHENTICATION & AUTHORIZATION CHECK
+    // ========================================
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      console.error("Missing or invalid authorization header");
+      return new Response(
+        JSON.stringify({ error: "Authorization required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const messenger360ApiKey = Deno.env.get("MESSENGER360_API_KEY");
 
+    // Verify user authentication using anon key client
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error("Invalid token:", claimsError?.message);
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log(`User ${userId} requesting to process auto-followups`);
+
+    // Use service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log("Processing scheduled followups...");
+    // Check user role - only supervisors and admins can trigger this
+    const { data: userRole, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .single();
+
+    if (roleError || !userRole) {
+      console.error("Failed to fetch user role:", roleError?.message);
+      return new Response(
+        JSON.stringify({ error: "Unable to verify user permissions" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const allowedRoles = ["superviseur", "administrateur"];
+    if (!allowedRoles.includes(userRole.role)) {
+      console.error(`Access denied for user ${userId} with role ${userRole.role}`);
+      return new Response(
+        JSON.stringify({ error: "Accès refusé. Seuls les superviseurs et administrateurs peuvent exécuter cette action." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`User ${userId} authorized with role ${userRole.role}. Processing scheduled followups...`);
+
+    // ========================================
+    // MAIN LOGIC - PROCESS FOLLOWUPS
+    // ========================================
 
     // Get all pending followups that are due
     const now = new Date().toISOString();
@@ -135,8 +196,7 @@ Deno.serve(async (req) => {
 
             // Log the SMS in campaign_logs if needed
             await supabase.from("campaign_logs").insert({
-              phone_number: client.phone,
-              message_content: smsContent,
+              phone: client.phone,
               status: "sent",
               sent_at: new Date().toISOString(),
             });
