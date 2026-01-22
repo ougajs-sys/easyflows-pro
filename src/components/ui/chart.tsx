@@ -58,6 +58,43 @@ const ChartContainer = React.forwardRef<
 });
 ChartContainer.displayName = "Chart";
 
+// Sanitize CSS color values to prevent XSS attacks
+function sanitizeCSSColor(color: string): string {
+  // Only allow valid CSS color formats: hex, rgb(a), hsl(a), named colors, and CSS variables
+  const validPatterns = [
+    /^#[0-9a-fA-F]{3,8}$/,                                    // Hex colors
+    /^rgba?\(\s*[\d.]+%?\s*,\s*[\d.]+%?\s*,\s*[\d.]+%?\s*(,\s*[\d.]+%?\s*)?\)$/,  // RGB/RGBA
+    /^hsla?\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*[\d.]+%\s*(,\s*[\d.]+%?\s*)?\)$/,      // HSL/HSLA
+    /^(red|blue|green|yellow|black|white|transparent|currentColor|inherit)$/i,     // Named colors
+    /^hsl\(var\(--[\w-]+\)(?:,\s*[\d.]+%\s*,\s*[\d.]+%\s*)?\)$/,                  // HSL with CSS vars
+    /^var\(--[\w-]+\)$/,                                        // CSS custom properties
+  ];
+  
+  const trimmedColor = color.trim();
+  
+  // Check if it matches any valid pattern
+  if (validPatterns.some(pattern => pattern.test(trimmedColor))) {
+    return trimmedColor;
+  }
+  
+  // Fallback: strip any potentially dangerous characters and only allow safe chars
+  const sanitized = trimmedColor.replace(/[<>"';&{}()]/g, '');
+  
+  // If after sanitization it's empty or very different, use a safe default
+  if (!sanitized || sanitized.length < trimmedColor.length * 0.5) {
+    console.warn('Invalid color format detected, using fallback:', color);
+    return 'hsl(var(--primary))';
+  }
+  
+  return sanitized;
+}
+
+// Sanitize CSS selector/key to prevent injection
+function sanitizeCSSKey(key: string): string {
+  // Only allow alphanumeric, hyphens, and underscores in CSS custom property names
+  return key.replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
@@ -65,23 +102,33 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // Sanitize the chart ID to prevent CSS selector injection
+  const sanitizedId = id.replace(/[^a-zA-Z0-9_-]/g, '');
+
+  // Build CSS safely with sanitized values
+  const cssContent = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const variables = colorConfig
+        .map(([key, itemConfig]) => {
+          const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+          if (color) {
+            const sanitizedKey = sanitizeCSSKey(key);
+            const sanitizedColor = sanitizeCSSColor(color);
+            return `  --color-${sanitizedKey}: ${sanitizedColor};`;
+          }
+          return null;
+        })
+        .filter(Boolean)
+        .join("\n");
+      
+      return `${prefix} [data-chart=${sanitizedId}] {\n${variables}\n}`;
+    })
+    .join("\n");
+
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
+        __html: cssContent,
       }}
     />
   );
