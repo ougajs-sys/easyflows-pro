@@ -93,7 +93,7 @@ export function validateObject<T>(
 
   const data = obj as Record<string, unknown>;
 
-  for (const [key, validator] of Object.entries(schema)) {
+  for (const [key, validator] of Object.entries(schema) as [string, (v: unknown) => boolean][]) {
     const value = data[key];
     try {
       if (!validator(value)) {

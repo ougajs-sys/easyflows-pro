@@ -1213,7 +1213,7 @@ export type Database = {
       transfer_stock_from_delivery: {
         Args: {
           p_delivery_person_id: string
-          p_performed_by: string
+          p_performed_by?: string
           p_product_id: string
           p_quantity: number
         }
@@ -1222,7 +1222,7 @@ export type Database = {
       transfer_stock_to_delivery: {
         Args: {
           p_delivery_person_id: string
-          p_performed_by: string
+          p_performed_by?: string
           p_product_id: string
           p_quantity: number
         }
