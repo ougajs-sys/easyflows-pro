@@ -89,7 +89,7 @@ serve(async (req) => {
     // Get context data for AI
     const [ordersResult, callersResult, productsResult, clientsResult, followupsResult, deliveryPersonsResult] = await Promise.all([
       supabase.from("orders").select("id, status, assigned_to, delivery_person_id, client_id, product_id, quantity, total_amount, created_at, delivery_address, clients(zone)").order("created_at", { ascending: false }).limit(100),
-      supabase.from("user_roles").select("user_id, role").eq("role", "appelant"),
+      supabase.from("user_roles").select("user_id, role").eq("role", "appelant").eq("confirmed", true),
       supabase.from("products").select("id, name, stock, price, is_active"),
       supabase.from("clients").select("id, full_name, phone, segment, total_orders, total_spent").order("created_at", { ascending: false }).limit(200),
       supabase.from("follow_ups").select("id, client_id, order_id, status, scheduled_at, type").eq("status", "pending").limit(100),

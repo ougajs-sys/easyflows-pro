@@ -96,13 +96,13 @@ export default function AIAgent() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30"><CheckCircle2 className="w-3 h-3 mr-1" /> Terminé</Badge>;
+        return <Badge variant="default" className="bg-success/20 text-success border-success/30"><CheckCircle2 className="w-3 h-3 mr-1" /> Terminé</Badge>;
       case "processing":
-        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30"><Loader2 className="w-3 h-3 mr-1 animate-spin" /> En cours</Badge>;
+        return <Badge variant="default" className="bg-primary/20 text-primary border-primary/30"><Loader2 className="w-3 h-3 mr-1 animate-spin" /> En cours</Badge>;
       case "failed":
-        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30"><XCircle className="w-3 h-3 mr-1" /> Échoué</Badge>;
+        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Échoué</Badge>;
       default:
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"><Clock className="w-3 h-3 mr-1" /> En attente</Badge>;
+        return <Badge variant="default" className="bg-warning/20 text-warning border-warning/30"><Clock className="w-3 h-3 mr-1" /> En attente</Badge>;
     }
   };
 
@@ -188,7 +188,7 @@ export default function AIAgent() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-yellow-400" />
+                  <Zap className="w-5 h-5 text-accent" />
                   Actions rapides
                 </CardTitle>
                 <CardDescription>
@@ -196,7 +196,7 @@ export default function AIAgent() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {quickActions.map((action) => {
                     const Icon = iconMap[action.icon] || Package;
                     const isConfigurable = [
@@ -206,28 +206,30 @@ export default function AIAgent() {
                     ].includes(action.id);
 
                     return (
-                      <Button
+                      <Card
                         key={action.id}
-                        variant="outline"
-                        className="h-auto py-4 px-4 justify-start gap-3 hover:bg-primary/10 hover:border-primary/50 group"
-                        onClick={() => handleQuickActionClick(action)}
-                        disabled={isProcessing}
+                        className="cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group"
+                        onClick={() => !isProcessing && handleQuickActionClick(action)}
                       >
-                        <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
-                          <Icon className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="text-left flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{action.label}</p>
-                            {isConfigurable && (
-                              <Settings2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                            )}
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+                              <Icon className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-medium text-sm truncate">{action.label}</p>
+                                {isConfigurable && (
+                                  <Settings2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                                {action.instruction}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-xs text-muted-foreground line-clamp-1">
-                            {action.instruction}
-                          </p>
-                        </div>
-                      </Button>
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>
