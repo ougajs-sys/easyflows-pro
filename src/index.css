@@ -1,5 +1,257 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    /* Easyflow - Version Dorée (Thème Clair) */
+    --background: 40 27% 96%; /* #F8F6F2 - Blanc cassé élégant */
+    --foreground: 0 0% 18%; /* #2E2E2E - Gris anthracite */
+    
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 18%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 18%;
+    
+    --primary: 170 100% 33%; /* #00A88F - Vert émeraude fluide */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 40 20% 92%;
+    --secondary-foreground: 213 66% 11%;
+    
+    --muted: 40 15% 90%;
+    --muted-foreground: 0 0% 35%;
+    
+    --accent: 46 65% 52%; /* #D4AF37 - Doré métallique */
+    --accent-foreground: 213 66% 11%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --success: 170 100% 33%; /* #00A88F - Vert émeraude */
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 46 65% 52%; /* #D4AF37 - Doré */
+    --warning-foreground: 213 66% 11%;
+    
+    --border: 40 15% 85%;
+    --input: 40 15% 88%;
+    --ring: 170 100% 33%;
+    
+    --radius: 0.75rem;
+    
+    /* Sidebar - Bleu nuit */
+    --sidebar-background: 213 66% 11%; /* #0A1A2F */
+    --sidebar-foreground: 40 27% 96%;
+    --sidebar-primary: 170 100% 33%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 46 65% 52%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 213 50% 18%;
+    --sidebar-ring: 170 100% 33%;
+    
+    /* Gradients Easyflow */
+    --gradient-gold: linear-gradient(135deg, hsl(46 65% 52%) 0%, hsl(40 70% 45%) 100%);
+    --gradient-emerald: linear-gradient(135deg, hsl(170 100% 33%) 0%, hsl(165 80% 28%) 100%);
+    --gradient-night: linear-gradient(180deg, hsl(213 66% 11%) 0%, hsl(213 60% 8%) 100%);
+    --glow-gold: 0 0 20px hsl(46 65% 52% / 0.4);
+    --glow-emerald: 0 0 20px hsl(170 100% 33% / 0.3);
+  }
+
+  .dark {
+    /* Easyflow - Version Dorée (Thème Sombre - Bleu nuit dominant) */
+    --background: 213 66% 7%; /* Version plus sombre du bleu nuit */
+    --foreground: 40 27% 96%; /* #F8F6F2 */
+    
+    --card: 213 60% 10%;
+    --card-foreground: 40 27% 96%;
+    
+    --popover: 213 60% 12%;
+    --popover-foreground: 40 27% 96%;
+    
+    --primary: 170 100% 38%; /* Émeraude légèrement plus vif en dark */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 213 50% 15%;
+    --secondary-foreground: 40 27% 96%;
+    
+    --muted: 213 40% 18%;
+    --muted-foreground: 40 15% 65%;
+    
+    --accent: 46 70% 55%; /* Doré plus vif en dark */
+    --accent-foreground: 213 66% 11%;
+    
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --success: 170 100% 38%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 46 70% 55%;
+    --warning-foreground: 213 66% 11%;
+    
+    --border: 213 40% 20%;
+    --input: 213 40% 18%;
+    --ring: 170 100% 38%;
+    
+    /* Sidebar dark */
+    --sidebar-background: 213 70% 5%;
+    --sidebar-foreground: 40 27% 96%;
+    --sidebar-primary: 170 100% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 46 70% 55%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 213 50% 15%;
+    --sidebar-ring: 170 100% 38%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
+  }
+}
+
+@layer components {
+  /* Glass morphism - Easyflow style */
+  .glass {
+    background: hsl(var(--card) / 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  .dark .glass {
+    background: hsl(var(--card) / 0.75);
+    border: 1px solid hsl(var(--border) / 0.3);
+  }
+
+  /* Text gradient doré */
+  .text-gradient {
+    background: var(--gradient-gold);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-emerald {
+    background: var(--gradient-emerald);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow effects */
+  .glow {
+    box-shadow: var(--glow-emerald);
+  }
+
+  .glow-gold {
+    box-shadow: var(--glow-gold);
+  }
+
+  /* Premium badge */
+  .badge-premium {
+    background: var(--gradient-gold);
+    color: hsl(213 66% 11%);
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Animated pulse for premium elements */
+  @keyframes pulse-glow {
+    0%, 100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.02);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  /* Smooth flow animation */
+  @keyframes flow {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .animate-flow {
+    background-size: 200% 200%;
+    animation: flow 8s ease infinite;
+  }
+
+  /* Hover scale with gold glow */
+  .hover-gold {
+    transition: all 0.3s ease;
+  }
+
+  .hover-gold:hover {
+    box-shadow: var(--glow-gold);
+    transform: translateY(-2px);
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px -12px hsl(213 66% 11% / 0.25);
+  }
+
+  .dark .card-hover:hover {
+    box-shadow: 0 12px 40px -12px hsl(0 0% 0% / 0.5);
+  }
+}
+
+@layer utilities {
+  /* Scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
