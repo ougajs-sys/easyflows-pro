@@ -22,11 +22,11 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 600,
     assetsInlineLimit: 4096,
-    sourceMap: false, // Disable source maps in production
+    sourcemap: false,
     minify: 'esbuild',
   },
   server: {
-    port: 3000,
+    port: 8080,
     open: true,
   },
 });

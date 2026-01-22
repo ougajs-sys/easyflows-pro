@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { CallerLayout } from "@/components/caller/CallerLayout";
 import { CallerDashboard } from "@/components/caller/CallerDashboard";
 import { CallerOrders } from "@/components/caller/CallerOrders";
-import { CallerChat } from "@/components/caller/CallerChat";
+import CallerChat from "@/components/caller/CallerChat";
 import { CallerClients } from "@/components/caller/CallerClients";
 import { CallerFollowUps } from "@/components/caller/CallerFollowUps";
 import { CallerTraining } from "@/components/caller/CallerTraining";

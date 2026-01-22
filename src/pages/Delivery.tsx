@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DeliveryLayout } from "@/components/delivery/DeliveryLayout";
 import { DeliveryDashboard } from "@/components/delivery/DeliveryDashboard";
 import { DeliveryOrders } from "@/components/delivery/DeliveryOrders";
-import { DeliveryChat } from "@/components/delivery/DeliveryChat";
+import DeliveryChat from "@/components/delivery/DeliveryChat";
 import { DeliveryTraining } from "@/components/delivery/DeliveryTraining";
 import { DeliveryStock } from "@/components/delivery/DeliveryStock";
 import { DeliverySupplyRequest } from "@/components/delivery/DeliverySupplyRequest";

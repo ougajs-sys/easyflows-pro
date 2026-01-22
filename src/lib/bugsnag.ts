@@ -1,7 +1,13 @@
-import Bugsnag from '@bugsnag/js';
+// Bugsnag client placeholder - requires @bugsnag/js package to be installed
+// For now, export a no-op client to prevent build errors
 
-const bugsnagClient = Bugsnag.createClient({
-  apiKey: process.env.VITE_BUGSNAG_API_KEY,
-});
+const bugsnagClient = {
+  notify: (error: Error) => {
+    console.error('Bugsnag not configured:', error);
+  },
+  leaveBreadcrumb: (message: string) => {
+    console.log('Bugsnag breadcrumb:', message);
+  },
+};
 
 export default bugsnagClient;
