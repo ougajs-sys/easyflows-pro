@@ -10,9 +10,8 @@ interface EmbedPreviewProps {
 }
 
 export function EmbedPreview({ productName, price, brandName, brandColor }: EmbedPreviewProps) {
-  // Use the published URL for consistent preview
-  const PUBLISHED_URL = "https://easyflows-pro.lovable.app";
-  const baseUrl = PUBLISHED_URL;
+  // Use current origin for live preview (works in both preview and production)
+  const baseUrl = window.location.origin;
   const params = new URLSearchParams();
   
   if (productName) params.set("product", productName);
