@@ -19,11 +19,14 @@ EasyFlows Pro is a modern web application built with React, TypeScript, and Vite
 ## TypeScript Configuration
 
 - Base URL is set to `"."` with path alias `@/*` pointing to `./src/*`
-- TypeScript strict mode is disabled (`strict: false`) with explicit settings:
+- TypeScript strict mode is disabled in `tsconfig.app.json` with `strict: false`
+- Additional configuration from root `tsconfig.json`:
+  - `strictNullChecks: false`
   - `noImplicitAny: false`
   - `noUnusedLocals: false`
   - `noUnusedParameters: false`
-  - `noFallthroughCasesInSwitch: false`
+  - `skipLibCheck: true`
+  - `allowJs: true`
 - Always use TypeScript for new files (`.tsx` for components, `.ts` for utilities)
 
 ## Coding Standards
