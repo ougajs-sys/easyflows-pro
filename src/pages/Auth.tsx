@@ -158,45 +158,83 @@ export default function Auth() {
 
   const onSignup = async (data: SignupFormData) => {
     setIsLoading(true);
-    const { error } = await signUp(data.email, data.password, data.fullName);
     
-    if (error) {
-      let message = 'Une erreur est survenue';
-      if (error.message.includes('User already registered')) {
-        message = 'Cet email est déjà utilisé';
-      } else if (error.message.includes('Password')) {
-        message = 'Le mot de passe ne respecte pas les critères de sécurité';
-      }
-      toast({
-        title: "Erreur d'inscription",
-        description: message,
-        variant: 'destructive',
+    try {
+      // Use Supabase directly with auto-confirm enabled
+      const { data: signupData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth`,
+          data: {
+            full_name: data.fullName,
+          },
+        },
       });
-      setIsLoading(false);
-      return;
-    }
+      
+      if (error) {
+        let message = 'Une erreur est survenue';
+        if (error.message.includes('User already registered')) {
+          message = 'Cet email est déjà utilisé. Essayez de vous connecter.';
+        } else if (error.message.includes('Password')) {
+          message = 'Le mot de passe doit contenir au moins 6 caractères';
+        } else if (error.message.includes('rate limit')) {
+          message = 'Trop de tentatives. Veuillez réessayer dans quelques minutes.';
+        } else {
+          message = error.message;
+        }
+        toast({
+          title: "Erreur d'inscription",
+          description: message,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
 
-    // If user requested a role different from the default (appelant), create a role request
-    if (selectedRole === 'livreur') {
-      // We need to wait a bit for the user to be created
-      setTimeout(async () => {
-        const { data: session } = await supabase.auth.getSession();
-        if (session?.session?.user) {
+      // Check if user was created and session exists (auto-confirm case)
+      if (signupData?.user && signupData?.session) {
+        // User is auto-confirmed, create role request if needed
+        if (selectedRole === 'livreur') {
           await supabase.from('role_requests').insert({
-            user_id: session.session.user.id,
+            user_id: signupData.user.id,
             requested_role: 'livreur' as AppRole,
             reason: 'Demandé lors de l\'inscription',
           });
         }
-      }, 1000);
-    }
 
-    toast({
-      title: 'Inscription réussie',
-      description: selectedRole === 'livreur' 
-        ? 'Votre compte a été créé. Votre demande pour devenir livreur est en attente de validation.'
-        : 'Vérifiez votre email pour confirmer votre compte.',
-    });
+        toast({
+          title: 'Inscription réussie !',
+          description: 'Votre compte a été créé. Redirection en cours...',
+        });
+        
+        // Redirect to dashboard
+        setTimeout(() => navigate('/dashboard'), 1500);
+      } else if (signupData?.user && !signupData?.session) {
+        // Email confirmation required
+        if (selectedRole === 'livreur') {
+          // Store role request for later (after email confirmation)
+          localStorage.setItem('pendingRoleRequest', JSON.stringify({
+            userId: signupData.user.id,
+            role: 'livreur',
+          }));
+        }
+
+        toast({
+          title: 'Inscription réussie !',
+          description: 'Un email de confirmation vous a été envoyé. Vérifiez votre boîte de réception (et spam).',
+          duration: 10000,
+        });
+      }
+    } catch (err) {
+      console.error('Signup error:', err);
+      toast({
+        title: "Erreur d'inscription",
+        description: 'Une erreur inattendue est survenue. Veuillez réessayer.',
+        variant: 'destructive',
+      });
+    }
+    
     setIsLoading(false);
   };
 
