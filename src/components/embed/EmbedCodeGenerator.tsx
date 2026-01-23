@@ -21,7 +21,9 @@ interface EmbedCodeGeneratorProps {
 
 export function EmbedCodeGenerator({ product, brandName, brandColor }: EmbedCodeGeneratorProps) {
   const [copied, setCopied] = useState<string | null>(null);
-  const baseUrl = window.location.origin;
+  // Use the published URL for embed codes to work on any external site
+  const PUBLISHED_URL = "https://easyflows-pro.lovable.app";
+  const baseUrl = PUBLISHED_URL;
 
   const generateIframeCode = (height: number = 650) => {
     const params = new URLSearchParams();
