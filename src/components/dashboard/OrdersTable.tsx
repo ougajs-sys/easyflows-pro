@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { OrderDetailPopup } from "./OrderDetailPopup";
 import { Database } from "@/integrations/supabase/types";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -75,13 +76,6 @@ export function OrdersTable() {
     },
     refetchInterval: 30000,
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   if (isLoading) {
     return (

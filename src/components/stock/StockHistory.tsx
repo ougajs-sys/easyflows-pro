@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { History, Package, TrendingUp, TrendingDown } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface StockHistoryProps {
   productId: string | null;
@@ -53,10 +54,6 @@ export function StockHistory({ productId }: StockHistoryProps) {
     },
     enabled: !!productId,
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR").format(amount);
-  };
 
   if (!productId) {
     return (

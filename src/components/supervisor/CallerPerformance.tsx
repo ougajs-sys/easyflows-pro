@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Phone, TrendingUp, Target, Users } from "lucide-react";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface CallerStats {
   id: string;
@@ -84,13 +85,6 @@ export function CallerPerformance() {
       return stats.sort((a, b) => b.totalRevenue - a.totalRevenue);
     },
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const getPerformanceBadge = (rate: number) => {
     if (rate >= 80) return <Badge className="bg-success/20 text-success border-success/30">Excellent</Badge>;

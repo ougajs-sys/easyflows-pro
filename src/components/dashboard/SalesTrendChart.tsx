@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { 
+import {
   LineChart, 
   Line, 
   XAxis, 
@@ -15,6 +15,7 @@ import {
 import { TrendingUp, Loader2 } from "lucide-react";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface SalesData {
   date: string;
@@ -83,16 +84,6 @@ export function SalesTrendChart() {
   const totalSales = data.reduce((sum, d) => sum + d.total, 0);
   const totalOrders = data.reduce((sum, d) => sum + d.orders, 0);
 
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(1)}M`;
-    }
-    if (value >= 1000) {
-      return `${(value / 1000).toFixed(0)}K`;
-    }
-    return value.toString();
-  };
-
   return (
     <Card className="glass-card">
       <CardHeader className="pb-2">
@@ -121,7 +112,7 @@ export function SalesTrendChart() {
         </div>
         <div className="flex gap-6 mt-3">
           <div>
-            <p className="text-2xl font-bold">{formatCurrency(totalSales)} FCFA</p>
+            <p className="text-2xl font-bold">{formatCurrency(totalSales, { compact: true })} FCFA</p>
             <p className="text-xs text-muted-foreground">Ventes totales</p>
           </div>
           <div>
@@ -162,7 +153,7 @@ export function SalesTrendChart() {
                   fontSize={11}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={formatCurrency}
+                  tickFormatter={(value: number) => formatCurrency(value, { compact: true })}
                 />
                 <Tooltip
                   contentStyle={{

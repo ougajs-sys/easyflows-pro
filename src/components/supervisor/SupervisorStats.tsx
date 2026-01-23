@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Package, Truck, Users, TrendingUp } from "lucide-react";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 export function SupervisorStats() {
   const { data: stats } = useQuery({
@@ -61,13 +62,6 @@ export function SupervisorStats() {
     },
   });
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount) + " FCFA";
-  };
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <StatCard
@@ -91,7 +85,7 @@ export function SupervisorStats() {
       />
       <StatCard
         title="Chiffre du Jour"
-        value={formatCurrency(stats?.revenue || 0)}
+        value={`${formatCurrency(stats?.revenue || 0)} FCFA`}
         icon={<TrendingUp className="w-5 h-5" />}
         color="primary"
       />

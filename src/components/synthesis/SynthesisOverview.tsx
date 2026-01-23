@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Package, Truck, CreditCard, Users, TrendingUp, Target, XCircle, Clock } from "lucide-react";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface SynthesisOverviewProps {
   dateRange: { from: Date; to: Date };
@@ -76,13 +77,6 @@ export function SynthesisOverview({ dateRange }: SynthesisOverviewProps) {
       };
     },
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const statCards = [
     {

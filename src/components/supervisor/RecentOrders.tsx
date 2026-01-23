@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Database } from "@/integrations/supabase/types";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -162,13 +163,6 @@ export function RecentOrders() {
 
     const config = statusConfig[status] || { label: status, className: "bg-secondary" };
     return <Badge className={config.className}>{config.label}</Badge>;
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   // Mobile card view

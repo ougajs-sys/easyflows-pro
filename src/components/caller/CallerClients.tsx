@@ -28,6 +28,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface ClientWithOrders {
   id: string;
@@ -118,13 +119,6 @@ export function CallerClients() {
       client.zone?.toLowerCase().includes(search)
     );
   }) || [];
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const getSegmentBadge = (segment: string | null) => {
     switch (segment) {
