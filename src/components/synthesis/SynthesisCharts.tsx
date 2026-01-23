@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,35 +52,64 @@ export function SynthesisCharts({ dateRange }: SynthesisChartsProps) {
 
       // Daily data
       const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
-      const dailyData = days.map(day => {
-        const dayStart = startOfDay(day);
-        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-        
-        const dayOrders = orders?.filter(o => {
-          const orderDate = new Date(o.created_at);
-          return orderDate >= dayStart && orderDate < dayEnd;
-        }) || [];
+      const dailyStats = new Map<string, { commandes: number; livrees: number; revenue: number }>();
+      const statusCounts = {
+        delivered: 0,
+        pending: 0,
+        confirmed: 0,
+        in_transit: 0,
+        cancelled: 0,
+        reported: 0,
+      };
 
-        const delivered = dayOrders.filter(o => o.status === "delivered");
-        
+      orders?.forEach((o) => {
+        const orderDate = startOfDay(new Date(o.created_at));
+        const dayKey = orderDate.toISOString();
+        const stats = dailyStats.get(dayKey) ?? { commandes: 0, livrees: 0, revenue: 0 };
+
+        stats.commandes += 1;
+        if (o.status === "delivered") {
+          stats.livrees += 1;
+          stats.revenue += Number(o.total_amount || 0);
+        }
+        dailyStats.set(dayKey, stats);
+
+        switch (o.status) {
+          case "delivered":
+            statusCounts.delivered += 1;
+            break;
+          case "pending":
+            statusCounts.pending += 1;
+            break;
+          case "confirmed":
+            statusCounts.confirmed += 1;
+            break;
+          case "in_transit":
+            statusCounts.in_transit += 1;
+            break;
+          case "cancelled":
+            statusCounts.cancelled += 1;
+            break;
+          case "reported":
+            statusCounts.reported += 1;
+            break;
+          default:
+            break;
+        }
+      });
+
+      const dailyData = days.map((day) => {
+        const dayKey = startOfDay(day).toISOString();
+        const stats = dailyStats.get(dayKey) ?? { commandes: 0, livrees: 0, revenue: 0 };
+
         return {
           date: format(day, "dd/MM", { locale: fr }),
           fullDate: format(day, "dd MMM", { locale: fr }),
-          commandes: dayOrders.length,
-          livrees: delivered.length,
-          revenue: delivered.reduce((sum, o) => sum + Number(o.total_amount || 0), 0),
+          commandes: stats.commandes,
+          livrees: stats.livrees,
+          revenue: stats.revenue,
         };
       });
-
-      // Status distribution
-      const statusCounts = {
-        delivered: orders?.filter(o => o.status === "delivered").length || 0,
-        pending: orders?.filter(o => o.status === "pending").length || 0,
-        confirmed: orders?.filter(o => o.status === "confirmed").length || 0,
-        in_transit: orders?.filter(o => o.status === "in_transit").length || 0,
-        cancelled: orders?.filter(o => o.status === "cancelled").length || 0,
-        reported: orders?.filter(o => o.status === "reported").length || 0,
-      };
 
       // Top products
       const productCounts: Record<string, { name: string; count: number; revenue: number }> = {};
@@ -142,14 +171,20 @@ export function SynthesisCharts({ dateRange }: SynthesisChartsProps) {
     },
   });
 
-  const statusPieData = chartData ? [
-    { name: "Livrées", value: chartData.statusCounts.delivered, color: "hsl(var(--success))" },
-    { name: "En attente", value: chartData.statusCounts.pending, color: "hsl(var(--warning))" },
-    { name: "Confirmées", value: chartData.statusCounts.confirmed, color: "hsl(var(--primary))" },
-    { name: "En transit", value: chartData.statusCounts.in_transit, color: "hsl(142 76% 36%)" },
-    { name: "Annulées", value: chartData.statusCounts.cancelled, color: "hsl(var(--destructive))" },
-    { name: "Reportées", value: chartData.statusCounts.reported, color: "hsl(var(--muted-foreground))" },
-  ].filter(d => d.value > 0) : [];
+  const statusPieData = useMemo(
+    () =>
+      chartData
+        ? [
+            { name: "Livrées", value: chartData.statusCounts.delivered, color: "hsl(var(--success))" },
+            { name: "En attente", value: chartData.statusCounts.pending, color: "hsl(var(--warning))" },
+            { name: "Confirmées", value: chartData.statusCounts.confirmed, color: "hsl(var(--primary))" },
+            { name: "En transit", value: chartData.statusCounts.in_transit, color: "hsl(142 76% 36%)" },
+            { name: "Annulées", value: chartData.statusCounts.cancelled, color: "hsl(var(--destructive))" },
+            { name: "Reportées", value: chartData.statusCounts.reported, color: "hsl(var(--muted-foreground))" },
+          ].filter((d) => d.value > 0)
+        : [],
+    [chartData]
+  );
 
   const chartConfig = {
     commandes: { label: "Commandes", color: "hsl(var(--primary))" },
