@@ -42,9 +42,10 @@ export default function EmbedOrderForm() {
   const preselectedProduct = searchParams.get('product');
   const preselectedPrice = searchParams.get('price');
   const colorParam = searchParams.get('color');
-  const brandColor = colorParam
+  const normalizedColor = colorParam
     ? (colorParam.startsWith('#') ? colorParam : `#${colorParam}`)
-    : '#8B5CF6';
+    : '';
+  const brandColor = /^#[0-9A-Fa-f]{6}$/.test(normalizedColor) ? normalizedColor : '#8B5CF6';
   const brandName = searchParams.get('brand') || '';
   const redirectUrl = searchParams.get('redirect'); // URL de redirection après commande
 

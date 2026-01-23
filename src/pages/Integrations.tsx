@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 
 const WEBHOOK_URL = "https://qpxzuglvvfvookzmpgfe.supabase.co/functions/v1/webhook-orders";
+const DIRECT_FORM_PATH = "/embed/order";
 
 export default function Integrations() {
   const [copied, setCopied] = useState(false);
@@ -41,7 +42,7 @@ export default function Integrations() {
   const [isTestLoading, setIsTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const { products } = useProducts();
-  const directFormUrl = typeof window === "undefined" ? "" : `${window.location.origin}/embed/order`;
+  const [directFormUrl, setDirectFormUrl] = useState("");
   
   // Formulaire de test
   const [testForm, setTestForm] = useState({
@@ -76,6 +77,12 @@ export default function Integrations() {
       toast.error("Erreur lors de la copie");
     }
   };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setDirectFormUrl(`${window.location.origin}${DIRECT_FORM_PATH}`);
+    }
+  }, []);
 
   const handleProductSelect = (productId: string) => {
     const product = products?.find(p => p.id === productId);
@@ -215,6 +222,17 @@ export default function Integrations() {
     },
   ];
 
+  const tabItems = [
+    { value: "elementor", label: "Elementor", icon: Globe },
+    { value: "direct", label: "Formulaire direct", icon: Send },
+    { value: "test", label: "Test Direct", icon: TestTube },
+    { value: "sms", label: "Test SMS", icon: MessageSquare },
+    { value: "api", label: "Documentation API", icon: FileJson },
+    { value: "platforms", label: "Autres", icon: Zap },
+  ];
+
+  const tabsGridClass = "grid-cols-6";
+
   return (
     <DashboardLayout>
       {/* Page Header */}
@@ -283,31 +301,13 @@ export default function Integrations() {
       </div>
 
       <Tabs defaultValue="elementor" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="elementor" className="flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            Elementor
-          </TabsTrigger>
-          <TabsTrigger value="direct" className="flex items-center gap-2">
-            <Send className="w-4 h-4" />
-            Formulaire direct
-          </TabsTrigger>
-          <TabsTrigger value="test" className="flex items-center gap-2">
-            <TestTube className="w-4 h-4" />
-            Test Direct
-          </TabsTrigger>
-          <TabsTrigger value="sms" className="flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" />
-            Test SMS
-          </TabsTrigger>
-          <TabsTrigger value="api" className="flex items-center gap-2">
-            <FileJson className="w-4 h-4" />
-            Documentation API
-          </TabsTrigger>
-          <TabsTrigger value="platforms" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            Autres
-          </TabsTrigger>
+        <TabsList className={`grid w-full ${tabsGridClass}`}>
+          {tabItems.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-2">
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         {/* Direct Form Tab */}
@@ -337,12 +337,12 @@ export default function Integrations() {
 
                 <div className="p-4 rounded-lg bg-secondary/50 space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    Les commandes envoyées via ce formulaire arrivent automatiquement dans votre module
-                    <strong> Commandes</strong> et déclenchent les SMS de confirmation.
+                    Les commandes envoyées via ce formulaire arrivent automatiquement dans votre module{" "}
+                    <span className="font-semibold text-foreground">Commandes</span> et déclenchent les SMS de confirmation.
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Besoin d'un formulaire personnalisé ? Utilisez la section
-                    <strong> Formulaires Embed</strong> pour générer un lien avec branding.
+                    Besoin d'un formulaire personnalisé ? Utilisez la section{" "}
+                    <span className="font-semibold text-foreground">Formulaires Embed</span> pour générer un lien avec branding.
                   </p>
                 </div>
 
