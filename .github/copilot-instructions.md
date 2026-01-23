@@ -205,7 +205,7 @@ import { Card } from "@/components/ui/card";
 
 ### Build and Development
 
-- **Dev server**: `npm run dev` (runs on port 8080, configured in `vite.config.ts`)
+- **Dev server**: `npm run dev` (runs Vite dev server on port 8080 as configured in `vite.config.ts`)
 - **Build**: `npm run build` (production build)
 - **Build dev**: `npm run build:dev` (development build)
 - **Lint**: `npm run lint` (run ESLint)
@@ -216,4 +216,4 @@ import { Card } from "@/components/ui/card";
 - This project uses Lovable.dev platform for some development workflows
 - The project includes Sentry for error tracking in production
 - Component tagging is enabled in development mode via `lovable-tagger`
-- Custom chunks are configured for better code splitting per node_modules package
+- Custom chunks are configured to group dependencies by package for better code splitting
