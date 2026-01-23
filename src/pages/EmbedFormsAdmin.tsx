@@ -15,6 +15,7 @@ export default function EmbedFormsAdmin() {
   const { products, loading } = useProducts();
   const [brandName, setBrandName] = useState("Ma Boutique");
   const [brandColor, setBrandColor] = useState("#8B5CF6");
+  const [redirectUrl, setRedirectUrl] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<{
     id: string;
     name: string;
@@ -96,6 +97,18 @@ export default function EmbedFormsAdmin() {
                     />
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="redirectUrl">URL de redirection après commande</Label>
+                  <Input
+                    id="redirectUrl"
+                    value={redirectUrl}
+                    onChange={(e) => setRedirectUrl(e.target.value)}
+                    placeholder="https://votresite.com/merci"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Le client sera redirigé vers cette page après avoir passé commande (idéal pour Pixel Facebook)
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -157,6 +170,7 @@ export default function EmbedFormsAdmin() {
               product={selectedProduct}
               brandName={brandName}
               brandColor={brandColor}
+              redirectUrl={redirectUrl}
             />
           </div>
 

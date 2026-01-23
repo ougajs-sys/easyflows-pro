@@ -43,6 +43,7 @@ export default function EmbedOrderForm() {
   const preselectedPrice = searchParams.get('price');
   const brandColor = searchParams.get('color') || '#8B5CF6';
   const brandName = searchParams.get('brand') || '';
+  const redirectUrl = searchParams.get('redirect'); // URL de redirection après commande
 
   const {
     register,
@@ -122,6 +123,13 @@ export default function EmbedOrderForm() {
 
       if (response.error) {
         throw new Error(response.error.message);
+      }
+
+      // Si une URL de redirection est définie, rediriger le client
+      if (redirectUrl) {
+        // Redirection vers la page de remerciement externe (avec Pixel Facebook, etc.)
+        window.top?.location.replace(redirectUrl);
+        return;
       }
 
       setIsSuccess(true);
