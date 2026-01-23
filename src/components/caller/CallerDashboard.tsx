@@ -33,41 +33,64 @@ export function CallerDashboard() {
 
       if (error) throw error;
 
-      const todayOrders = orders?.filter(
-        (o) => new Date(o.created_at) >= today
-      ) || [];
+      const counters = {
+        total: 0,
+        confirmed: 0,
+        reported: 0,
+        cancelled: 0,
+        pending: 0,
+        todayTotal: 0,
+        todayConfirmed: 0,
+        todayReported: 0,
+        todayCancelled: 0,
+        totalRevenue: 0,
+      };
 
-      const total = orders?.length || 0;
-      const confirmed = orders?.filter((o) => o.status === "confirmed" || o.status === "delivered" || o.status === "in_transit").length || 0;
-      const reported = orders?.filter((o) => o.status === "reported").length || 0;
-      const cancelled = orders?.filter((o) => o.status === "cancelled").length || 0;
-      const pending = orders?.filter((o) => o.status === "pending" || o.status === "partial").length || 0;
+      orders?.forEach((o) => {
+        counters.total += 1;
+        const isConfirmed =
+          o.status === "confirmed" || o.status === "delivered" || o.status === "in_transit";
+        const isReported = o.status === "reported";
+        const isCancelled = o.status === "cancelled";
+        const isPending = o.status === "pending" || o.status === "partial";
+        const isToday = new Date(o.created_at) >= today;
 
-      const todayTotal = todayOrders.length;
-      const todayConfirmed = todayOrders.filter((o) => o.status === "confirmed" || o.status === "delivered" || o.status === "in_transit").length;
-      const todayReported = todayOrders.filter((o) => o.status === "reported").length;
-      const todayCancelled = todayOrders.filter((o) => o.status === "cancelled").length;
+        if (isConfirmed) counters.confirmed += 1;
+        if (isReported) counters.reported += 1;
+        if (isCancelled) counters.cancelled += 1;
+        if (isPending) counters.pending += 1;
+        if (o.status === "delivered") {
+          counters.totalRevenue += Number(o.total_amount || 0);
+        }
 
-      const conversionRate = total > 0 ? Math.round((confirmed / total) * 100) : 0;
-      const todayConversionRate = todayTotal > 0 ? Math.round((todayConfirmed / todayTotal) * 100) : 0;
+        if (isToday) {
+          counters.todayTotal += 1;
+          if (isConfirmed) counters.todayConfirmed += 1;
+          if (isReported) counters.todayReported += 1;
+          if (isCancelled) counters.todayCancelled += 1;
+        }
+      });
 
-      const totalRevenue = orders
-        ?.filter((o) => o.status === "delivered")
-        .reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
+      const conversionRate =
+        counters.total > 0 ? Math.round((counters.confirmed / counters.total) * 100) : 0;
+      const todayConversionRate =
+        counters.todayTotal > 0
+          ? Math.round((counters.todayConfirmed / counters.todayTotal) * 100)
+          : 0;
 
       return {
-        total,
-        confirmed,
-        reported,
-        cancelled,
-        pending,
-        todayTotal,
-        todayConfirmed,
-        todayReported,
-        todayCancelled,
+        total: counters.total,
+        confirmed: counters.confirmed,
+        reported: counters.reported,
+        cancelled: counters.cancelled,
+        pending: counters.pending,
+        todayTotal: counters.todayTotal,
+        todayConfirmed: counters.todayConfirmed,
+        todayReported: counters.todayReported,
+        todayCancelled: counters.todayCancelled,
         conversionRate,
         todayConversionRate,
-        totalRevenue,
+        totalRevenue: counters.totalRevenue,
       };
     },
     enabled: !!user?.id,
