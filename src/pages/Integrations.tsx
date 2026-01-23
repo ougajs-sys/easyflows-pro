@@ -37,9 +37,11 @@ const WEBHOOK_URL = "https://qpxzuglvvfvookzmpgfe.supabase.co/functions/v1/webho
 
 export default function Integrations() {
   const [copied, setCopied] = useState(false);
+  const [formLinkCopied, setFormLinkCopied] = useState(false);
   const [isTestLoading, setIsTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const { products } = useProducts();
+  const directFormUrl = typeof window === "undefined" ? "" : `${window.location.origin}/embed/order`;
   
   // Formulaire de test
   const [testForm, setTestForm] = useState({
@@ -59,6 +61,17 @@ export default function Integrations() {
       setCopied(true);
       toast.success("URL copiée dans le presse-papiers");
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Erreur lors de la copie");
+    }
+  };
+
+  const copyFormLink = async () => {
+    try {
+      await navigator.clipboard.writeText(directFormUrl);
+      setFormLinkCopied(true);
+      toast.success("Lien du formulaire copié");
+      setTimeout(() => setFormLinkCopied(false), 2000);
     } catch {
       toast.error("Erreur lors de la copie");
     }
@@ -175,7 +188,7 @@ export default function Integrations() {
     {
       name: "Envoi Direct",
       icon: Send,
-      description: "Envoyez des commandes directement via le formulaire ci-dessous",
+      description: "Envoyez des commandes directement via le formulaire intégré",
       color: "text-green-500",
       bgColor: "bg-green-500/20",
     },
@@ -196,7 +209,7 @@ export default function Integrations() {
     {
       name: "Application Mobile",
       icon: Smartphone,
-      description: "Recevez des commandes depuis une app mobile",
+      description: "Recevez des commandes depuis une app mobile ou un site",
       color: "text-blue-500",
       bgColor: "bg-blue-500/20",
     },
@@ -270,10 +283,14 @@ export default function Integrations() {
       </div>
 
       <Tabs defaultValue="elementor" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="elementor" className="flex items-center gap-2">
             <Globe className="w-4 h-4" />
             Elementor
+          </TabsTrigger>
+          <TabsTrigger value="direct" className="flex items-center gap-2">
+            <Send className="w-4 h-4" />
+            Formulaire direct
           </TabsTrigger>
           <TabsTrigger value="test" className="flex items-center gap-2">
             <TestTube className="w-4 h-4" />
@@ -292,6 +309,93 @@ export default function Integrations() {
             Autres
           </TabsTrigger>
         </TabsList>
+
+        {/* Direct Form Tab */}
+        <TabsContent value="direct">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Send className="w-5 h-5 text-green-500" />
+                  <CardTitle>Formulaire de commande EasyFlows</CardTitle>
+                </div>
+                <CardDescription>
+                  Partagez ce lien avec vos équipes ou clients pour recevoir les commandes sans WordPress.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Lien direct du formulaire</Label>
+                  <div className="flex gap-2">
+                    <Input value={directFormUrl} readOnly className="font-mono text-sm" />
+                    <Button onClick={copyFormLink} variant="outline" className="shrink-0">
+                      {formLinkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {formLinkCopied ? "Copié" : "Copier"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-secondary/50 space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Les commandes envoyées via ce formulaire arrivent automatiquement dans votre module
+                    <strong> Commandes</strong> et déclenchent les SMS de confirmation.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Besoin d'un formulaire personnalisé ? Utilisez la section
+                    <strong> Formulaires Embed</strong> pour générer un lien avec branding.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Link to="/admin/embed-forms" className="flex-1">
+                    <Button variant="outline" className="w-full gap-2">
+                      <ExternalLink className="w-4 h-4" />
+                      Générer un formulaire personnalisé
+                    </Button>
+                  </Link>
+                  <Link to="/orders" className="flex-1">
+                    <Button className="w-full gap-2">
+                      <ShoppingCart className="w-4 h-4" />
+                      Voir les commandes
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Pourquoi ce lien ?</CardTitle>
+                <CardDescription>
+                  Le formulaire EasyFlows remplace Elementor pour la réception.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm text-muted-foreground">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-success mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Indépendant de WordPress</p>
+                    <p>Accessible depuis n'importe quel navigateur ou smartphone.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-success mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Synchronisé avec votre base</p>
+                    <p>Les commandes sont directement enregistrées dans votre base EasyFlows.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-success mt-0.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Traitement immédiat</p>
+                    <p>Vos équipes peuvent traiter les commandes sans passer par Elementor.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         {/* Elementor Tab */}
         <TabsContent value="elementor">
