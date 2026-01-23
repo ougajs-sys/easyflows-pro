@@ -37,9 +37,11 @@ export function useUsers() {
 
       if (rolesError) throw rolesError;
 
+      const rolesByUserId = new Map((roles ?? []).map((role) => [role.user_id, role]));
+
       // Combine profiles with roles
       const usersWithRoles: UserWithRole[] = profiles.map((profile) => {
-        const userRole = roles.find((r) => r.user_id === profile.id);
+        const userRole = rolesByUserId.get(profile.id);
         return {
           id: profile.id,
           email: '', // Email not accessible from profiles

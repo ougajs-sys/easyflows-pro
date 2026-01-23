@@ -114,8 +114,17 @@ export function UsersRolesTable() {
   };
 
   // Count users by activation status
-  const pendingCount = users.filter((u) => !u.role).length;
-  const activatedCount = users.filter((u) => !!u.role).length;
+  const { pendingCount, activatedCount } = users.reduce(
+    (acc, user) => {
+      if (user.role) {
+        acc.activatedCount += 1;
+      } else {
+        acc.pendingCount += 1;
+      }
+      return acc;
+    },
+    { pendingCount: 0, activatedCount: 0 }
+  );
   return (
     <Card>
       <CardHeader>

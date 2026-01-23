@@ -99,10 +99,19 @@ export function CallerClients() {
 
       if (clientsError) throw clientsError;
 
+      const ordersByClientId = (orders ?? []).reduce((acc, order) => {
+        if (!order.client_id) return acc;
+        if (!acc.has(order.client_id)) {
+          acc.set(order.client_id, []);
+        }
+        acc.get(order.client_id)!.push(order);
+        return acc;
+      }, new Map<string, NonNullable<typeof orders>>());
+
       // Map orders to clients
       const clientsWithOrders: ClientWithOrders[] = (clientsData || []).map((client) => ({
         ...client,
-        orders: orders?.filter((o) => o.client_id === client.id) || [],
+        orders: ordersByClientId.get(client.id) || [],
       }));
 
       return clientsWithOrders;

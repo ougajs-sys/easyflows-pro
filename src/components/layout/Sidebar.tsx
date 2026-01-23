@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -92,8 +92,9 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
   const { theme, toggleTheme } = useTheme();
   const { unreadCount } = useNotifications();
 
-  const filteredMenuItems = menuItems.filter((item) =>
-    role ? item.allowedRoles.includes(role as AppRole) : false
+  const filteredMenuItems = useMemo(
+    () => menuItems.filter((item) => (role ? item.allowedRoles.includes(role as AppRole) : false)),
+    [role]
   );
 
   const getInitials = (name: string | null | undefined) => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -185,25 +185,36 @@ export function CallerFollowUps() {
     }).format(amount);
   };
 
-  const filterFollowUps = (status: string) => {
-    if (!followUps) return [];
-    switch (status) {
-      case "pending":
-        return followUps.filter((f) => f.status === "pending");
-      case "today":
-        return followUps.filter((f) => f.status === "pending" && isToday(new Date(f.scheduled_at)));
-      case "overdue":
-        return followUps.filter((f) => f.status === "pending" && isPast(new Date(f.scheduled_at)) && !isToday(new Date(f.scheduled_at)));
-      case "completed":
-        return followUps.filter((f) => f.status === "completed");
-      default:
-        return followUps;
-    }
-  };
+  const {
+    pendingFollowUps,
+    todayFollowUps,
+    overdueFollowUps,
+    completedFollowUps,
+  } = useMemo(() => {
+    const pendingFollowUps = (followUps ?? []).filter((f) => f.status === "pending");
+    const todayFollowUps = pendingFollowUps.filter((f) => isToday(new Date(f.scheduled_at)));
+    const overdueFollowUps = pendingFollowUps.filter(
+      (f) => isPast(new Date(f.scheduled_at)) && !isToday(new Date(f.scheduled_at))
+    );
+    const completedFollowUps = (followUps ?? []).filter((f) => f.status === "completed");
 
-  const todayCount = filterFollowUps("today").length;
-  const overdueCount = filterFollowUps("overdue").length;
-  const pendingCount = filterFollowUps("pending").length;
+    return {
+      pendingFollowUps,
+      todayFollowUps,
+      overdueFollowUps,
+      completedFollowUps,
+    };
+  }, [followUps]);
+
+  const todayCount = todayFollowUps.length;
+  const overdueCount = overdueFollowUps.length;
+  const pendingCount = pendingFollowUps.length;
+  const followUpTabs = ["pending", "overdue", "completed"] as const;
+  const followUpsByStatus = {
+    pending: pendingFollowUps,
+    overdue: overdueFollowUps,
+    completed: completedFollowUps,
+  } as const;
 
   if (isLoading) {
     return (
@@ -287,217 +298,220 @@ export function CallerFollowUps() {
           <TabsTrigger value="completed">Terminées</TabsTrigger>
         </TabsList>
 
-        {["pending", "overdue", "completed"].map((status) => (
-          <TabsContent key={status} value={status} className="mt-4">
-            <div className="space-y-3">
-              {filterFollowUps(status).length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <RefreshCw className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                    <p className="text-muted-foreground">Aucune relance</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                filterFollowUps(status).map((followUp) => {
-                  const isOverdue = isPast(new Date(followUp.scheduled_at)) && followUp.status === "pending";
-                  const isScheduledToday = isToday(new Date(followUp.scheduled_at));
-
-                  return (
-                    <Card 
-                      key={followUp.id}
-                      className={cn(
-                        "transition-colors",
-                        isOverdue && "border-destructive/30",
-                        isScheduledToday && !isOverdue && "border-warning/30"
-                      )}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <p className="font-medium">{followUp.client?.full_name || "Client inconnu"}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              {followUp.order?.order_number && (
-                                <Badge variant="outline" className="text-xs">
-                                  <Package className="w-3 h-3 mr-1" />
-                                  {followUp.order.order_number}
-                                </Badge>
-                              )}
-                              {isOverdue && (
-                                <Badge className="bg-destructive/15 text-destructive text-xs">
-                                  En retard
-                                </Badge>
-                              )}
-                              {isScheduledToday && !isOverdue && (
-                                <Badge className="bg-warning/15 text-warning text-xs">
-                                  Aujourd'hui
-                                </Badge>
-                              )}
+        {followUpTabs.map((status) => {
+          const statusFollowUps = followUpsByStatus[status];
+          return (
+            <TabsContent key={status} value={status} className="mt-4">
+              <div className="space-y-3">
+                {statusFollowUps.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <RefreshCw className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                      <p className="text-muted-foreground">Aucune relance</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  statusFollowUps.map((followUp) => {
+                    const isOverdue = isPast(new Date(followUp.scheduled_at)) && followUp.status === "pending";
+                    const isScheduledToday = isToday(new Date(followUp.scheduled_at));
+ 
+                    return (
+                      <Card 
+                        key={followUp.id}
+                        className={cn(
+                          "transition-colors",
+                          isOverdue && "border-destructive/30",
+                          isScheduledToday && !isOverdue && "border-warning/30"
+                        )}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <p className="font-medium">{followUp.client?.full_name || "Client inconnu"}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {followUp.order?.order_number && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Package className="w-3 h-3 mr-1" />
+                                    {followUp.order.order_number}
+                                  </Badge>
+                                )}
+                                {isOverdue && (
+                                  <Badge className="bg-destructive/15 text-destructive text-xs">
+                                    En retard
+                                  </Badge>
+                                )}
+                                {isScheduledToday && !isOverdue && (
+                                  <Badge className="bg-warning/15 text-warning text-xs">
+                                    Aujourd'hui
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className={cn(
+                                "text-sm font-medium",
+                                isOverdue ? "text-destructive" : "text-muted-foreground"
+                              )}>
+                                {format(new Date(followUp.scheduled_at), "dd MMM HH:mm", { locale: fr })}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(followUp.scheduled_at), { addSuffix: true, locale: fr })}
+                              </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className={cn(
-                              "text-sm font-medium",
-                              isOverdue ? "text-destructive" : "text-muted-foreground"
-                            )}>
-                              {format(new Date(followUp.scheduled_at), "dd MMM HH:mm", { locale: fr })}
+ 
+                          {followUp.notes && (
+                            <p className="text-sm text-muted-foreground mb-3 p-2 rounded bg-secondary/30">
+                              {followUp.notes}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(followUp.scheduled_at), { addSuffix: true, locale: fr })}
-                            </p>
-                          </div>
-                        </div>
-
-                        {followUp.notes && (
-                          <p className="text-sm text-muted-foreground mb-3 p-2 rounded bg-secondary/30">
-                            {followUp.notes}
-                          </p>
-                        )}
-
-                        {followUp.order && (
-                          <div className="text-sm text-muted-foreground mb-3">
-                            Montant: <span className="font-medium text-foreground">
-                              {formatCurrency(Number(followUp.order.total_amount))} FCFA
-                            </span>
-                          </div>
-                        )}
-
-                        {followUp.status === "pending" && (
-                          <div className="flex flex-col gap-2">
-                            {/* Actions principales : Appeler */}
-                            {followUp.client?.phone && (
-                              <a
-                                href={`tel:${followUp.client.phone}`}
-                                className="flex items-center justify-center gap-2 py-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
-                              >
-                                <Phone className="w-4 h-4" />
-                                <span className="text-sm font-medium">Appeler</span>
-                              </a>
-                            )}
-
-                            {/* Actions sur la commande */}
-                            {followUp.order && (
-                              <div className="flex gap-2">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      className="flex-1 bg-primary hover:bg-primary/90"
-                                      disabled={updateOrderStatusMutation.isPending}
-                                    >
-                                      {updateOrderStatusMutation.isPending ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                      ) : (
-                                        <>
-                                          <ShoppingCart className="w-4 h-4 mr-1" />
-                                          Statut commande
-                                          <ChevronDown className="w-4 h-4 ml-1" />
-                                        </>
-                                      )}
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="center" className="w-48">
-                                    <DropdownMenuItem
-                                      onClick={() => updateOrderStatusMutation.mutate({
-                                        orderId: followUp.order!.id,
-                                        status: "confirmed",
-                                        followUpId: followUp.id
-                                      })}
-                                      className="text-success"
-                                    >
-                                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                                      Confirmer
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => updateOrderStatusMutation.mutate({
-                                        orderId: followUp.order!.id,
-                                        status: "pending",
-                                        followUpId: followUp.id
-                                      })}
-                                      className="text-warning"
-                                    >
-                                      <Clock className="w-4 h-4 mr-2" />
-                                      En attente
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => updateOrderStatusMutation.mutate({
-                                        orderId: followUp.order!.id,
-                                        status: "in_transit",
-                                        followUpId: followUp.id
-                                      })}
-                                      className="text-blue-500"
-                                    >
-                                      <Truck className="w-4 h-4 mr-2" />
-                                      En livraison
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={() => updateOrderStatusMutation.mutate({
-                                        orderId: followUp.order!.id,
-                                        status: "cancelled",
-                                        followUpId: followUp.id
-                                      })}
-                                      className="text-destructive"
-                                    >
-                                      <XCircle className="w-4 h-4 mr-2" />
-                                      Annuler
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-
+                          )}
+ 
+                          {followUp.order && (
+                            <div className="text-sm text-muted-foreground mb-3">
+                              Montant: <span className="font-medium text-foreground">
+                                {formatCurrency(Number(followUp.order.total_amount))} FCFA
+                              </span>
+                            </div>
+                          )}
+ 
+                          {followUp.status === "pending" && (
+                            <div className="flex flex-col gap-2">
+                              {/* Actions principales : Appeler */}
+                              {followUp.client?.phone && (
+                                <a
+                                  href={`tel:${followUp.client.phone}`}
+                                  className="flex items-center justify-center gap-2 py-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
+                                >
+                                  <Phone className="w-4 h-4" />
+                                  <span className="text-sm font-medium">Appeler</span>
+                                </a>
+                              )}
+ 
+                              {/* Actions sur la commande */}
+                              {followUp.order && (
+                                <div className="flex gap-2">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        className="flex-1 bg-primary hover:bg-primary/90"
+                                        disabled={updateOrderStatusMutation.isPending}
+                                      >
+                                        {updateOrderStatusMutation.isPending ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <ShoppingCart className="w-4 h-4 mr-1" />
+                                            Statut commande
+                                            <ChevronDown className="w-4 h-4 ml-1" />
+                                          </>
+                                        )}
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="center" className="w-48">
+                                      <DropdownMenuItem
+                                        onClick={() => updateOrderStatusMutation.mutate({
+                                          orderId: followUp.order!.id,
+                                          status: "confirmed",
+                                          followUpId: followUp.id
+                                        })}
+                                        className="text-success"
+                                      >
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                        Confirmer
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => updateOrderStatusMutation.mutate({
+                                          orderId: followUp.order!.id,
+                                          status: "pending",
+                                          followUpId: followUp.id
+                                        })}
+                                        className="text-warning"
+                                      >
+                                        <Clock className="w-4 h-4 mr-2" />
+                                        En attente
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => updateOrderStatusMutation.mutate({
+                                          orderId: followUp.order!.id,
+                                          status: "in_transit",
+                                          followUpId: followUp.id
+                                        })}
+                                        className="text-blue-500"
+                                      >
+                                        <Truck className="w-4 h-4 mr-2" />
+                                        En livraison
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => updateOrderStatusMutation.mutate({
+                                          orderId: followUp.order!.id,
+                                          status: "cancelled",
+                                          followUpId: followUp.id
+                                        })}
+                                        className="text-destructive"
+                                      >
+                                        <XCircle className="w-4 h-4 mr-2" />
+                                        Annuler
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+ 
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => completeFollowUpMutation.mutate(followUp.id)}
+                                    disabled={completeFollowUpMutation.isPending}
+                                  >
+                                    {completeFollowUpMutation.isPending ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <CheckCircle2 className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
+ 
+                              {/* Si pas de commande liée, juste le bouton terminé */}
+                              {!followUp.order && (
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  className="w-full"
                                   onClick={() => completeFollowUpMutation.mutate(followUp.id)}
                                   disabled={completeFollowUpMutation.isPending}
                                 >
                                   {completeFollowUpMutation.isPending ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                   ) : (
-                                    <CheckCircle2 className="w-4 h-4" />
+                                    <>
+                                      <CheckCircle2 className="w-4 h-4 mr-1" />
+                                      Terminé
+                                    </>
                                   )}
                                 </Button>
-                              </div>
-                            )}
-
-                            {/* Si pas de commande liée, juste le bouton terminé */}
-                            {!followUp.order && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full"
-                                onClick={() => completeFollowUpMutation.mutate(followUp.id)}
-                                disabled={completeFollowUpMutation.isPending}
-                              >
-                                {completeFollowUpMutation.isPending ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                                    Terminé
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        )}
-
-                        {followUp.status === "completed" && followUp.completed_at && (
-                          <div className="flex items-center gap-2 text-sm text-success">
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>
-                              Complété le {format(new Date(followUp.completed_at), "dd MMM yyyy HH:mm", { locale: fr })}
-                            </span>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
-            </div>
-          </TabsContent>
-        ))}
+                              )}
+                            </div>
+                          )}
+ 
+                          {followUp.status === "completed" && followUp.completed_at && (
+                            <div className="flex items-center gap-2 text-sm text-success">
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>
+                                Complété le {format(new Date(followUp.completed_at), "dd MMM yyyy HH:mm", { locale: fr })}
+                              </span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+            </TabsContent>
+          );
+        })}
       </Tabs>
     </div>
   );
