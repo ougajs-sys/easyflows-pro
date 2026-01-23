@@ -80,6 +80,58 @@ export default function Auth() {
     }
   }, [user, role, navigate]);
 
+  // Handle pending role creation after email confirmation
+  useEffect(() => {
+    const handlePendingRole = async () => {
+      if (user && !role) {
+        const pendingRoleStr = localStorage.getItem('pendingRole');
+        if (pendingRoleStr) {
+          try {
+            const pendingRole = JSON.parse(pendingRoleStr);
+            if (pendingRole.userId === user.id) {
+              console.log('Creating pending role for user:', user.id);
+              
+              // Create the role
+              const roleToCreate = pendingRole.role === 'livreur' ? 'appelant' : pendingRole.role;
+              const { error: roleError } = await supabase
+                .from('user_roles')
+                .insert({
+                  user_id: user.id,
+                  role: roleToCreate as AppRole,
+                });
+              
+              if (roleError) {
+                console.error('Error creating pending role:', roleError);
+                toast({
+                  title: 'Erreur',
+                  description: 'Erreur lors de la création du rôle. Contactez un administrateur.',
+                  variant: 'destructive',
+                });
+              } else {
+                // If the original request was for livreur, create the role request
+                if (pendingRole.role === 'livreur') {
+                  await supabase.from('role_requests').insert({
+                    user_id: user.id,
+                    requested_role: 'livreur' as AppRole,
+                    reason: 'Demandé lors de l\'inscription',
+                  });
+                }
+              }
+              
+              // Clear pending role from localStorage
+              localStorage.removeItem('pendingRole');
+              localStorage.removeItem('pendingRoleRequest');
+            }
+          } catch (err) {
+            console.error('Error processing pending role:', err);
+          }
+        }
+      }
+    };
+    
+    handlePendingRole();
+  }, [user, role, toast]);
+
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -194,24 +246,105 @@ export default function Auth() {
 
       // Check if user was created and session exists (auto-confirm case)
       if (signupData?.user && signupData?.session) {
-        // User is auto-confirmed, create role request if needed
-        if (selectedRole === 'livreur') {
-          await supabase.from('role_requests').insert({
-            user_id: signupData.user.id,
-            requested_role: 'livreur' as AppRole,
-            reason: 'Demandé lors de l\'inscription',
-          });
-        }
-
-        toast({
-          title: 'Inscription réussie !',
-          description: 'Votre compte a été créé. Redirection en cours...',
-        });
+        // User is auto-confirmed, assign a default role
+        console.log('Creating user role for:', signupData.user.id, 'with role:', selectedRole);
         
-        // Redirect to dashboard
+        if (selectedRole === 'livreur') {
+          // For livreur: create role request and assign 'appelant' as temporary role
+          // Business logic: Livreur role requires admin approval, so we assign 'appelant'
+          // temporarily to allow immediate access while the request is pending
+          try {
+            // Insert temporary 'appelant' role
+            const { error: roleError } = await supabase
+              .from('user_roles')
+              .insert({
+                user_id: signupData.user.id,
+                role: 'appelant' as AppRole,
+              });
+            
+            if (roleError) {
+              console.error('Error creating user role:', roleError);
+              toast({
+                title: 'Avertissement',
+                description: 'Le rôle par défaut n\'a pas pu être créé. Contactez un administrateur si vous ne pouvez pas accéder au système.',
+                variant: 'destructive',
+              });
+            }
+
+            // Create role request for livreur
+            const { error: requestError } = await supabase
+              .from('role_requests')
+              .insert({
+                user_id: signupData.user.id,
+                requested_role: 'livreur' as AppRole,
+                reason: 'Demandé lors de l\'inscription',
+              });
+            
+            if (requestError) {
+              console.error('Error creating role request:', requestError);
+              toast({
+                title: 'Avertissement',
+                description: 'La demande de rôle Livreur n\'a pas pu être enregistrée. Veuillez contacter un administrateur.',
+                variant: 'destructive',
+              });
+            }
+
+            toast({
+              title: 'Inscription réussie !',
+              description: 'Votre compte a été créé avec un accès Appelant. Votre demande de rôle Livreur sera examinée par un administrateur.',
+              duration: 5000,
+            });
+          } catch (err) {
+            console.error('Unexpected error during role creation:', err);
+            toast({
+              title: 'Avertissement',
+              description: 'Une erreur est survenue lors de la création du rôle. Contactez un administrateur.',
+              variant: 'destructive',
+            });
+          }
+        } else {
+          // For appelant: directly create the role
+          try {
+            const { error: roleError } = await supabase
+              .from('user_roles')
+              .insert({
+                user_id: signupData.user.id,
+                role: 'appelant' as AppRole,
+              });
+            
+            if (roleError) {
+              console.error('Error creating user role:', roleError);
+              toast({
+                title: 'Erreur',
+                description: 'Le rôle n\'a pas pu être créé. Veuillez contacter un administrateur ou vérifier les permissions. Erreur: ' + roleError.message,
+                variant: 'destructive',
+                duration: 10000,
+              });
+            } else {
+              toast({
+                title: 'Inscription réussie !',
+                description: 'Votre compte a été créé. Redirection en cours...',
+              });
+            }
+          } catch (err) {
+            console.error('Unexpected error during role creation:', err);
+            toast({
+              title: 'Erreur',
+              description: 'Une erreur inattendue est survenue. Veuillez réessayer ou contacter un administrateur.',
+              variant: 'destructive',
+            });
+          }
+        }
+        
+        // Redirect to dashboard after a short delay
         setTimeout(() => navigate('/dashboard'), 1500);
       } else if (signupData?.user && !signupData?.session) {
-        // Email confirmation required
+        // Email confirmation required - store the selected role for later
+        localStorage.setItem('pendingRole', JSON.stringify({
+          userId: signupData.user.id,
+          role: selectedRole,
+        }));
+
         if (selectedRole === 'livreur') {
           // Store role request for later (after email confirmation)
           localStorage.setItem('pendingRoleRequest', JSON.stringify({

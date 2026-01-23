@@ -37,26 +37,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = async (userId: string) => {
-    // Fetch profile
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      // Fetch profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (profileData) {
-      setProfile(profileData);
-    }
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+      } else if (profileData) {
+        setProfile(profileData);
+      }
 
-    // Fetch role
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
+      // Fetch role - use maybeSingle() to handle case where role doesn't exist yet
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (roleData) {
-      setRole(roleData.role);
+      if (roleError) {
+        console.error('Error fetching role:', roleError);
+        setRole(null);
+      } else if (roleData) {
+        setRole(roleData.role);
+      } else {
+        // No role found - this is expected for new users during signup
+        // Log this occurrence to help identify if role creation is failing
+        console.warn('No role found for user:', userId, '- This should be temporary during signup process');
+        setRole(null);
+      }
+    } catch (err) {
+      console.error('Unexpected error in fetchUserData:', err);
+      setRole(null);
     }
   };
 
