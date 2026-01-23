@@ -19,11 +19,11 @@ EasyFlows Pro is a modern web application built with React, TypeScript, and Vite
 ## TypeScript Configuration
 
 - Base URL is set to `"."` with path alias `@/*` pointing to `./src/*`
-- TypeScript strict mode is partially relaxed:
+- TypeScript strict mode is disabled (`strict: false`) with explicit settings:
   - `noImplicitAny: false`
-  - `strictNullChecks: false`
   - `noUnusedLocals: false`
   - `noUnusedParameters: false`
+  - `noFallthroughCasesInSwitch: false`
 - Always use TypeScript for new files (`.tsx` for components, `.ts` for utilities)
 
 ## Coding Standards
@@ -141,7 +141,7 @@ EasyFlows Pro is a modern web application built with React, TypeScript, and Vite
 
 ### Common Patterns in This Project
 
-- **Multi-language support**: Some UI text includes French (e.g., "vs hier" in StatCard)
+- **Multi-language support**: Some UI text includes French (e.g., "vs hier" meaning "vs yesterday" in date comparisons)
 - **Business domain**: Focus on orders, campaigns, products, clients, payments, delivery
 - **Role-based features**: Admin, supervisor, and caller roles with different permissions
 - **Real-time features**: Chat and notifications with Supabase realtime
