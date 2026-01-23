@@ -205,7 +205,7 @@ import { Card } from "@/components/ui/card";
 
 ### Build and Development
 
-- **Dev server**: `npm run dev` (runs on port 8080)
+- **Dev server**: `npm run dev` (runs on port 8080, configured in `vite.config.ts`)
 - **Build**: `npm run build` (production build)
 - **Build dev**: `npm run build:dev` (development build)
 - **Lint**: `npm run lint` (run ESLint)
