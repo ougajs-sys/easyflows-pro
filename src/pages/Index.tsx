@@ -18,6 +18,11 @@ const Index = () => {
         } else {
           navigate("/dashboard");
         }
+      } else if (user && !role) {
+        // User exists but no role - redirect to dashboard with a pending state
+        // This prevents redirect loop when role hasn't been created yet
+        console.warn('User logged in but no role found, redirecting to dashboard');
+        navigate("/dashboard");
       } else if (!user) {
         navigate("/auth");
       }
