@@ -17,9 +17,10 @@ interface EmbedCodeGeneratorProps {
   product?: Product;
   brandName: string;
   brandColor: string;
+  redirectUrl?: string;
 }
 
-export function EmbedCodeGenerator({ product, brandName, brandColor }: EmbedCodeGeneratorProps) {
+export function EmbedCodeGenerator({ product, brandName, brandColor, redirectUrl }: EmbedCodeGeneratorProps) {
   const [copied, setCopied] = useState<string | null>(null);
   // Use the published URL for embed codes to work on any external site
   const PUBLISHED_URL = "https://easyflows-pro.lovable.app";
@@ -34,6 +35,7 @@ export function EmbedCodeGenerator({ product, brandName, brandColor }: EmbedCode
     }
     if (brandName) params.set("brand", brandName);
     if (brandColor) params.set("color", brandColor.replace("#", ""));
+    if (redirectUrl) params.set("redirect", redirectUrl);
 
     const src = `${baseUrl}/embed/order?${params.toString()}`;
     
