@@ -346,6 +346,22 @@ export default function Integrations() {
                   </p>
                 </div>
 
+                <div className="rounded-lg border border-border/60 bg-background/60 p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-foreground">Méthode d'intégration recommandée</h4>
+                  <ol className="space-y-2 text-sm text-muted-foreground list-decimal pl-4">
+                    <li>Partagez le lien du formulaire ci-dessus avec vos équipes ou clients.</li>
+                    <li>Si besoin, générez un formulaire personnalisé dans <strong>Formulaires Embed</strong>.</li>
+                    <li>Les commandes apparaissent automatiquement dans <strong>Commandes</strong> pour traitement.</li>
+                  </ol>
+                  <p className="text-xs text-muted-foreground">
+                    Pour un site ou une application déjà existante, utilisez l'URL du webhook universel (HTTP POST)
+                    et consultez l'onglet <strong>Documentation API</strong>.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Astuce : Vous pouvez envoyer ce lien par WhatsApp, SMS ou email pour centraliser toutes les commandes.
+                  </p>
+                </div>
+
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Link to="/admin/embed-forms" className="flex-1">
                     <Button variant="outline" className="w-full gap-2">
