@@ -251,6 +251,8 @@ export default function Auth() {
         
         if (selectedRole === 'livreur') {
           // For livreur: create role request and assign 'appelant' as temporary role
+          // Business logic: Livreur role requires admin approval, so we assign 'appelant'
+          // temporarily to allow immediate access while the request is pending
           try {
             // Insert temporary 'appelant' role
             const { error: roleError } = await supabase
@@ -280,6 +282,11 @@ export default function Auth() {
             
             if (requestError) {
               console.error('Error creating role request:', requestError);
+              toast({
+                title: 'Avertissement',
+                description: 'La demande de rôle Livreur n\'a pas pu être enregistrée. Veuillez contacter un administrateur.',
+                variant: 'destructive',
+              });
             }
 
             toast({

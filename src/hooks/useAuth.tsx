@@ -65,7 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(roleData.role);
       } else {
         // No role found - this is expected for new users during signup
-        console.warn('No role found for user:', userId);
+        // Log this occurrence to help identify if role creation is failing
+        console.warn('No role found for user:', userId, '- This should be temporary during signup process');
         setRole(null);
       }
     } catch (err) {

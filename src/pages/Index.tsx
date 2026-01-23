@@ -19,8 +19,12 @@ const Index = () => {
           navigate("/dashboard");
         }
       } else if (user && !role) {
-        // User exists but no role - redirect to dashboard with a pending state
-        // This prevents redirect loop when role hasn't been created yet
+        // User exists but no role - redirect to dashboard
+        // This is safe because:
+        // 1. User is authenticated
+        // 2. Role creation happens during/after signup and will be populated shortly
+        // 3. ProtectedRoute allows access if user exists (even without role)
+        // 4. New users always get 'appelant' role, so this state is temporary
         console.warn('User logged in but no role found, redirecting to dashboard');
         navigate("/dashboard");
       } else if (!user) {
