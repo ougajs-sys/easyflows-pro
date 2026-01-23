@@ -124,7 +124,7 @@ EasyFlows Pro is a modern web application built with React, TypeScript, and Vite
 
 ### Performance
 
-- **Code splitting**: Vite automatically handles code splitting
+- **Code splitting**: Vite provides built-in support for code splitting when using dynamic imports and React.lazy()
 - **Lazy loading**: Use React.lazy() and Suspense for route-based code splitting
 - **Memoization**: Use `useMemo` and `useCallback` for expensive computations
 - **Image optimization**: Use appropriate image formats and sizes
