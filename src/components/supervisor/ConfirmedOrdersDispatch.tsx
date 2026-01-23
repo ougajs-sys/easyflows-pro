@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   CheckCircle2, 
   User, 
   MapPin, 
@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface ConfirmedOrder {
   id: string;
@@ -175,13 +176,6 @@ export function ConfirmedOrdersDispatch() {
     } finally {
       setIsAssigning(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   const OrderCard = ({ order }: { order: ConfirmedOrder }) => (

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Truck, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface DeliveryPersonStats {
   id: string;
@@ -94,13 +95,6 @@ export function DeliveryPerformance() {
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   return (

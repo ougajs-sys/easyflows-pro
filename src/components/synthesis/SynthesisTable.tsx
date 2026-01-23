@@ -14,6 +14,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { FileText } from "lucide-react";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface SynthesisTableProps {
   dateRange: { from: Date; to: Date };
@@ -83,13 +84,6 @@ export function SynthesisTable({ dateRange }: SynthesisTableProps) {
 
     const config = statusConfig[status] || { label: status, className: "bg-secondary" };
     return <Badge className={config.className}>{config.label}</Badge>;
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   return (

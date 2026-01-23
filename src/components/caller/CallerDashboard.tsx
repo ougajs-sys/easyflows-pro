@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
+import {
   Package, 
   CheckCircle2, 
   Clock, 
@@ -13,6 +13,7 @@ import {
   Loader2
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 export function CallerDashboard() {
   const { user } = useAuth();
@@ -104,13 +105,6 @@ export function CallerDashboard() {
       </div>
     );
   }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   return (
     <div className="space-y-6">

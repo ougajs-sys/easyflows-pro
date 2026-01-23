@@ -10,6 +10,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 export function SalesSummary() {
   const { data: salesData, isLoading } = useQuery({
@@ -87,13 +88,6 @@ export function SalesSummary() {
       };
     },
   });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const pieData = salesData ? [
     { name: "Livrées", value: salesData.statusCounts.delivered, color: "hsl(var(--success))" },

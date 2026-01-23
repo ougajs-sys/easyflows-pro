@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -35,6 +35,7 @@ import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -99,13 +100,6 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
     };
     const config = statusConfig[status] || { label: status, className: "bg-secondary" };
     return <Badge className={config.className}>{config.label}</Badge>;
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   const handleStatusChange = async (newStatus: OrderStatus) => {

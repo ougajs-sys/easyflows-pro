@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Download, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface ExportPDFButtonProps {
   dateRange: { from: Date; to: Date };
@@ -13,13 +14,6 @@ interface ExportPDFButtonProps {
 export function ExportPDFButton({ dateRange }: ExportPDFButtonProps) {
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   const handleExport = async () => {
     setIsExporting(true);

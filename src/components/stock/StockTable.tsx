@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Package, Plus, Minus, Search, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface StockTableProps {
   onSelectProduct: (productId: string | null) => void;
@@ -118,10 +119,6 @@ export function StockTable({ onSelectProduct, selectedProductId }: StockTablePro
   const filteredProducts = products?.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase())
   );
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR").format(amount);
-  };
 
   return (
     <>

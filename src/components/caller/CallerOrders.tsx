@@ -38,6 +38,7 @@ import { fr } from "date-fns/locale";
 import { Database } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -217,13 +218,6 @@ export function CallerOrders() {
         variant: "destructive",
       });
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "decimal",
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   const filterOrders = (status: string) => {

@@ -27,6 +27,7 @@ import { Package, ArrowUpDown, Search, History, RefreshCw, Loader2 } from "lucid
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface DeliveryStockProps {
   deliveryPersonId: string;
@@ -175,10 +176,6 @@ export function DeliveryStock({ deliveryPersonId }: DeliveryStockProps) {
     };
     const t = types[type] || { label: type, color: "bg-muted text-muted-foreground" };
     return <Badge className={t.color}>{t.label}</Badge>;
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR").format(amount);
   };
 
   return (

@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { Package, ArrowRight, ArrowLeft, Truck, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { formatCurrency } from "@/lib/formatCurrency";
 
 interface DeliveryPerson {
   id: string;
@@ -283,10 +284,6 @@ export function StockTransferManager() {
   const selectedDeliveryStock = allDeliveryStocks?.find(
     (s) => s.delivery_person_id === selectedDeliveryPerson && s.product_id === selectedProduct
   );
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-FR").format(amount);
-  };
 
   // Group stocks by delivery person
   const stocksByPerson = allDeliveryStocks?.reduce((acc, stock) => {
