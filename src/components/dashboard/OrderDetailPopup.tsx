@@ -36,6 +36,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { usePayments } from "@/hooks/usePayments";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -82,6 +84,7 @@ const statusOptions: { value: OrderStatus; label: string; icon: React.ReactNode;
 export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { createPayment } = usePayments();
   const [isUpdating, setIsUpdating] = useState(false);
   const [showPaymentInput, setShowPaymentInput] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -115,7 +118,10 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
         .update(updateData)
         .eq("id", order.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating order status:", error);
+        throw new Error(`${error.message} (Code: ${error.code || 'N/A'})`);
+      }
 
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
@@ -128,9 +134,15 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
       onClose();
     } catch (error) {
       console.error("Error updating status:", error);
+      
+      let errorMessage = "Impossible de mettre à jour le statut";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erreur",
-        description: "Impossible de mettre à jour le statut",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -168,7 +180,7 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
         }
       }
 
-      // Update order
+      // First update order status and amounts
       const { error: orderError } = await supabase
         .from("orders")
         .update({
@@ -178,22 +190,24 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
         })
         .eq("id", order.id);
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        // Log detailed error for debugging
+        console.error("Error updating order:", orderError);
+        throw new Error(`Erreur lors de la mise à jour de la commande: ${orderError.message} (Code: ${orderError.code || 'N/A'})`);
+      }
 
-      // Create payment record
-      const { error: paymentError } = await supabase
-        .from("payments")
-        .insert({
-          order_id: order.id,
-          amount: amount,
-          method: "cash",
-          status: "completed",
-        });
+      // Then create payment record using the hook
+      await createPayment.mutateAsync({
+        order_id: order.id,
+        amount: amount,
+        method: "cash",
+        status: "completed",
+        reference: `PAY-${Date.now()}`,
+        notes: `Paiement enregistré depuis le popup de détail`,
+      });
 
-      if (paymentError) throw paymentError;
-
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      // Note: The createPayment mutation already invalidates 'orders' and 'payments' queries
+      // We only need to invalidate dashboard-specific queries
       queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
 
       toast({
@@ -208,9 +222,31 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
       onClose();
     } catch (error) {
       console.error("Error recording payment:", error);
+      
+      // Extract detailed error message
+      let errorMessage = "Impossible d'enregistrer le paiement";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        const pgError = error as PostgrestError;
+        if (pgError.message) {
+          errorMessage = `Erreur: ${pgError.message}`;
+          if (pgError.code) {
+            errorMessage += ` (Code: ${pgError.code})`;
+          }
+          if (pgError.details) {
+            errorMessage += ` - ${pgError.details}`;
+          }
+          if (pgError.hint) {
+            errorMessage += ` (Astuce: ${pgError.hint})`;
+          }
+        }
+      }
+      
       toast({
         title: "Erreur",
-        description: "Impossible d'enregistrer le paiement",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
