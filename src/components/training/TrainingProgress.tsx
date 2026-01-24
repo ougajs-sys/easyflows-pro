@@ -5,7 +5,7 @@ import { Trophy, BookOpen, Clock, CheckCircle2 } from "lucide-react";
 const stats = [
   {
     label: "Modules complétés",
-    value: "3/9",
+    value: "3/8",
     icon: CheckCircle2,
     color: "text-success",
     bgColor: "bg-success/20",

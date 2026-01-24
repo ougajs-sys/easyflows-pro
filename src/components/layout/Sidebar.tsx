@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
@@ -140,16 +140,19 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
           const isNotifications = item.path === '/notifications';
 
           return (
-            <Link
+            <NavLink
               key={item.id}
               to={item.path}
               onClick={onItemClick}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
-                isActive
-                  ? "bg-sidebar-primary/15 border border-sidebar-primary/30"
-                  : "hover:bg-sidebar-accent border border-transparent"
-              )}
+              className={({ isPending }) =>
+                cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+                  isActive
+                    ? "bg-sidebar-primary/15 border border-sidebar-primary/30"
+                    : "hover:bg-sidebar-accent border border-transparent",
+                  isPending && "opacity-70"
+                )
+              }
             >
               <div
                 className={cn(
@@ -186,7 +189,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
                   )}
                 </div>
               )}
-            </Link>
+            </NavLink>
           );
         })}
       </nav>

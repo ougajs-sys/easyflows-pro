@@ -16,15 +16,26 @@ export function useOrders() {
       const { data, error } = await supabase
         .from('orders')
         .select(`
-          *,
-          client:clients(*),
-          product:products(*),
-          delivery_person:delivery_persons(*)
+          id,
+          order_number,
+          status,
+          total_amount,
+          created_at,
+          created_by,
+          client_id,
+          product_id,
+          delivery_person_id,
+          quantity,
+          amount_due,
+          amount_paid,
+          client:clients(id, full_name, phone),
+          product:products(id, name, price),
+          delivery_person:delivery_persons(id, status)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as Order[];
     },
   });
 

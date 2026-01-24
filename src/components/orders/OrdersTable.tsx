@@ -120,7 +120,7 @@ export function OrdersTable({ searchQuery, statusFilter }: OrdersTableProps) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {order.delivery_person?.profile?.full_name || (
+                    {order.delivery_person?.full_name || (
                       <span className="text-muted-foreground text-sm">Non assigné</span>
                     )}
                   </TableCell>
