@@ -42,24 +42,30 @@ export function usePayments() {
 
       if (paymentError) throw paymentError;
 
-      // Update order's amount_paid and amount_due
+      // Update order's amount_paid and status
       const { data: orderData, error: orderFetchError } = await supabase
         .from('orders')
-        .select('amount_paid, total_amount')
+        .select('amount_paid, total_amount, status')
         .eq('id', payment.order_id)
         .single();
 
       if (orderFetchError) throw orderFetchError;
 
       const newAmountPaid = Number(orderData.amount_paid) + Number(payment.amount);
-      const newAmountDue = Number(orderData.total_amount) - newAmountPaid;
+      
+      // Any payment recorded should set status to confirmed
+      let newStatus = 'confirmed';
+      
+      // Keep current status if already in transit or delivered
+      if (orderData.status === 'in_transit' || orderData.status === 'delivered') {
+        newStatus = orderData.status;
+      }
 
       const { error: orderUpdateError } = await supabase
         .from('orders')
         .update({
           amount_paid: newAmountPaid,
-          amount_due: Math.max(0, newAmountDue),
-          status: newAmountDue <= 0 ? 'delivered' : 'partial',
+          status: newStatus,
         })
         .eq('id', payment.order_id);
 

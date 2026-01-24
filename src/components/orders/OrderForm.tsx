@@ -84,7 +84,6 @@ export function OrderForm({ open, onOpenChange }: OrderFormProps) {
   }, [selectedProductId, products, form]);
 
   const totalAmount = quantity * unitPrice;
-  const amountDue = totalAmount - form.watch('amount_paid');
 
   const onSubmit = async (data: OrderFormData) => {
     try {
@@ -95,7 +94,6 @@ export function OrderForm({ open, onOpenChange }: OrderFormProps) {
         unit_price: data.unit_price,
         total_amount: totalAmount,
         amount_paid: data.amount_paid,
-        amount_due: amountDue,
         delivery_address: data.delivery_address,
         delivery_notes: data.delivery_notes,
         status: 'pending',
