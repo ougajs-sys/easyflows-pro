@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
@@ -10,7 +11,7 @@ export function useOrders() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const { data: orders = [], isLoading, error } = useQuery({
+  const { data = [], isLoading, error } = useQuery({
     queryKey: ['orders'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -32,8 +33,7 @@ export function useOrders() {
           scheduled_at,
           client:clients(id, full_name, phone),
           product:products(id, name, price),
-          delivery_person:delivery_persons(id, status),
-          delivery_profile:profiles(full_name)
+          delivery_person:delivery_persons(id, user_id, status)
         `)
         .order('created_at', { ascending: false });
 
@@ -41,6 +41,56 @@ export function useOrders() {
       return data as Order[];
     },
   });
+
+  const deliveryProfileKey = useMemo(
+    () =>
+      data
+        .map((order) => order.delivery_person?.user_id)
+        .filter(Boolean)
+        .sort()
+        .join('|'),
+    [data]
+  );
+
+  const deliveryProfileIds = useMemo(
+    () => (deliveryProfileKey ? deliveryProfileKey.split('|') : []),
+    [deliveryProfileKey]
+  );
+
+  const { data: deliveryProfiles = [] } = useQuery({
+    queryKey: ['delivery-profiles', deliveryProfileIds],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', deliveryProfileIds);
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: deliveryProfileIds.length > 0,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const deliveryProfilesById = useMemo(
+    () =>
+      deliveryProfiles.reduce((acc, profile) => {
+        acc[profile.id] = profile.full_name || null;
+        return acc;
+      }, {} as Record<string, string | null>),
+    [deliveryProfiles]
+  );
+
+  const ordersWithProfiles = useMemo(
+    () =>
+      data.map((order) => ({
+        ...order,
+        delivery_profile: order.delivery_person?.user_id
+          ? deliveryProfilesById[order.delivery_person.user_id] || null
+          : null,
+      })),
+    [data, deliveryProfilesById]
+  );
 
   const createOrder = useMutation({
     mutationFn: async (order: Omit<OrderInsert, 'created_by'>) => {
@@ -94,7 +144,7 @@ export function useOrders() {
   });
 
   return {
-    orders,
+    orders: ordersWithProfiles,
     isLoading,
     error,
     createOrder,

@@ -8,10 +8,11 @@ const queryClient = new QueryClient({
       staleTime: 1000 * 60 * 5, // 5 minutes
       // The time (in milliseconds) after unused/inactive data is garbage collected
       gcTime: 1000 * 60 * 60, // 1 hour
-      // Avoid refetching on navigation or focus to keep transitions fast
+      // Avoid refetching on navigation to keep transitions fast
       refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      // Keep data fresh on tab focus or network recovery
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
       // Enable query retry on failure
       retry: 3,
       // Options to handle retries if query fails
