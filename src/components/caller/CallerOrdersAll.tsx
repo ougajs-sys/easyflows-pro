@@ -44,6 +44,7 @@ import { Database } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatCurrency";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -338,7 +339,7 @@ export function CallerOrdersAll() {
         ? `Paiement régularisé le ${paymentDate} - Référence: ${paymentRef} - Montant: ${formatCurrency(amount)} FCFA - Commande: ${selectedOrder.order_number}`
         : null;
 
-      await supabase.from("payments").insert({
+      const { error: paymentError } = await supabase.from("payments").insert({
         order_id: selectedOrder.id,
         amount: amount,
         method: "cash",
@@ -346,6 +347,11 @@ export function CallerOrdersAll() {
         reference: paymentRef,
         notes: paymentNote,
       });
+
+      if (paymentError) {
+        console.error("Error creating payment:", paymentError);
+        throw new Error(`Erreur lors de la création du paiement: ${paymentError.message} (Code: ${paymentError.code || 'N/A'})`);
+      }
 
       await updateOrderMutation.mutateAsync({
         id: selectedOrder.id,
@@ -366,9 +372,29 @@ export function CallerOrdersAll() {
       setPaymentAmount("");
       setShowPaymentInput(false);
     } catch (error) {
+      console.error("Error recording payment:", error);
+      
+      // Extract detailed error message
+      let errorMessage = "Impossible d'enregistrer le paiement";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        const pgError = error as PostgrestError;
+        if (pgError.message) {
+          errorMessage = `Erreur: ${pgError.message}`;
+          if (pgError.code) {
+            errorMessage += ` (Code: ${pgError.code})`;
+          }
+          if (pgError.details) {
+            errorMessage += ` - ${pgError.details}`;
+          }
+        }
+      }
+      
       toast({
         title: "Erreur",
-        description: "Impossible d'enregistrer le paiement",
+        description: errorMessage,
         variant: "destructive",
       });
     }
