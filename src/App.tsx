@@ -297,14 +297,6 @@ const App = () => (
                       }
                     />
                     <Route
-                      path="/campaigns"
-                      element={
-                        <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
-                          <ModulePage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
                       path="/admin/embed-forms"
                       element={
                         <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
