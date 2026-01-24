@@ -173,6 +173,30 @@ const moduleContents: Record<string, ModuleContent> = {
       "Suivez les performances des livreurs",
     ],
   },
+  performance: {
+    id: "performance",
+    title: "Réactivité & Performance",
+    description: "Optimisez la rapidité perçue et la fluidité dans Pipeline.",
+    videos: [
+      { id: "v1", title: "Réactivité perçue : ce qui compte", duration: "4:10", completed: false, youtubeId: "hT_nvWreIhg" },
+      { id: "v2", title: "Données : cache, filtres et pagination", duration: "5:20", completed: false, youtubeId: "dQw4w9WgXcQ" },
+      { id: "v3", title: "Écrans lourds : vues rapides", duration: "4:50", completed: false, youtubeId: "jNQXAC9IVRw" },
+      { id: "v4", title: "Santé et latence : surveiller", duration: "3:40", completed: false, youtubeId: "9bZkp7q19f0" },
+    ],
+    steps: [
+      "Préférez les vues synthèse avant d'ouvrir un détail lourd",
+      "Activez les filtres pour limiter les listes longues",
+      "Évitez les exports en période de forte activité",
+      "Planifiez les synchronisations en dehors des pics",
+      "Surveillez les temps de réponse dans l'onglet Synthèse",
+    ],
+    tips: [
+      "Gardez les onglets inutiles fermés pour réduire la mémoire",
+      "Utilisez les favoris pour accéder instantanément aux pages clés",
+      "Laissez les notifications activées pour éviter les rafraîchissements manuels",
+      "Préférez le Wi‑Fi stable pour les actions lourdes",
+    ],
+  },
 };
 
 interface TrainingVideoProps {
