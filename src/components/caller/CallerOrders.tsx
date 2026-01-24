@@ -179,7 +179,19 @@ export function CallerOrders() {
     try {
       const newAmountPaid = Number(selectedOrder.amount_paid) + amount;
       const newAmountDue = Number(selectedOrder.total_amount) - newAmountPaid;
-      const paymentPercentage = (newAmountPaid / Number(selectedOrder.total_amount)) * 100;
+      
+      // Guard against division by zero
+      const totalAmount = Number(selectedOrder.total_amount);
+      if (totalAmount <= 0) {
+        toast({
+          title: "Erreur",
+          description: "Montant total invalide",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const paymentPercentage = (newAmountPaid / totalAmount) * 100;
       
       let newStatus: OrderStatus = selectedOrder.status;
       let shouldAddNote = false;

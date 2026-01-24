@@ -301,7 +301,19 @@ export function CallerOrdersAll() {
     try {
       const newAmountPaid = Number(selectedOrder.amount_paid) + amount;
       const newAmountDue = Number(selectedOrder.total_amount) - newAmountPaid;
-      const paymentPercentage = (newAmountPaid / Number(selectedOrder.total_amount)) * 100;
+      
+      // Guard against division by zero
+      const totalAmount = Number(selectedOrder.total_amount);
+      if (totalAmount <= 0) {
+        toast({
+          title: "Erreur",
+          description: "Montant total invalide",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const paymentPercentage = (newAmountPaid / totalAmount) * 100;
       
       let newStatus: OrderStatus = selectedOrder.status;
       let shouldAddNote = false;
@@ -374,6 +386,7 @@ export function CallerOrdersAll() {
       case "reported":
         return orders.filter((o) => o.status === "reported");
       case "delivered":
+        // Kept for potential future use or external components
         return orders.filter((o) => o.status === "delivered");
       case "cancelled":
         return orders.filter((o) => o.status === "cancelled");
