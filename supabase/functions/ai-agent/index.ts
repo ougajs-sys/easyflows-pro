@@ -110,12 +110,12 @@ serve(async (req) => {
       orders: ordersResult.data || [],
       callers: callersResult.data?.map(c => ({
         user_id: c.user_id,
-        name: userProfiles?.find(p => p.id === c.user_id)?.full_name || "Unknown"
+        name: userProfiles?.find(p => p.id === c.user_id)?.full_name || "Appelant sans nom"
       })) || [],
       delivery_persons: deliveryPersonsResult.data?.map(d => ({
         id: d.id,
         user_id: d.user_id,
-        name: userProfiles?.find(p => p.id === d.user_id)?.full_name || "Unknown",
+        name: userProfiles?.find(p => p.id === d.user_id)?.full_name || "Livreur sans nom",
         status: d.status,
         zone: d.zone,
         daily_deliveries: d.daily_deliveries,
@@ -125,6 +125,21 @@ serve(async (req) => {
       pending_followups: followupsResult.data || [],
     };
 
+    // Create lookup maps for name-to-id resolution
+    const callerNameToId: Record<string, string> = {};
+    const callerIdToName: Record<string, string> = {};
+    contextData.callers.forEach(c => {
+      callerNameToId[c.name.toLowerCase()] = c.user_id;
+      callerIdToName[c.user_id] = c.name;
+    });
+
+    const deliveryNameToId: Record<string, string> = {};
+    const deliveryIdToName: Record<string, string> = {};
+    contextData.delivery_persons.forEach(d => {
+      deliveryNameToId[d.name.toLowerCase()] = d.id;
+      deliveryIdToName[d.id] = d.name;
+    });
+
     // Get available delivery persons
     const availableDeliveryPersons = contextData.delivery_persons.filter(d => d.status === "available");
     
@@ -132,24 +147,27 @@ serve(async (req) => {
 
 CONTEXTE ACTUEL:
 - ${contextData.orders.length} commandes (statuts: pending, confirmed, in_transit, delivered, cancelled, partial, reported)
-- ${contextData.callers.length} appelants actifs: ${contextData.callers.map(c => c.name).join(", ")}
-- ${contextData.delivery_persons.length} livreurs (${availableDeliveryPersons.length} disponibles): ${contextData.delivery_persons.map(d => `${d.name} (${d.status})`).join(", ")}
+- ${contextData.callers.length} appelants actifs
+- ${contextData.delivery_persons.length} livreurs (${availableDeliveryPersons.length} disponibles)
 - ${contextData.products.length} produits en catalogue
 - ${contextData.clients.length} clients enregistrés
 - ${contextData.pending_followups.length} relances en attente
 
+APPELANTS ACTIFS (avec leurs IDs):
+${contextData.callers.length > 0 ? contextData.callers.map(c => `- ${c.name} (ID: ${c.user_id})`).join("\n") : "Aucun appelant actif"}
+
+LIVREURS (avec leurs IDs):
+${contextData.delivery_persons.length > 0 ? contextData.delivery_persons.map(d => `- ${d.name} (ID: ${d.id}, statut: ${d.status}, zone: ${d.zone || "non définie"}, livraisons aujourd'hui: ${d.daily_deliveries})`).join("\n") : "Aucun livreur configuré"}
+
 COMMANDES PAR STATUT:
 ${JSON.stringify(contextData.orders.reduce((acc, o) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {} as Record<string, number>))}
 
-LIVREURS DISPONIBLES:
-${availableDeliveryPersons.length > 0 ? availableDeliveryPersons.map(d => `- ${d.name}: Zone ${d.zone || "non définie"}, ${d.daily_deliveries} livraisons aujourd'hui`).join("\n") : "Aucun livreur disponible actuellement"}
-
-RÈGLES IMPORTANTES:
-1. Pour distribuer des commandes aux appelants, utilise l'action "distribute_orders" avec les IDs des commandes et des appelants
-2. Pour distribuer des commandes confirmées aux livreurs, utilise l'action "distribute_to_delivery" - priorise les livreurs disponibles avec le moins de livraisons
-3. Pour créer des relances, utilise l'action "create_followups" avec les IDs des commandes/clients concernés
-4. Pour les alertes stock, utilise l'action "stock_alerts" pour identifier les produits à faible stock
-5. Pour le suivi clients, utilise "client_analysis" pour segmenter ou identifier des clients spécifiques
+RÈGLES CRITIQUES:
+1. Pour distribuer des commandes aux appelants: utilise "distribute_orders" - NE PAS spécifier caller_ids, le système distribuera automatiquement à TOUS les appelants actifs
+2. Pour distribuer aux livreurs: utilise "distribute_to_delivery" - NE PAS spécifier delivery_person_ids, le système distribuera automatiquement aux livreurs disponibles
+3. Si tu veux cibler des personnes spécifiques, utilise TOUJOURS les IDs UUID (pas les noms)
+4. Pour créer des relances, utilise "create_followups" avec le type approprié
+5. Pour les alertes stock, utilise "stock_alerts" 
 6. Confirme toujours ce que tu vas faire avant d'exécuter des actions massives`;
 
     // Call Lovable AI with tool calling
@@ -314,12 +332,29 @@ RÈGLES IMPORTANTES:
             // Filter unassigned orders
             ordersToDistribute = ordersToDistribute.filter(o => !o.assigned_to);
             
-            const callerList = args.caller_ids?.length > 0 
-              ? contextData.callers.filter(c => args.caller_ids.includes(c.user_id))
-              : contextData.callers;
+            // Resolve caller_ids: support both UUIDs and names
+            let callerList = contextData.callers;
+            if (args.caller_ids?.length > 0) {
+              const resolvedIds = args.caller_ids.map((idOrName: string) => {
+                // Check if it's already a valid UUID
+                if (idOrName.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                  return idOrName;
+                }
+                // Try to resolve name to ID
+                return callerNameToId[idOrName.toLowerCase()] || idOrName;
+              });
+              callerList = contextData.callers.filter(c => resolvedIds.includes(c.user_id));
+            }
+
+            console.log("Caller list for distribution:", callerList);
 
             if (callerList.length === 0) {
-              resultMessage = "Aucun appelant disponible pour la distribution.";
+              resultMessage = `❌ Aucun appelant disponible pour la distribution. Il y a ${contextData.callers.length} appelant(s) enregistré(s): ${contextData.callers.map(c => c.name).join(", ") || "aucun"}`;
+              break;
+            }
+
+            if (ordersToDistribute.length === 0) {
+              resultMessage = "✅ Aucune commande à distribuer (toutes déjà assignées ou aucune correspondant aux critères).";
               break;
             }
 
@@ -393,9 +428,20 @@ RÈGLES IMPORTANTES:
               deliveryPersons = deliveryPersons.filter(d => d.status === "available");
             }
             
+            // Resolve delivery_person_ids: support both UUIDs and names
             if (args.delivery_person_ids?.length > 0) {
-              deliveryPersons = deliveryPersons.filter(d => args.delivery_person_ids.includes(d.id));
+              const resolvedIds = args.delivery_person_ids.map((idOrName: string) => {
+                // Check if it's already a valid UUID
+                if (idOrName.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                  return idOrName;
+                }
+                // Try to resolve name to ID
+                return deliveryNameToId[idOrName.toLowerCase()] || idOrName;
+              });
+              deliveryPersons = deliveryPersons.filter(d => resolvedIds.includes(d.id));
             }
+            
+            console.log("Delivery persons for distribution:", deliveryPersons);
 
             if (deliveryPersons.length === 0) {
               resultMessage = "❌ Aucun livreur disponible pour la distribution. Vérifiez que des livreurs sont en statut 'disponible'.";
