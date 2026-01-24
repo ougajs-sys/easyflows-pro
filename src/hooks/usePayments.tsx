@@ -58,8 +58,7 @@ export function usePayments() {
         .from('orders')
         .update({
           amount_paid: newAmountPaid,
-          amount_due: Math.max(0, newAmountDue),
-          status: newAmountDue <= 0 ? 'delivered' : 'partial',
+          status: 'confirmed',
         })
         .eq('id', payment.order_id);
 

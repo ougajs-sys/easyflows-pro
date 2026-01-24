@@ -164,20 +164,13 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
     setIsUpdating(true);
     try {
       const newAmountPaid = Number(order.amount_paid) + amount;
-      const newAmountDue = Number(order.total_amount) - newAmountPaid;
       
-      // Determine new status based on payment
-      let newStatus: OrderStatus = order.status;
-      if (newAmountDue <= 0) {
-        // Full payment received - mark as confirmed if pending/partial
-        if (order.status === "pending" || order.status === "partial") {
-          newStatus = "confirmed";
-        }
-      } else if (amount > 0) {
-        // Partial payment - mark as partial if was pending
-        if (order.status === "pending") {
-          newStatus = "partial";
-        }
+      // Any payment recorded should set status to confirmed
+      let newStatus: OrderStatus = "confirmed";
+      
+      // Keep current status if already in transit or delivered
+      if (order.status === "in_transit" || order.status === "delivered") {
+        newStatus = order.status;
       }
 
       // First update order status and amounts
@@ -185,7 +178,6 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
         .from("orders")
         .update({
           amount_paid: newAmountPaid,
-          amount_due: newAmountDue,
           status: newStatus,
         })
         .eq("id", order.id);
@@ -212,9 +204,7 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
 
       toast({
         title: "Paiement enregistré",
-        description: newAmountDue <= 0 
-          ? `Paiement complet reçu. Commande confirmée.`
-          : `Dépôt de ${formatCurrency(amount)} FCFA enregistré. Reste: ${formatCurrency(newAmountDue)} FCFA`,
+        description: `Paiement de ${formatCurrency(amount)} FCFA enregistré. Commande confirmée.`,
       });
 
       setPaymentAmount("");

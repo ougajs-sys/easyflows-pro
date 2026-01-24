@@ -123,15 +123,13 @@ export function CallerOrders() {
   });
 
   const updateOrderMutation = useMutation({
-    mutationFn: async ({ id, status, amount_paid, amount_due }: { 
+    mutationFn: async ({ id, status, amount_paid }: { 
       id: string; 
       status: OrderStatus;
       amount_paid?: number;
-      amount_due?: number;
     }) => {
       const updateData: Record<string, unknown> = { status };
       if (amount_paid !== undefined) updateData.amount_paid = amount_paid;
-      if (amount_due !== undefined) updateData.amount_due = amount_due;
       if (status === "delivered") updateData.delivered_at = new Date().toISOString();
 
       const { error } = await supabase
@@ -179,7 +177,6 @@ export function CallerOrders() {
 
     try {
       const newAmountPaid = Number(selectedOrder.amount_paid) + amount;
-      const newAmountDue = Number(selectedOrder.total_amount) - newAmountPaid;
       
       // Guard against division by zero
       const totalAmount = Number(selectedOrder.total_amount);
@@ -192,38 +189,26 @@ export function CallerOrders() {
         return;
       }
       
-      const paymentPercentage = (newAmountPaid / totalAmount) * 100;
+      // Any payment recorded should set status to confirmed
+      let newStatus: OrderStatus = "confirmed";
       
-      let newStatus: OrderStatus = selectedOrder.status;
-      let shouldAddNote = false;
-      
-      // Payment regularization rule: if payment >= 20%, move from partial to confirmed
-      if (selectedOrder.status === "partial" && paymentPercentage >= 20) {
-        newStatus = "confirmed";
-        shouldAddNote = true;
-      } else if (newAmountDue <= 0) {
-        newStatus = "confirmed";
-        shouldAddNote = true;
-      } else if (selectedOrder.status === "pending") {
-        newStatus = "partial";
+      // Keep current status if already in transit or delivered
+      if (selectedOrder.status === "in_transit" || selectedOrder.status === "delivered") {
+        newStatus = selectedOrder.status;
       }
 
       // Generate payment reference for the note
       const paymentRef = `PAY-${Date.now()}`;
       const paymentDate = format(new Date(), "yyyy-MM-dd");
       
-      // Create payment record with note if regularization occurred
-      const paymentNote = shouldAddNote 
-        ? `Paiement régularisé le ${paymentDate} - Référence: ${paymentRef} - Montant: ${formatCurrency(amount)} FCFA - Commande: ${selectedOrder.order_number}`
-        : null;
-
+      // Create payment record
       const { error: paymentError } = await supabase.from("payments").insert({
         order_id: selectedOrder.id,
         amount: amount,
         method: "cash",
         status: "completed",
         reference: paymentRef,
-        notes: paymentNote,
+        notes: `Paiement enregistré le ${paymentDate} - Référence: ${paymentRef} - Montant: ${formatCurrency(amount)} FCFA - Commande: ${selectedOrder.order_number}`,
       });
 
       if (paymentError) {
@@ -235,16 +220,11 @@ export function CallerOrders() {
         id: selectedOrder.id,
         status: newStatus,
         amount_paid: newAmountPaid,
-        amount_due: newAmountDue,
       });
 
       toast({
         title: "Paiement enregistré",
-        description: shouldAddNote
-          ? "Paiement régularisé - commande confirmée"
-          : newAmountDue <= 0 
-          ? "Paiement complet - commande confirmée"
-          : `Dépôt de ${formatCurrency(amount)} FCFA enregistré`,
+        description: `Paiement de ${formatCurrency(amount)} FCFA enregistré. Commande confirmée.`,
       });
 
       setPaymentAmount("");
@@ -286,7 +266,8 @@ export function CallerOrders() {
       case "confirmed":
         return orders.filter((o) => o.status === "confirmed" || o.status === "in_transit");
       case "partial":
-        return orders.filter((o) => o.status === "partial");
+        // Filter by amount_due > 0 instead of status === "partial"
+        return orders.filter((o) => Number(o.amount_due || 0) > 0 && o.status !== "cancelled" && o.status !== "delivered");
       case "reported":
         return orders.filter((o) => o.status === "reported");
       case "cancelled":
