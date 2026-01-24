@@ -28,9 +28,12 @@ export function useOrders() {
           quantity,
           amount_due,
           amount_paid,
+          delivery_address,
+          scheduled_at,
           client:clients(id, full_name, phone),
           product:products(id, name, price),
-          delivery_person:delivery_persons(id, status)
+          delivery_person:delivery_persons(id, status),
+          delivery_profile:profiles(full_name)
         `)
         .order('created_at', { ascending: false });
 
