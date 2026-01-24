@@ -77,11 +77,11 @@ interface Order {
 }
 
 const statusConfig = {
-  pending: { label: "En attente", class: "bg-warning/15 text-warning border-warning/30", icon: Clock },
+  pending: { label: "À traiter", class: "bg-warning/15 text-warning border-warning/30", icon: Clock },
   confirmed: { label: "Confirmée", class: "bg-success/15 text-success border-success/30", icon: CheckCircle2 },
-  partial: { label: "Partielle", class: "bg-orange-500/15 text-orange-400 border-orange-500/30", icon: CreditCard },
-  reported: { label: "Reportée", class: "bg-blue-500/15 text-blue-400 border-blue-500/30", icon: Clock },
-  cancelled: { label: "Annulée", class: "bg-destructive/15 text-destructive border-destructive/30", icon: XCircle },
+  partial: { label: "Paiement en attente", class: "bg-orange-500/15 text-orange-400 border-orange-500/30", icon: CreditCard },
+  reported: { label: "Reporté", class: "bg-blue-500/15 text-blue-400 border-blue-500/30", icon: Clock },
+  cancelled: { label: "Annulé", class: "bg-destructive/15 text-destructive border-destructive/30", icon: XCircle },
   in_transit: { label: "En transit", class: "bg-primary/15 text-primary border-primary/30", icon: Package },
   delivered: { label: "Livrée", class: "bg-green-600/15 text-green-500 border-green-500/30", icon: CheckCircle2 },
 };
@@ -301,20 +301,38 @@ export function CallerOrdersAll() {
     try {
       const newAmountPaid = Number(selectedOrder.amount_paid) + amount;
       const newAmountDue = Number(selectedOrder.total_amount) - newAmountPaid;
+      const paymentPercentage = (newAmountPaid / Number(selectedOrder.total_amount)) * 100;
       
       let newStatus: OrderStatus = selectedOrder.status;
-      if (newAmountDue <= 0) {
+      let shouldAddNote = false;
+      
+      // Payment regularization rule: if payment >= 20%, move from partial to confirmed
+      if (selectedOrder.status === "partial" && paymentPercentage >= 20) {
         newStatus = "confirmed";
+        shouldAddNote = true;
+      } else if (newAmountDue <= 0) {
+        newStatus = "confirmed";
+        shouldAddNote = true;
       } else if (selectedOrder.status === "pending") {
         newStatus = "partial";
       }
 
-      // Create payment record
+      // Generate payment reference for the note
+      const paymentRef = `PAY-${Date.now()}`;
+      const paymentDate = format(new Date(), "yyyy-MM-dd");
+      
+      // Create payment record with note if regularization occurred
+      const paymentNote = shouldAddNote 
+        ? `Paiement régularisé le ${paymentDate} - Référence: ${paymentRef} - Montant: ${formatCurrency(amount)} FCFA - Commande: ${selectedOrder.order_number}`
+        : null;
+
       await supabase.from("payments").insert({
         order_id: selectedOrder.id,
         amount: amount,
         method: "cash",
         status: "completed",
+        reference: paymentRef,
+        notes: paymentNote,
       });
 
       await updateOrderMutation.mutateAsync({
@@ -326,7 +344,9 @@ export function CallerOrdersAll() {
 
       toast({
         title: "Paiement enregistré",
-        description: newAmountDue <= 0 
+        description: shouldAddNote
+          ? "Paiement régularisé - commande confirmée"
+          : newAmountDue <= 0 
           ? "Paiement complet - commande confirmée"
           : `Dépôt de ${formatCurrency(amount)} FCFA enregistré`,
       });
@@ -346,9 +366,11 @@ export function CallerOrdersAll() {
     if (!orders) return [];
     switch (status) {
       case "pending":
-        return orders.filter((o) => o.status === "pending" || o.status === "partial");
+        return orders.filter((o) => o.status === "pending");
       case "confirmed":
         return orders.filter((o) => o.status === "confirmed" || o.status === "in_transit");
+      case "partial":
+        return orders.filter((o) => o.status === "partial");
       case "reported":
         return orders.filter((o) => o.status === "reported");
       case "delivered":
@@ -447,20 +469,27 @@ export function CallerOrdersAll() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="pending" className="relative text-xs sm:text-sm">
-            En attente
+            À traiter
             {filterOrders("pending").length > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 text-xs rounded-full bg-warning text-warning-foreground flex items-center justify-center">
                 {filterOrders("pending").length}
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="confirmed" className="text-xs sm:text-sm">Confirmées</TabsTrigger>
-          <TabsTrigger value="reported" className="text-xs sm:text-sm">Reportées</TabsTrigger>
-          <TabsTrigger value="delivered" className="text-xs sm:text-sm">Livrées</TabsTrigger>
-          <TabsTrigger value="cancelled" className="text-xs sm:text-sm">Annulées</TabsTrigger>
+          <TabsTrigger value="confirmed" className="text-xs sm:text-sm">Confirmée</TabsTrigger>
+          <TabsTrigger value="partial" className="relative text-xs sm:text-sm">
+            Paiement en attente
+            {filterOrders("partial").length > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 text-xs rounded-full bg-orange-500 text-white flex items-center justify-center">
+                {filterOrders("partial").length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="reported" className="text-xs sm:text-sm">Reporté</TabsTrigger>
+          <TabsTrigger value="cancelled" className="text-xs sm:text-sm">Annulé</TabsTrigger>
         </TabsList>
 
-        {["pending", "confirmed", "reported", "delivered", "cancelled"].map((status) => (
+        {["pending", "confirmed", "partial", "reported", "cancelled"].map((status) => (
           <TabsContent key={status} value={status} className="mt-4">
             <div className="grid gap-3">
               {filterOrders(status).length === 0 ? (
@@ -508,11 +537,11 @@ export function CallerOrdersAll() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">En attente</SelectItem>
+                    <SelectItem value="pending">À traiter</SelectItem>
                     <SelectItem value="confirmed">Confirmée</SelectItem>
-                    <SelectItem value="partial">En attente de dépôt</SelectItem>
-                    <SelectItem value="reported">Reportée</SelectItem>
-                    <SelectItem value="cancelled">Annulée</SelectItem>
+                    <SelectItem value="partial">Paiement en attente</SelectItem>
+                    <SelectItem value="reported">Reporté</SelectItem>
+                    <SelectItem value="cancelled">Annulé</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
