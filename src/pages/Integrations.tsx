@@ -270,26 +270,26 @@ export default function Integrations() {
       </div>
 
       <Tabs defaultValue="elementor" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="elementor" className="flex items-center gap-2">
-            <Globe className="w-4 h-4" />
-            Elementor
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 h-auto gap-2 p-2">
+          <TabsTrigger value="elementor" className="flex flex-col sm:flex-row items-center gap-2 whitespace-normal text-center leading-tight py-3">
+            <Globe className="w-4 h-4 flex-shrink-0" />
+            <span>Elementor</span>
           </TabsTrigger>
-          <TabsTrigger value="test" className="flex items-center gap-2">
-            <TestTube className="w-4 h-4" />
-            Test Direct
+          <TabsTrigger value="test" className="flex flex-col sm:flex-row items-center gap-2 whitespace-normal text-center leading-tight py-3">
+            <TestTube className="w-4 h-4 flex-shrink-0" />
+            <span>Test Direct</span>
           </TabsTrigger>
-          <TabsTrigger value="sms" className="flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" />
-            Test SMS
+          <TabsTrigger value="sms" className="flex flex-col sm:flex-row items-center gap-2 whitespace-normal text-center leading-tight py-3">
+            <MessageSquare className="w-4 h-4 flex-shrink-0" />
+            <span>Test SMS</span>
           </TabsTrigger>
-          <TabsTrigger value="api" className="flex items-center gap-2">
-            <FileJson className="w-4 h-4" />
-            Documentation API
+          <TabsTrigger value="api" className="flex flex-col sm:flex-row items-center gap-2 whitespace-normal text-center leading-tight py-3">
+            <FileJson className="w-4 h-4 flex-shrink-0" />
+            <span>Documentation API</span>
           </TabsTrigger>
-          <TabsTrigger value="platforms" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            Autres
+          <TabsTrigger value="platforms" className="flex flex-col sm:flex-row items-center gap-2 whitespace-normal text-center leading-tight py-3">
+            <Zap className="w-4 h-4 flex-shrink-0" />
+            <span>Autres</span>
           </TabsTrigger>
         </TabsList>
 
