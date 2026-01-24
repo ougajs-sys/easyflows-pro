@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
@@ -279,8 +279,8 @@ export function Sidebar() {
               <Menu className="w-5 h-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-72 bg-sidebar border-sidebar-border">
-            <div className="flex flex-col h-full">
+          <SheetContent side="left" className="p-0 w-72 bg-sidebar-background text-sidebar-foreground border-sidebar-border opacity-100">
+            <div className="flex flex-col h-full bg-sidebar-background">
               <SidebarContent 
                 collapsed={false} 
                 onItemClick={() => setMobileOpen(false)}
