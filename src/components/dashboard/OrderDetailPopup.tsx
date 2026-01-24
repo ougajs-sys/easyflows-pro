@@ -206,7 +206,8 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
         notes: `Paiement enregistré depuis le popup de détail`,
       });
 
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      // Note: The createPayment mutation already invalidates 'orders' and 'payments' queries
+      // We only need to invalidate dashboard-specific queries
       queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
 
       toast({
