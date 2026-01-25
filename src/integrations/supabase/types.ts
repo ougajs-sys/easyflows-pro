@@ -467,6 +467,7 @@ export type Database = {
           message_type: string | null
           order_id: string | null
           receiver_id: string | null
+          room_id: string | null
           sender_id: string
         }
         Insert: {
@@ -478,6 +479,7 @@ export type Database = {
           message_type?: string | null
           order_id?: string | null
           receiver_id?: string | null
+          room_id?: string | null
           sender_id: string
         }
         Update: {
@@ -489,6 +491,7 @@ export type Database = {
           message_type?: string | null
           order_id?: string | null
           receiver_id?: string | null
+          room_id?: string | null
           sender_id?: string
         }
         Relationships: [
@@ -591,6 +594,47 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_approvals: {
+        Row: {
+          approved_by: string | null
+          comment: string | null
+          created_at: string
+          decided_at: string | null
+          id: string
+          payment_id: string
+          requested_by: string
+          status: string
+        }
+        Insert: {
+          approved_by?: string | null
+          comment?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          payment_id: string
+          requested_by: string
+          status?: string
+        }
+        Update: {
+          approved_by?: string | null
+          comment?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          payment_id?: string
+          requested_by?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_approvals_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
             referencedColumns: ["id"]
           },
         ]
@@ -729,6 +773,50 @@ export type Database = {
           reviewed_by?: string | null
           status?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      room_members: {
+        Row: {
+          role: string | null
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          role?: string | null
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          role?: string | null
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
         }
         Relationships: []
       }
@@ -1203,6 +1291,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_user_role: { Args: never; Returns: string }
       has_role:
         | {
             Args: {

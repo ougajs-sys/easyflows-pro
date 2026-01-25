@@ -36,6 +36,7 @@ interface DeliveryOrdersProps {
   reportedOrders: Order[];
   cancelledOrders: Order[];
   onUpdateStatus: (orderId: string, status: OrderStatus, amountPaid?: number, scheduledAt?: Date, reason?: string) => void;
+  onReturnToRedistribution?: (orderId: string, reason?: string) => void;
   isUpdating: boolean;
 }
 
@@ -45,6 +46,7 @@ export function DeliveryOrders({
   reportedOrders,
   cancelledOrders,
   onUpdateStatus,
+  onReturnToRedistribution,
   isUpdating,
 }: DeliveryOrdersProps) {
   const [activeTab, setActiveTab] = useState("pending");
@@ -102,6 +104,7 @@ export function DeliveryOrders({
             key={order.id}
             order={order}
             onUpdateStatus={canUpdate ? onUpdateStatus : () => {}}
+            onReturnToRedistribution={canUpdate ? onReturnToRedistribution : undefined}
             isUpdating={isUpdating}
           />
         ))}

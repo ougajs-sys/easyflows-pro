@@ -288,6 +288,30 @@ export function useDeliveryPerson() {
     },
   });
 
+  // Return order to redistribution queue (remove delivery_person_id, set to pending)
+  const returnToRedistribution = useMutation({
+    mutationFn: async ({ orderId, reason }: { orderId: string; reason?: string }) => {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          status: 'pending',
+          delivery_person_id: null,
+          cancellation_reason: reason || 'Renvoyé à la redistribution par le livreur',
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['delivery-today'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+
   // Calculate stats
   const todayRevenue = todayDeliveries.reduce((sum, o) => sum + (o.amount_paid || 0), 0);
   const delivererRevenue = todayDeliveries.length * DELIVERY_FEE;
@@ -302,6 +326,7 @@ export function useDeliveryPerson() {
     isLoading: isLoadingProfile || isLoadingOrders,
     updateDeliveryStatus,
     updateOrderStatus,
+    returnToRedistribution,
     // Stats
     deliveryFee: DELIVERY_FEE,
     todayRevenue,

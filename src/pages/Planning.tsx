@@ -330,7 +330,7 @@ const Planning = () => {
                           <div>
                             <p className="font-medium">{order.order_number}</p>
                             <p className="text-sm text-muted-foreground">
-                              {order.client?.full_name} • {order.delivery_address || order.client?.address}
+                              {order.client?.full_name} • {order.delivery_address || 'Adresse non spécifiée'}
                             </p>
                           </div>
                         </div>

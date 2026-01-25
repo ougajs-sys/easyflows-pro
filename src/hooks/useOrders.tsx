@@ -11,26 +11,19 @@ export function useOrders() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  type OrderWithRelations = Order & {
+    client?: { id: string; full_name: string; phone: string } | null;
+    product?: { id: string; name: string; price: number } | null;
+    delivery_person?: { id: string; user_id: string; status: string } | null;
+  };
+
   const { data = [], isLoading, error } = useQuery({
     queryKey: ['orders'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
         .select(`
-          id,
-          order_number,
-          status,
-          total_amount,
-          created_at,
-          created_by,
-          client_id,
-          product_id,
-          delivery_person_id,
-          quantity,
-          amount_due,
-          amount_paid,
-          delivery_address,
-          scheduled_at,
+          *,
           client:clients(id, full_name, phone),
           product:products(id, name, price),
           delivery_person:delivery_persons(id, user_id, status)
@@ -38,14 +31,14 @@ export function useOrders() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as Order[];
+      return data as OrderWithRelations[];
     },
   });
 
   const deliveryProfileKey = useMemo(
     () =>
       data
-        .map((order) => order.delivery_person?.user_id)
+        .map((order) => (order as OrderWithRelations).delivery_person?.user_id)
         .filter(Boolean)
         .sort()
         .join('|'),
@@ -83,12 +76,17 @@ export function useOrders() {
 
   const ordersWithProfiles = useMemo(
     () =>
-      data.map((order) => ({
-        ...order,
-        delivery_profile: order.delivery_person?.user_id
-          ? deliveryProfilesById[order.delivery_person.user_id] || null
-          : null,
-      })),
+      data.map((order) => {
+        const orderWithRelations = order as OrderWithRelations;
+        return {
+          ...order,
+          client: orderWithRelations.client,
+          product: orderWithRelations.product,
+          delivery_profile: orderWithRelations.delivery_person?.user_id
+            ? deliveryProfilesById[orderWithRelations.delivery_person.user_id] || null
+            : null,
+        };
+      }),
     [data, deliveryProfilesById]
   );
 
