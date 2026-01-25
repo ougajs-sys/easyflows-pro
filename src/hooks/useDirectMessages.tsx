@@ -89,7 +89,7 @@ export function useDirectMessages(contactUserId?: string) {
       })) as DirectMessage[];
     },
     enabled: !!user?.id && !!contactUserId,
-    refetchInterval: 3000, // Polling fallback every 3 seconds
+    refetchInterval: 5000, // Polling fallback every 5 seconds (reduced from 3s)
   });
 
   // Fetch unread counts for all DM conversations

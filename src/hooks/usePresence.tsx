@@ -62,6 +62,8 @@ export function usePresence() {
     return () => {
       clearInterval(interval);
     };
+    // Intentionally excluding heartbeatMutation to prevent re-creating interval
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, role]);
 
   // Fetch online users with DB fallback
