@@ -16,7 +16,6 @@ const orderSchema = z.object({
   client_name: z.string().min(2, 'Nom requis (min 2 caractères)'),
   phone: z.string().min(8, 'Téléphone requis (min 8 chiffres)'),
   address: z.string().min(5, 'Adresse requise (min 5 caractères)'),
-  city: z.string().optional(),
   product_name: z.string().min(1, 'Produit requis'),
   quantity: z.number().min(1, 'Quantité minimum: 1'),
   price: z.number().min(0, 'Prix invalide'),
@@ -114,7 +113,6 @@ export default function EmbedOrderForm() {
           client_name: data.client_name,
           phone: data.phone,
           address: data.address,
-          city: data.city || '',
           product_name: data.product_name,
           quantity: data.quantity,
           price: data.price,
@@ -144,8 +142,8 @@ export default function EmbedOrderForm() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-green-50 to-emerald-100">
-        <Card className="w-full max-w-md text-center shadow-xl border-0">
+      <div className="min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-green-50 to-emerald-100">
+        <Card className="w-full h-full sm:h-auto sm:max-w-md text-center shadow-xl border-0 sm:rounded-lg rounded-none">
           <CardContent className="pt-12 pb-8">
             <div 
               className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
@@ -173,8 +171,8 @@ export default function EmbedOrderForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-slate-100">
-      <Card className="w-full max-w-lg shadow-xl border-0 overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-slate-50 to-slate-100">
+      <Card className="w-full h-full sm:h-auto sm:max-w-lg shadow-xl border-0 sm:rounded-lg rounded-none overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div 
           className="h-2 w-full" 
           style={{ backgroundColor: brandColor }}
@@ -309,19 +307,6 @@ export default function EmbedOrderForm() {
               )}
             </div>
 
-            {/* City (optional) */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-muted-foreground">
-                Ville (optionnel)
-              </Label>
-              <Input
-                {...register('city')}
-                placeholder="Abidjan, Bouaké..."
-                className="h-12"
-                autoComplete="off"
-                autoCorrect="off"
-              />
-            </div>
 
             {/* Hidden price field */}
             <input type="hidden" {...register('price', { valueAsNumber: true })} />
