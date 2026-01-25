@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DeliveryLayout } from "@/components/delivery/DeliveryLayout";
 import { DeliveryDashboard } from "@/components/delivery/DeliveryDashboard";
 import { DeliveryOrders } from "@/components/delivery/DeliveryOrders";
-import DeliveryChat from "@/components/delivery/DeliveryChat";
 import { DeliveryTraining } from "@/components/delivery/DeliveryTraining";
 import { DeliveryStock } from "@/components/delivery/DeliveryStock";
 import { DeliverySupplyRequest } from "@/components/delivery/DeliverySupplyRequest";
@@ -20,6 +20,7 @@ type DeliveryStatus = Database["public"]["Enums"]["delivery_status"];
 export default function Delivery() {
   const { role } = useAuth();
   const [activeSection, setActiveSection] = useState("dashboard");
+  const navigate = useNavigate();
   const {
     deliveryProfile,
     assignedOrders,
@@ -33,6 +34,13 @@ export default function Delivery() {
     todayRevenue,
     amountToReturn,
   } = useDeliveryPerson();
+
+  // Redirect to chat page when chat section is selected
+  useEffect(() => {
+    if (activeSection === "chat") {
+      navigate("/chat");
+    }
+  }, [activeSection, navigate]);
 
   const handleStatusChange = async (status: DeliveryStatus) => {
     try {
@@ -169,13 +177,6 @@ export default function Delivery() {
         return <DeliveryStock deliveryPersonId={deliveryProfile.id} />;
       case "supply":
         return <DeliverySupplyRequest />;
-      case "chat":
-        return (
-          <DeliveryChat
-            reportedOrders={reportedForChat}
-            cancelledOrders={cancelledForChat}
-          />
-        );
       case "training":
         return <DeliveryTraining />;
       default:
