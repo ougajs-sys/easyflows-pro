@@ -177,26 +177,26 @@ export default function EmbedOrderForm() {
           className="h-2 w-full" 
           style={{ backgroundColor: brandColor }}
         />
-        <CardHeader className="space-y-1 pb-4">
+        <CardHeader className="space-y-0.5 pb-2 sm:pb-4 pt-4 sm:pt-6">
           {brandName && (
             <p className="text-sm font-medium" style={{ color: brandColor }}>
               {brandName}
             </p>
           )}
-          <CardTitle className="text-2xl font-bold">
+          <CardTitle className="text-xl sm:text-2xl font-bold">
             Commander maintenant
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             Remplissez le formulaire pour passer votre commande
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" autoComplete="off">
+        <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4" autoComplete="off">
             {/* Product Selection */}
             <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-sm font-medium">
-                <Package className="w-4 h-4" style={{ color: brandColor }} />
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Produit
               </Label>
               {preselectedProduct ? (
@@ -211,7 +211,7 @@ export default function EmbedOrderForm() {
                   value={selectedProductName}
                   onValueChange={handleProductChange}
                 >
-                  <SelectTrigger className="h-12">
+                  <SelectTrigger className="h-10 sm:h-12">
                     <SelectValue placeholder="Sélectionner un produit" />
                   </SelectTrigger>
                   <SelectContent>
@@ -230,14 +230,14 @@ export default function EmbedOrderForm() {
 
             {/* Customer Name */}
             <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-sm font-medium">
-                <User className="w-4 h-4" style={{ color: brandColor }} />
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Nom complet
               </Label>
               <Input
                 {...register('client_name')}
                 placeholder="Votre nom"
-                className="h-12"
+                className="h-10 sm:h-12"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
@@ -250,15 +250,15 @@ export default function EmbedOrderForm() {
 
             {/* Phone */}
             <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-sm font-medium">
-                <Phone className="w-4 h-4" style={{ color: brandColor }} />
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Téléphone
               </Label>
               <Input
                 {...register('phone')}
                 type="tel"
                 placeholder="+225 XX XX XX XX"
-                className="h-12"
+                className="h-10 sm:h-12"
                 autoComplete="new-password"
                 autoCorrect="off"
                 inputMode="numeric"
@@ -272,15 +272,15 @@ export default function EmbedOrderForm() {
 
             {/* Quantity */}
             <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-sm font-medium">
-                <Hash className="w-4 h-4" style={{ color: brandColor }} />
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Quantité
               </Label>
               <Input
                 {...register('quantity', { valueAsNumber: true })}
                 type="number"
                 min="1"
-                className="h-12"
+                className="h-10 sm:h-12"
                 autoComplete="off"
               />
               {errors.quantity && (
@@ -290,14 +290,14 @@ export default function EmbedOrderForm() {
 
             {/* Address */}
             <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-sm font-medium">
-                <MapPin className="w-4 h-4" style={{ color: brandColor }} />
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Adresse de livraison
               </Label>
               <Textarea
                 {...register('address')}
                 placeholder="Votre adresse complète"
-                className="min-h-[80px] resize-none"
+                className="min-h-[60px] sm:min-h-[80px] resize-none"
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
@@ -313,13 +313,13 @@ export default function EmbedOrderForm() {
 
             {/* Total */}
             <div 
-              className="p-4 rounded-xl"
+              className="p-3 sm:p-4 rounded-xl"
               style={{ backgroundColor: `${brandColor}10` }}
             >
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total à payer</span>
                 <span 
-                  className="text-2xl font-bold"
+                  className="text-xl sm:text-2xl font-bold"
                   style={{ color: brandColor }}
                 >
                   {totalAmount.toLocaleString()} FCFA
@@ -338,7 +338,7 @@ export default function EmbedOrderForm() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-14 text-lg font-semibold hover:opacity-90 transition-opacity"
+              className="w-full h-12 sm:h-14 text-base sm:text-lg font-semibold hover:opacity-90 transition-opacity"
               style={{ backgroundColor: brandColor }}
             >
               {isLoading ? (
