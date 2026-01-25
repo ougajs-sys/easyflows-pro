@@ -142,7 +142,7 @@ export default function EmbedOrderForm() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-green-50 to-emerald-100">
+      <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-green-50 to-emerald-100">
         <Card className="w-full h-full sm:h-auto sm:max-w-md text-center shadow-xl border-0 sm:rounded-lg rounded-none">
           <CardContent className="pt-12 pb-8">
             <div 
@@ -351,7 +351,7 @@ export default function EmbedOrderForm() {
               )}
             </Button>
 
-            <p className="text-[10px] sm:text-xs text-center text-muted-foreground leading-tight">
+            <p className="text-xs text-center text-muted-foreground leading-tight">
               En confirmant, vous acceptez nos conditions de vente.
               <br />Paiement à la livraison.
             </p>
