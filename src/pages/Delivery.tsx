@@ -29,6 +29,7 @@ export default function Delivery() {
     isLoading,
     updateDeliveryStatus,
     updateOrderStatus,
+    returnToRedistribution,
     deliveryFee,
     todayRevenue,
     amountToReturn,
@@ -62,6 +63,15 @@ export default function Delivery() {
       toast.success(statusMessages[status] || "Statut mis à jour");
     } catch {
       toast.error("Erreur lors de la mise à jour de la commande");
+    }
+  };
+
+  const handleReturnToRedistribution = async (orderId: string, reason?: string) => {
+    try {
+      await returnToRedistribution.mutateAsync({ orderId, reason });
+      toast.success("Commande renvoyée à la redistribution");
+    } catch {
+      toast.error("Erreur lors du renvoi de la commande");
     }
   };
 
@@ -162,7 +172,8 @@ export default function Delivery() {
             reportedOrders={reportedOrders}
             cancelledOrders={cancelledOrders}
             onUpdateStatus={handleOrderStatusChange}
-            isUpdating={updateOrderStatus.isPending}
+            onReturnToRedistribution={handleReturnToRedistribution}
+            isUpdating={updateOrderStatus.isPending || returnToRedistribution.isPending}
           />
         );
       case "stock":

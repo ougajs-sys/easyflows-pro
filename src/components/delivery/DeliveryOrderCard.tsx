@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote } from "lucide-react";
+import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -45,6 +55,7 @@ interface DeliveryOrderCardProps {
     } | null;
   };
   onUpdateStatus: (orderId: string, status: OrderStatus, amountPaid?: number, scheduledAt?: Date, reason?: string) => void;
+  onReturnToRedistribution?: (orderId: string, reason?: string) => void;
   isUpdating: boolean;
 }
 
@@ -58,10 +69,11 @@ const statusConfig: Record<OrderStatus, { label: string; color: string }> = {
   reported: { label: "Reportée", color: "bg-muted text-muted-foreground" },
 };
 
-export function DeliveryOrderCard({ order, onUpdateStatus, isUpdating }: DeliveryOrderCardProps) {
+export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribution, isUpdating }: DeliveryOrderCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [amountCollected, setAmountCollected] = useState(order.amount_due?.toString() || order.total_amount.toString());
 
   const handleStartDelivery = () => {
@@ -83,6 +95,13 @@ export function DeliveryOrderCard({ order, onUpdateStatus, isUpdating }: Deliver
   const handleReportOrder = (scheduledAt: Date, reason: string) => {
     onUpdateStatus(order.id, "reported", undefined, scheduledAt, reason);
     setShowReportDialog(false);
+  };
+
+  const handleReturnToRedistribution = () => {
+    if (onReturnToRedistribution) {
+      onReturnToRedistribution(order.id, "Commande renvoyée à la redistribution par le livreur");
+    }
+    setShowCancelDialog(false);
   };
 
   const amountDue = order.amount_due ?? (order.total_amount - order.amount_paid);
@@ -188,13 +207,26 @@ export function DeliveryOrderCard({ order, onUpdateStatus, isUpdating }: Deliver
           {/* Action Buttons */}
           <div className="mt-4 flex gap-2">
             {order.status === "confirmed" && (
-              <Button
-                onClick={handleStartDelivery}
-                disabled={isUpdating}
-                className="flex-1"
-              >
-                Démarrer la livraison
-              </Button>
+              <>
+                <Button
+                  onClick={handleStartDelivery}
+                  disabled={isUpdating}
+                  className="flex-1"
+                >
+                  Démarrer la livraison
+                </Button>
+                {onReturnToRedistribution && (
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => setShowCancelDialog(true)}
+                    disabled={isUpdating}
+                    title="Annuler et redistribuer"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+              </>
             )}
             {order.status === "in_transit" && (
               <>
@@ -212,6 +244,17 @@ export function DeliveryOrderCard({ order, onUpdateStatus, isUpdating }: Deliver
                 >
                   Reporter
                 </Button>
+                {onReturnToRedistribution && (
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => setShowCancelDialog(true)}
+                    disabled={isUpdating}
+                    title="Annuler et redistribuer"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
               </>
             )}
             {order.status === "pending" && (
@@ -270,6 +313,28 @@ export function DeliveryOrderCard({ order, onUpdateStatus, isUpdating }: Deliver
         isLoading={isUpdating}
         orderNumber={order.order_number || undefined}
       />
+
+      {/* Cancel and Redistribute Dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Annuler cette commande ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La commande {order.order_number} sera renvoyée dans la file d'attente 
+              pour être redistribuée à un autre livreur par le système.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Non, garder</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReturnToRedistribution}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Oui, annuler et redistribuer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

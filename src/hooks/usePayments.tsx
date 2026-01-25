@@ -54,7 +54,7 @@ export function usePayments() {
       const newAmountPaid = Number(orderData.amount_paid) + Number(payment.amount);
       
       // Any payment recorded should set status to confirmed
-      let newStatus = 'confirmed';
+      let newStatus: 'pending' | 'confirmed' | 'in_transit' | 'delivered' | 'partial' | 'cancelled' | 'reported' = 'confirmed';
       
       // Keep current status if already in transit or delivered
       if (orderData.status === 'in_transit' || orderData.status === 'delivered') {
