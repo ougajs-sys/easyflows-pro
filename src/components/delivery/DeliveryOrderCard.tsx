@@ -43,6 +43,8 @@ interface DeliveryOrderCardProps {
     delivery_notes: string | null;
     status: OrderStatus;
     created_at: string;
+    client_phone?: string | null;
+    client_phone_secondary?: string | null;
     client: {
       full_name: string;
       phone: string;
@@ -75,6 +77,10 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [amountCollected, setAmountCollected] = useState(order.amount_due?.toString() || order.total_amount.toString());
+
+  // Use client_phone from orders table with fallback to client.phone
+  const clientPhone = order.client_phone || order.client?.phone;
+  const clientPhoneSecondary = order.client_phone_secondary || order.client?.phone_secondary;
 
   const handleStartDelivery = () => {
     onUpdateStatus(order.id, "in_transit");
@@ -144,13 +150,19 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
             </div>
             <div className="flex items-center gap-2">
               <Phone className="w-4 h-4 text-muted-foreground" />
-              <a href={`tel:${order.client?.phone}`} className="text-primary hover:underline">
-                {order.client?.phone}
-              </a>
-              {order.client?.phone_secondary && (
-                <a href={`tel:${order.client.phone_secondary}`} className="text-primary hover:underline">
-                  / {order.client.phone_secondary}
-                </a>
+              {clientPhone ? (
+                <>
+                  <a href={`tel:${clientPhone}`} className="text-primary hover:underline">
+                    {clientPhone}
+                  </a>
+                  {clientPhoneSecondary && (
+                    <a href={`tel:${clientPhoneSecondary}`} className="text-primary hover:underline">
+                      / {clientPhoneSecondary}
+                    </a>
+                  )}
+                </>
+              ) : (
+                <span className="text-sm text-muted-foreground">Téléphone non disponible</span>
               )}
             </div>
             <div className="flex items-start gap-2">
