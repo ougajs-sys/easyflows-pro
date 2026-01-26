@@ -18,6 +18,8 @@ interface Order {
   delivery_notes: string | null;
   status: OrderStatus;
   created_at: string;
+  client_phone?: string | null;
+  client_phone_secondary?: string | null;
   client: {
     full_name: string;
     phone: string;
