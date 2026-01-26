@@ -78,9 +78,15 @@ export function ConnectedWorkers() {
         let status: "online" | "busy" | "offline" = "offline";
         
         if (deliveryPerson) {
-          // For delivery persons, use their status
-          status = deliveryPerson.status === "available" ? "online" : 
-                   deliveryPerson.status === "busy" ? "busy" : "offline";
+          // For delivery persons, use their status from delivery_persons table
+          if (deliveryPerson.status === "available") {
+            status = "online";
+          } else if (deliveryPerson.status === "busy") {
+            status = "busy";
+          } else {
+            // Explicitly handle 'offline' and any unexpected values
+            status = "offline";
+          }
         } else if (profile?.updated_at) {
           // For other users, consider them online if updated recently (within 5 minutes)
           const lastUpdate = new Date(profile.updated_at);
