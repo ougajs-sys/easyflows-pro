@@ -296,7 +296,8 @@ export function useDeliveryPerson() {
         .update({
           status: 'pending',
           delivery_person_id: null,
-          cancellation_reason: reason || 'Renvoyé à la redistribution par le livreur',
+          assigned_to: null,
+          delivery_notes: reason ? `Renvoyé à la redistribution: ${reason}` : 'Renvoyé à la redistribution par le livreur',
         })
         .eq('id', orderId)
         .select()
