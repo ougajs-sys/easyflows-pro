@@ -16,6 +16,13 @@
   NODE_VERSION = "18"
 
 # Redirect rules for SPA
+# Preserve static assets - must come BEFORE catch-all redirect
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+
+# SPA fallback - catch all other routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
