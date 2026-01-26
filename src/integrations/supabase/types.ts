@@ -1218,6 +1218,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_presence: {
+        Row: {
+          last_seen_at: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          last_seen_at?: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          last_seen_at?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           confirmed: boolean
@@ -1291,6 +1312,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_chat: {
+        Args: { receiver_id: string; sender_id: string }
+        Returns: boolean
+      }
       current_user_role: { Args: never; Returns: string }
       has_role:
         | {
