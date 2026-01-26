@@ -29,8 +29,9 @@ export function usePresence() {
     mutationFn: async () => {
       if (!user?.id || !role) return;
 
-      const { error } = await supabase
-        .from("user_presence")
+      // Use type assertion to work around missing types in generated schema
+      const { error } = await (supabase
+        .from("user_presence") as any)
         .upsert({
           user_id: user.id,
           role: role,
@@ -77,9 +78,9 @@ export function usePresence() {
       
       if (allowedRoles.length === 0) return [];
 
-      // Fetch presence data for allowed roles
-      const { data: presenceData, error: presenceError } = await supabase
-        .from("user_presence")
+      // Fetch presence data for allowed roles - use type assertion
+      const { data: presenceData, error: presenceError } = await (supabase
+        .from("user_presence") as any)
         .select("user_id, role, last_seen_at, updated_at")
         .in("role", allowedRoles)
         .neq("user_id", user.id);
@@ -89,10 +90,18 @@ export function usePresence() {
         throw presenceError;
       }
 
-      if (!presenceData || presenceData.length === 0) return [];
+      // Type the presence data explicitly
+      const typedPresenceData = presenceData as {
+        user_id: string;
+        role: string;
+        last_seen_at: string;
+        updated_at: string;
+      }[] | null;
+
+      if (!typedPresenceData || typedPresenceData.length === 0) return [];
 
       // Get user profiles
-      const userIds = presenceData.map(p => p.user_id);
+      const userIds = typedPresenceData.map(p => p.user_id);
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url")
@@ -106,8 +115,8 @@ export function usePresence() {
 
       // Filter only online users and enrich with profile data
       const now = new Date().getTime();
-      const onlineUsersData: UserPresence[] = presenceData
-        .map(p => {
+      const onlineUsersData: UserPresence[] = typedPresenceData
+        .map((p): UserPresence | null => {
           const lastSeen = new Date(p.last_seen_at).getTime();
           const isOnline = (now - lastSeen) < ONLINE_THRESHOLD;
           
@@ -116,13 +125,16 @@ export function usePresence() {
           const profile = profileMap.get(p.user_id);
           
           return {
-            ...p,
+            user_id: p.user_id,
+            role: p.role,
+            last_seen_at: p.last_seen_at,
+            updated_at: p.updated_at,
             is_online: true,
             profile: profile ? {
               full_name: profile.full_name,
               avatar_url: profile.avatar_url,
             } : undefined,
-          };
+          } as UserPresence;
         })
         .filter((p): p is UserPresence => p !== null);
 
