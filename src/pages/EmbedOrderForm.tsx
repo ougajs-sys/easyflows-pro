@@ -177,7 +177,7 @@ export default function EmbedOrderForm() {
           className="h-2 w-full" 
           style={{ backgroundColor: brandColor }}
         />
-        <CardHeader className="space-y-1 pb-2 px-4 pt-4 sm:px-6 sm:pb-4">
+        <CardHeader className="space-y-0.5 pb-2 sm:pb-4 pt-4 sm:pt-6">
           {brandName && (
             <p className="text-xs sm:text-sm font-medium" style={{ color: brandColor }}>
               {brandName}
@@ -191,18 +191,18 @@ export default function EmbedOrderForm() {
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="px-4 pb-4 sm:p-6 sm:pt-0">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-5" autoComplete="off">
+        <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4" autoComplete="off">
             {/* Product Selection */}
-            <div className="space-y-1.5 sm:space-y-2">
-              <Label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-                <Package className="w-4 h-4" style={{ color: brandColor }} />
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Produit
               </Label>
               {preselectedProduct ? (
-                <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50 border">
-                  <p className="text-sm sm:text-base font-medium">{preselectedProduct}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
+                <div className="p-3 rounded-lg bg-muted/50 border">
+                  <p className="font-medium">{preselectedProduct}</p>
+                  <p className="text-sm text-muted-foreground">
                     {price?.toLocaleString()} FCFA / unité
                   </p>
                 </div>
@@ -211,7 +211,7 @@ export default function EmbedOrderForm() {
                   value={selectedProductName}
                   onValueChange={handleProductChange}
                 >
-                  <SelectTrigger className="h-10 sm:h-12 text-sm sm:text-base">
+                  <SelectTrigger className="h-10 sm:h-12">
                     <SelectValue placeholder="Sélectionner un produit" />
                   </SelectTrigger>
                   <SelectContent>
@@ -229,15 +229,15 @@ export default function EmbedOrderForm() {
             </div>
 
             {/* Customer Name */}
-            <div className="space-y-1.5 sm:space-y-2">
-              <Label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-                <User className="w-4 h-4" style={{ color: brandColor }} />
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Nom complet
               </Label>
               <Input
                 {...register('client_name')}
                 placeholder="Votre nom"
-                className="h-10 sm:h-12 text-sm sm:text-base"
+                className="h-10 sm:h-12"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
@@ -249,16 +249,16 @@ export default function EmbedOrderForm() {
             </div>
 
             {/* Phone */}
-            <div className="space-y-1.5 sm:space-y-2">
-              <Label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-                <Phone className="w-4 h-4" style={{ color: brandColor }} />
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Téléphone
               </Label>
               <Input
                 {...register('phone')}
                 type="tel"
                 placeholder="+225 XX XX XX XX"
-                className="h-10 sm:h-12 text-sm sm:text-base"
+                className="h-10 sm:h-12"
                 autoComplete="new-password"
                 autoCorrect="off"
                 inputMode="numeric"
@@ -271,16 +271,16 @@ export default function EmbedOrderForm() {
             </div>
 
             {/* Quantity */}
-            <div className="space-y-1.5 sm:space-y-2">
-              <Label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-                <Hash className="w-4 h-4" style={{ color: brandColor }} />
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Quantité
               </Label>
               <Input
                 {...register('quantity', { valueAsNumber: true })}
                 type="number"
                 min="1"
-                className="h-10 sm:h-12 text-sm sm:text-base"
+                className="h-10 sm:h-12"
                 autoComplete="off"
               />
               {errors.quantity && (
@@ -289,15 +289,15 @@ export default function EmbedOrderForm() {
             </div>
 
             {/* Address */}
-            <div className="space-y-1.5 sm:space-y-2">
-              <Label className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-                <MapPin className="w-4 h-4" style={{ color: brandColor }} />
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
                 Adresse de livraison
               </Label>
               <Textarea
                 {...register('address')}
                 placeholder="Votre adresse complète"
-                className="min-h-[64px] sm:min-h-[80px] resize-none text-sm sm:text-base"
+                className="min-h-[60px] sm:min-h-[80px] resize-none"
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
@@ -317,9 +317,9 @@ export default function EmbedOrderForm() {
               style={{ backgroundColor: `${brandColor}10` }}
             >
               <div className="flex justify-between items-center">
-                <span className="text-xs sm:text-sm text-muted-foreground">Total à payer</span>
+                <span className="text-muted-foreground">Total à payer</span>
                 <span 
-                  className="text-lg sm:text-2xl font-bold"
+                  className="text-xl sm:text-2xl font-bold"
                   style={{ color: brandColor }}
                 >
                   {totalAmount.toLocaleString()} FCFA
