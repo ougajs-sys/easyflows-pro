@@ -96,6 +96,7 @@ export function CallerDashboard() {
     },
     enabled: !!user?.id,
     refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
 
   if (isLoading) {

@@ -67,26 +67,26 @@ export function CallerLayout({
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 z-50 w-72 bg-sidebar-background border-r border-sidebar-border transform transition-transform duration-300 lg:transform-none",
+        "fixed lg:static inset-y-0 left-0 z-50 w-72 bg-background border-r border-border transform transition-transform duration-300 lg:transform-none",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="flex flex-col h-full">
           {/* Logo Header */}
-          <div className="p-4 border-b border-sidebar-border">
+          <div className="p-4 border-b border-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
                   <Package className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h1 className="font-bold text-sidebar-foreground">Appelant</h1>
-                  <p className="text-xs text-sidebar-foreground/60">Espace personnel</p>
+                  <h1 className="font-bold text-foreground">Appelant</h1>
+                  <p className="text-xs text-muted-foreground">Espace personnel</p>
                 </div>
               </div>
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="lg:hidden text-sidebar-foreground"
+                className="lg:hidden text-foreground"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <X className="w-5 h-5" />
@@ -107,8 +107,8 @@ export function CallerLayout({
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200",
                       isActive 
-                        ? "bg-sidebar-primary text-sidebar-primary-foreground" 
-                        : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        ? "bg-primary text-primary-foreground" 
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
                     )}
                   >
                     <Icon className="w-5 h-5" />
@@ -120,7 +120,7 @@ export function CallerLayout({
           </ScrollArea>
 
           {/* Payment Button */}
-          <div className="p-4 border-t border-sidebar-border">
+          <div className="p-4 border-t border-border">
             <a 
               href="https://pay.wave.com/m/M_ci_vNYXDd3MiHes/c/ci/"
               target="_blank"
@@ -133,10 +133,10 @@ export function CallerLayout({
           </div>
 
           {/* Footer Actions */}
-          <div className="p-4 border-t border-sidebar-border space-y-2">
+          <div className="p-4 border-t border-border space-y-2">
             <Button
               variant="ghost"
-              className="w-full justify-start text-sidebar-foreground/80 hover:text-sidebar-foreground"
+              className="w-full justify-start text-foreground hover:text-foreground"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             >
               {theme === "dark" ? (
@@ -161,7 +161,7 @@ export function CallerLayout({
       {/* Main Content */}
       <main className="flex-1 min-h-screen">
         {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border p-4 flex items-center justify-between">
+        <header className="lg:hidden sticky top-0 z-30 bg-background border-b border-border p-4 flex items-center justify-between">
           <Button
             variant="ghost"
             size="icon"

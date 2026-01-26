@@ -87,6 +87,7 @@ export function CallerFollowUps() {
     },
     enabled: !!user?.id,
     refetchInterval: 60000,
+    refetchOnWindowFocus: true,
   });
 
   const completeFollowUpMutation = useMutation({
@@ -103,6 +104,7 @@ export function CallerFollowUps() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["caller-followups"] });
+      queryClient.invalidateQueries({ queryKey: ["caller-stats"] });
       toast({
         title: "Relance complétée",
         description: "Le suivi a été marqué comme terminé",
@@ -121,6 +123,7 @@ export function CallerFollowUps() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["caller-followups"] });
+      queryClient.invalidateQueries({ queryKey: ["caller-stats"] });
       toast({
         title: "Relance annulée",
       });
@@ -151,8 +154,11 @@ export function CallerFollowUps() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["caller-followups"] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["caller-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["caller-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["caller-cancelled-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
       
       const statusLabels: Record<OrderStatus, string> = {
         pending: "En attente",
