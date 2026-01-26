@@ -43,6 +43,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 interface NavigationErrorBoundaryProps {
   children: React.ReactNode;
   resetKey: string;
+  queryClient?: typeof queryClient;
 }
 
 class NavigationErrorBoundary extends React.Component<
@@ -55,8 +56,21 @@ class NavigationErrorBoundary extends React.Component<
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error) {
-    bugsnagClient.notify(error);
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // Log error with additional context
+    bugsnagClient.notify(error, (event) => {
+      event.context = "NavigationErrorBoundary";
+      event.addMetadata("errorInfo", {
+        componentStack: errorInfo.componentStack,
+      });
+      event.addMetadata("location", {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash,
+      });
+    });
+    
+    console.error("Error caught by ErrorBoundary:", error, errorInfo);
   }
 
   componentDidMount() {
@@ -80,7 +94,21 @@ class NavigationErrorBoundary extends React.Component<
       return;
     }
 
-    bugsnagClient.notify(event.error);
+    // Log error with context
+    bugsnagClient.notify(event.error, (bugEvent) => {
+      bugEvent.context = "window.error";
+      bugEvent.addMetadata("location", {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash,
+      });
+      bugEvent.addMetadata("event", {
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+      });
+    });
+    
     if (!this.state.hasError) {
       this.setState({ hasError: true });
     }
@@ -91,14 +119,36 @@ class NavigationErrorBoundary extends React.Component<
       return;
     }
 
-    bugsnagClient.notify(event.reason);
+    // Log error with context
+    bugsnagClient.notify(event.reason, (bugEvent) => {
+      bugEvent.context = "unhandledrejection";
+      bugEvent.addMetadata("location", {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash,
+      });
+      bugEvent.addMetadata("promise", {
+        reason: String(event.reason),
+      });
+    });
+    
     if (!this.state.hasError) {
       this.setState({ hasError: true });
     }
   };
 
   handleRetry = () => {
+    // Clear React Query cache to prevent stale data issues
+    if (this.props.queryClient) {
+      console.log("Clearing React Query cache before retry...");
+      this.props.queryClient.clear();
+    }
+    
+    // Reset error state
     this.setState({ hasError: false });
+    
+    // Log recovery attempt
+    bugsnagClient.leaveBreadcrumb("User initiated error recovery from ErrorBoundary");
   };
 
   render() {
@@ -128,7 +178,7 @@ class NavigationErrorBoundary extends React.Component<
 function RouteErrorBoundary({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
-  return <NavigationErrorBoundary resetKey={location.key}>{children}</NavigationErrorBoundary>;
+  return <NavigationErrorBoundary resetKey={location.key} queryClient={queryClient}>{children}</NavigationErrorBoundary>;
 }
 
 const suspenseFallback = (

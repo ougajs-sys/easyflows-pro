@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,7 @@ import {
   CreditCard,
   Loader2
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { usePayments } from "@/hooks/usePayments";
 import type { PostgrestError } from "@supabase/supabase-js";
+import bugsnagClient from "@/lib/bugsnag";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -81,6 +82,55 @@ const statusOptions: { value: OrderStatus; label: string; icon: React.ReactNode;
   { value: "partial", label: "Partielle", icon: <CreditCard className="w-4 h-4" />, color: "text-warning" },
 ];
 
+/**
+ * Helper function to safely format dates with validation
+ * Prevents crashes on invalid dates, especially on Safari iOS
+ */
+const safeFormatDate = (dateString: string | null | undefined, formatString: string): string => {
+  try {
+    if (!dateString) {
+      return "Date invalide";
+    }
+    
+    const date = typeof dateString === 'string' ? parseISO(dateString) : new Date(dateString);
+    
+    if (!isValid(date)) {
+      console.warn("Invalid date encountered:", dateString);
+      return "Date invalide";
+    }
+    
+    return format(date, formatString, { locale: fr });
+  } catch (error) {
+    console.error("Error formatting date:", error, "Input:", dateString);
+    return "Date invalide";
+  }
+};
+
+/**
+ * Helper function to safely get current ISO date string
+ * Prevents issues with invalid Date objects on Safari iOS
+ */
+const safeGetCurrentISODate = (): string => {
+  try {
+    const now = new Date();
+    if (!isValid(now)) {
+      throw new Error("Invalid current date");
+    }
+    return now.toISOString();
+  } catch (error) {
+    console.error("Error getting current ISO date:", error);
+    // Fallback to manual ISO string construction
+    const now = new Date();
+    return now.getFullYear() + '-' + 
+           String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(now.getDate()).padStart(2, '0') + 'T' + 
+           String(now.getHours()).padStart(2, '0') + ':' + 
+           String(now.getMinutes()).padStart(2, '0') + ':' + 
+           String(now.getSeconds()).padStart(2, '0') + '.' + 
+           String(now.getMilliseconds()).padStart(3, '0') + 'Z';
+  }
+};
+
 export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -88,6 +138,16 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
   const [isUpdating, setIsUpdating] = useState(false);
   const [showPaymentInput, setShowPaymentInput] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
+  
+  // Track component mount status to prevent setState on unmounted component
+  const isMountedRef = useRef(true);
+  
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   if (!order) return null;
 
@@ -106,12 +166,26 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
   };
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
+    if (!isMountedRef.current) return;
+    
     setIsUpdating(true);
+    
     try {
+      // Prepare update data with safe date handling
       const updateData: { status: OrderStatus; delivered_at?: string } = { status: newStatus };
+      
       if (newStatus === "delivered") {
-        updateData.delivered_at = new Date().toISOString();
+        updateData.delivered_at = safeGetCurrentISODate();
       }
+
+      // Log context for debugging (without sensitive data)
+      bugsnagClient.leaveBreadcrumb(JSON.stringify({
+        action: "update_order_status",
+        orderId: order.id,
+        orderNumber: order.order_number || "N/A",
+        currentStatus: order.status,
+        newStatus: newStatus,
+      }));
 
       const { error } = await supabase
         .from("orders")
@@ -120,37 +194,70 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
 
       if (error) {
         console.error("Error updating order status:", error);
+        
+        // Log detailed error to Bugsnag with context
+        const errorWithContext = new Error(`Failed to update order status: ${error.message}`);
+        bugsnagClient.notify(errorWithContext, (event) => {
+          event.context = "OrderDetailPopup.handleStatusChange";
+          event.addMetadata("order", {
+            id: order.id,
+            orderNumber: order.order_number || "N/A",
+            currentStatus: order.status,
+            targetStatus: newStatus,
+          });
+          event.addMetadata("error", {
+            message: error.message,
+            code: error.code || "N/A",
+            details: error.details || "N/A",
+            hint: error.hint || "N/A",
+          });
+        });
+        
         throw new Error(`${error.message} (Code: ${error.code || 'N/A'})`);
       }
 
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
+      // Invalidate queries only if component is still mounted
+      if (isMountedRef.current) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["orders"] }),
+          queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] }),
+        ]);
 
-      toast({
-        title: "Statut mis à jour",
-        description: `La commande ${order.order_number} est maintenant "${statusOptions.find(s => s.value === newStatus)?.label}"`,
-      });
+        toast({
+          title: "Statut mis à jour",
+          description: `La commande ${order.order_number || order.id} est maintenant "${statusOptions.find(s => s.value === newStatus)?.label}"`,
+        });
 
-      onClose();
+        // Close popup only if component is still mounted
+        onClose();
+      }
     } catch (error) {
       console.error("Error updating status:", error);
       
-      let errorMessage = "Impossible de mettre à jour le statut";
-      if (error instanceof Error) {
-        errorMessage = error.message;
+      // Only show toast if component is still mounted
+      if (isMountedRef.current) {
+        let errorMessage = "Impossible de mettre à jour le statut";
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        
+        toast({
+          title: "Erreur",
+          description: errorMessage,
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: "Erreur",
-        description: errorMessage,
-        variant: "destructive",
-      });
     } finally {
-      setIsUpdating(false);
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setIsUpdating(false);
+      }
     }
   };
 
   const handleRecordPayment = async () => {
+    if (!isMountedRef.current) return;
+    
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({
@@ -162,8 +269,9 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
     }
 
     setIsUpdating(true);
+    
     try {
-      const newAmountPaid = Number(order.amount_paid) + amount;
+      const newAmountPaid = Number(order.amount_paid || 0) + amount;
       
       // Any payment recorded should set status to confirmed
       let newStatus: OrderStatus = "confirmed";
@@ -172,6 +280,16 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
       if (order.status === "in_transit" || order.status === "delivered") {
         newStatus = order.status;
       }
+
+      // Log context for debugging (without sensitive data)
+      bugsnagClient.leaveBreadcrumb(JSON.stringify({
+        action: "record_payment",
+        orderId: order.id,
+        orderNumber: order.order_number || "N/A",
+        currentStatus: order.status,
+        newStatus: newStatus,
+        amount: amount,
+      }));
 
       // First update order status and amounts
       const { error: orderError } = await supabase
@@ -185,6 +303,29 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
       if (orderError) {
         // Log detailed error for debugging
         console.error("Error updating order:", orderError);
+        
+        // Log to Bugsnag with context
+        const errorWithContext = new Error(`Failed to update order for payment: ${orderError.message}`);
+        bugsnagClient.notify(errorWithContext, (event) => {
+          event.context = "OrderDetailPopup.handleRecordPayment";
+          event.addMetadata("order", {
+            id: order.id,
+            orderNumber: order.order_number || "N/A",
+            currentStatus: order.status,
+            targetStatus: newStatus,
+          });
+          event.addMetadata("payment", {
+            amount: amount,
+            newAmountPaid: newAmountPaid,
+          });
+          event.addMetadata("error", {
+            message: orderError.message,
+            code: orderError.code || "N/A",
+            details: orderError.details || "N/A",
+            hint: orderError.hint || "N/A",
+          });
+        });
+        
         throw new Error(`Erreur lors de la mise à jour de la commande: ${orderError.message} (Code: ${orderError.code || 'N/A'})`);
       }
 
@@ -198,49 +339,58 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
         notes: `Paiement enregistré depuis le popup de détail`,
       });
 
-      // Note: The createPayment mutation already invalidates 'orders' and 'payments' queries
-      // We only need to invalidate dashboard-specific queries
-      queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
+      // Invalidate queries only if component is still mounted
+      if (isMountedRef.current) {
+        // Note: The createPayment mutation already invalidates 'orders' and 'payments' queries
+        // We only need to invalidate dashboard-specific queries
+        await queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
 
-      toast({
-        title: "Paiement enregistré",
-        description: `Paiement de ${formatCurrency(amount)} FCFA enregistré. Commande confirmée.`,
-      });
+        toast({
+          title: "Paiement enregistré",
+          description: `Paiement de ${formatCurrency(amount)} FCFA enregistré. Commande confirmée.`,
+        });
 
-      setPaymentAmount("");
-      setShowPaymentInput(false);
-      onClose();
+        setPaymentAmount("");
+        setShowPaymentInput(false);
+        onClose();
+      }
     } catch (error) {
       console.error("Error recording payment:", error);
       
-      // Extract detailed error message
-      let errorMessage = "Impossible d'enregistrer le paiement";
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null) {
-        const pgError = error as PostgrestError;
-        if (pgError.message) {
-          errorMessage = `Erreur: ${pgError.message}`;
-          if (pgError.code) {
-            errorMessage += ` (Code: ${pgError.code})`;
-          }
-          if (pgError.details) {
-            errorMessage += ` - ${pgError.details}`;
-          }
-          if (pgError.hint) {
-            errorMessage += ` (Astuce: ${pgError.hint})`;
+      // Only show toast if component is still mounted
+      if (isMountedRef.current) {
+        // Extract detailed error message
+        let errorMessage = "Impossible d'enregistrer le paiement";
+        
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else if (typeof error === 'object' && error !== null) {
+          const pgError = error as PostgrestError;
+          if (pgError.message) {
+            errorMessage = `Erreur: ${pgError.message}`;
+            if (pgError.code) {
+              errorMessage += ` (Code: ${pgError.code})`;
+            }
+            if (pgError.details) {
+              errorMessage += ` - ${pgError.details}`;
+            }
+            if (pgError.hint) {
+              errorMessage += ` (Astuce: ${pgError.hint})`;
+            }
           }
         }
+        
+        toast({
+          title: "Erreur",
+          description: errorMessage,
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: "Erreur",
-        description: errorMessage,
-        variant: "destructive",
-      });
     } finally {
-      setIsUpdating(false);
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setIsUpdating(false);
+      }
     }
   };
 
@@ -379,7 +529,7 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Date</span>
               <span className="text-sm">
-                {format(new Date(order.created_at), "dd MMM yyyy HH:mm", { locale: fr })}
+                {safeFormatDate(order.created_at, "dd MMM yyyy HH:mm")}
               </span>
             </div>
           </div>
