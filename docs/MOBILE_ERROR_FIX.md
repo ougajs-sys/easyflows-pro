@@ -235,12 +235,25 @@ Pour s'assurer que les changements n'ont pas cassé de fonctionnalités existant
 - **Cache clearing** lors de la récupération pour éviter les boucles d'erreurs
 - **Validation de dates** avant formatage pour compatibilité Safari iOS
 
+## Autres Zones à Surveiller
+
+La codebase contient **39 autres instances** de `format(new Date(...))` qui pourraient potentiellement causer des problèmes similaires sur Safari iOS. Ces instances n'ont pas été modifiées dans ce fix car:
+1. Elles ne sont pas directement liées à l'erreur mobile rapportée
+2. Elles peuvent ne pas avoir les mêmes problèmes (par exemple, si les dates viennent de sources fiables)
+3. Le changement doit rester minimal et ciblé
+
+**Recommandation**: Si d'autres erreurs mobiles similaires sont détectées, envisager de:
+- Créer une fonction utilitaire globale `safeFormatDate()` dans `src/lib/utils.ts`
+- Remplacer progressivement les instances à risque
+- Ajouter un linter rule pour détecter les appels non sécurisés
+
 ## Prochaines Étapes Suggérées
 
 1. Monitorer les logs Bugsnag pour identifier d'autres patterns d'erreurs mobiles
 2. Envisager d'ajouter des tests E2E spécifiques pour mobile
-3. Documenter d'autres zones de l'app qui utilisent le formatage de dates
+3. Si d'autres erreurs de dates surviennent, créer une fonction globale `safeFormatDate()`
 4. Considérer l'ajout d'un retry automatique avec exponential backoff pour les erreurs réseau
+5. Envisager un audit complet des 39 autres instances de formatage de dates
 
 ## Liens Utiles
 
