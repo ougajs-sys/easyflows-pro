@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatCurrency";
 import type { PostgrestError } from "@supabase/supabase-js";
+import { CancelledOrdersSidebar } from "./CancelledOrdersSidebar";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -120,6 +121,7 @@ export function CallerOrders() {
     },
     enabled: !!user?.id,
     refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
 
   const updateOrderMutation = useMutation({
@@ -142,6 +144,7 @@ export function CallerOrders() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["caller-orders"] });
       queryClient.invalidateQueries({ queryKey: ["caller-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["caller-cancelled-orders"] });
       queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
       setSelectedOrder(null);
     },
@@ -354,13 +357,16 @@ export function CallerOrders() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Commandes</h1>
-        <p className="text-muted-foreground">Gérez vos commandes et appelez les clients</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Commandes</h1>
+          <p className="text-muted-foreground">Gérez vos commandes et appelez les clients</p>
+        </div>
+        <CancelledOrdersSidebar />
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="pending" className="relative text-xs sm:text-sm">
             À traiter
             {filterOrders("pending").length > 0 && (
@@ -379,10 +385,9 @@ export function CallerOrders() {
             )}
           </TabsTrigger>
           <TabsTrigger value="reported" className="text-xs sm:text-sm">Reporté</TabsTrigger>
-          <TabsTrigger value="cancelled" className="text-xs sm:text-sm">Annulé</TabsTrigger>
         </TabsList>
 
-        {["pending", "confirmed", "partial", "reported", "cancelled"].map((status) => (
+        {["pending", "confirmed", "partial", "reported"].map((status) => (
           <TabsContent key={status} value={status} className="mt-4">
             <div className="grid gap-3">
               {filterOrders(status).length === 0 ? (
