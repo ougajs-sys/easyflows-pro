@@ -15,6 +15,26 @@ interface RevenueSummary {
   deposited_count: number;
 }
 
+// Helper to check if error is due to missing table or function
+function isTableNotFoundError(error: any): boolean {
+  return (
+    error?.code === 'PGRST116' || // PostgREST: relation does not exist
+    error?.code === '42883' ||    // PostgreSQL: function does not exist
+    error?.message?.includes('does not exist')
+  );
+}
+
+// Reusable retry configuration for revenue queries
+function getRevenueRetryConfig() {
+  return (failureCount: number, error: any) => {
+    // Don't retry if table doesn't exist
+    if (isTableNotFoundError(error)) {
+      return false;
+    }
+    return failureCount < 3;
+  };
+}
+
 export function useCollectedRevenues() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -48,7 +68,7 @@ export function useCollectedRevenues() {
 
       if (error) {
         // Handle table not found gracefully (404 errors)
-        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+        if (isTableNotFoundError(error)) {
           console.warn('Table collected_revenues not found. Please apply migration.');
           return [];
         }
@@ -74,13 +94,7 @@ export function useCollectedRevenues() {
       })[];
     },
     enabled: !!user?.id,
-    retry: (failureCount, error: any) => {
-      // Don't retry if table doesn't exist
-      if (error?.code === 'PGRST116' || error?.message?.includes('does not exist')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    retry: getRevenueRetryConfig(),
   });
 
   // Get today's collected revenues only
@@ -100,7 +114,7 @@ export function useCollectedRevenues() {
         .order('collected_at', { ascending: false });
 
       if (error) {
-        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+        if (isTableNotFoundError(error)) {
           console.warn('Table collected_revenues not found. Please apply migration.');
           return [];
         }
@@ -109,12 +123,7 @@ export function useCollectedRevenues() {
       return data;
     },
     enabled: !!user?.id,
-    retry: (failureCount, error: any) => {
-      if (error?.code === 'PGRST116' || error?.message?.includes('does not exist')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    retry: getRevenueRetryConfig(),
   });
 
   // Get revenue summary for the current user
@@ -142,7 +151,7 @@ export function useCollectedRevenues() {
 
       if (error) {
         // Handle function not found or table not existing gracefully
-        if (error.code === 'PGRST116' || error.code === '42883' || error.message?.includes('does not exist')) {
+        if (isTableNotFoundError(error)) {
           console.warn('Revenue tracking not available. Please apply migration.');
           return {
             total_collected: 0,
@@ -175,12 +184,7 @@ export function useCollectedRevenues() {
       };
     },
     enabled: !!user?.id,
-    retry: (failureCount, error: any) => {
-      if (error?.code === 'PGRST116' || error?.code === '42883' || error?.message?.includes('does not exist')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    retry: getRevenueRetryConfig(),
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
@@ -218,7 +222,7 @@ export function useCollectedRevenues() {
         .order('deposited_at', { ascending: false });
 
       if (error) {
-        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+        if (isTableNotFoundError(error)) {
           console.warn('Table revenue_deposits not found. Please apply migration.');
           return [];
         }
@@ -227,12 +231,7 @@ export function useCollectedRevenues() {
       return data as RevenueDeposit[];
     },
     enabled: !!user?.id,
-    retry: (failureCount, error: any) => {
-      if (error?.code === 'PGRST116' || error?.message?.includes('does not exist')) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    retry: getRevenueRetryConfig(),
   });
 
   return {
