@@ -136,8 +136,26 @@ export function useOrders() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (updatedOrder) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      
+      // Trigger WordPress webhook sync when order is confirmed
+      if (updatedOrder.status === 'confirmed') {
+        supabase.functions
+          .invoke('sync-order-elementor', {
+            body: { order_id: updatedOrder.id }
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Error invoking sync-order-elementor:', error);
+            } else {
+              console.log('Webhook sync result:', data);
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to invoke sync-order-elementor:', err);
+          });
+      }
     },
   });
 
