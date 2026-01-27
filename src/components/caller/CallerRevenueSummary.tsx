@@ -10,16 +10,19 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { useCollectedRevenues } from "@/hooks/useCollectedRevenues";
+import { useCollectedRevenues, useRealtimeRevenues } from "@/hooks/useCollectedRevenues";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { DollarSign, TrendingUp, ArrowUpCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export function CallerRevenueSummary() {
-  const { summary, summaryLoading, processDeposit } = useCollectedRevenues();
+  const { summary, summaryLoading, processDeposit, error } = useCollectedRevenues();
   const [depositDialogOpen, setDepositDialogOpen] = useState(false);
   const [notes, setNotes] = useState("");
+
+  // Enable real-time updates for revenue tracking
+  useRealtimeRevenues();
 
   const handleDeposit = async () => {
     if (summary && summary.total_to_deposit <= 0) {
@@ -43,6 +46,30 @@ export function CallerRevenueSummary() {
         <CardContent className="pt-6">
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show info message if data is unavailable due to error
+  if (error) {
+    return (
+      <Card className="border-warning/50 bg-warning/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-warning" />
+            Mes Recettes du Jour
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center space-y-2 py-4">
+            <p className="text-sm font-medium text-warning">
+              Fonctionnalité en cours de déploiement
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Le suivi des recettes sera bientôt disponible
+            </p>
           </div>
         </CardContent>
       </Card>
