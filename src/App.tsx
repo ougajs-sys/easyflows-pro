@@ -38,6 +38,7 @@ const EmbedOrderForm = lazy(() => import("./pages/EmbedOrderForm"));
 const EmbedFormsAdmin = lazy(() => import("./pages/EmbedFormsAdmin"));
 const Chat = lazy(() => import("./pages/Chat"));
 const AIAgent = lazy(() => import("./pages/AIAgent"));
+const RevenueTracking = lazy(() => import("./pages/RevenueTracking"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 interface NavigationErrorBoundaryProps {
@@ -377,6 +378,14 @@ const App = () => (
                         element={
                           <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
                             <AIAgent />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/revenue-tracking"
+                        element={
+                          <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                            <RevenueTracking />
                           </ProtectedRoute>
                         }
                       />

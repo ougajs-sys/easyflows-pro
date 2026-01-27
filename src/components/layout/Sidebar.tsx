@@ -67,19 +67,20 @@ const menuItems: MenuItem[] = [
   { id: 6, label: "Agent IA", icon: Bot, path: "/ai-agent", color: "text-purple-400", allowedRoles: ["superviseur", "administrateur"] },
   { id: 7, label: "Stock Global", icon: Package, path: "/stock", color: "text-lime-400", allowedRoles: ["superviseur", "administrateur"] },
   { id: 8, label: "Synthèse", icon: BarChart3, path: "/synthesis", color: "text-teal-400", allowedRoles: ["superviseur", "administrateur"] },
-  { id: 9, label: "Intégrations", icon: RefreshCw, path: "/utb", color: "text-cyan-400", allowedRoles: ["superviseur", "administrateur"] },
-  { id: 10, label: "Campagnes SMS", icon: Send, path: "/campaigns", color: "text-violet-400", allowedRoles: ["superviseur", "administrateur"] },
-  { id: 11, label: "Formulaires Embed", icon: Code, path: "/admin/embed-forms", color: "text-sky-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 9, label: "Suivi Recettes", icon: CreditCard, path: "/revenue-tracking", color: "text-green-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 10, label: "Intégrations", icon: RefreshCw, path: "/utb", color: "text-cyan-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 11, label: "Campagnes SMS", icon: Send, path: "/campaigns", color: "text-violet-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 12, label: "Formulaires Embed", icon: Code, path: "/admin/embed-forms", color: "text-sky-400", allowedRoles: ["superviseur", "administrateur"] },
   
   // Admin uniquement
-  { id: 12, label: "Produits", icon: Package, path: "/products", color: "text-orange-400", allowedRoles: ["administrateur"] },
-  { id: 13, label: "Rôles & Accès", icon: ShieldCheck, path: "/roles", color: "text-red-400", allowedRoles: ["administrateur"] },
-  { id: 14, label: "Tableau Admin", icon: Users, path: "/admin", color: "text-fuchsia-400", allowedRoles: ["administrateur"] },
+  { id: 13, label: "Produits", icon: Package, path: "/products", color: "text-orange-400", allowedRoles: ["administrateur"] },
+  { id: 14, label: "Rôles & Accès", icon: ShieldCheck, path: "/roles", color: "text-red-400", allowedRoles: ["administrateur"] },
+  { id: 15, label: "Tableau Admin", icon: Users, path: "/admin", color: "text-fuchsia-400", allowedRoles: ["administrateur"] },
   
   // Commun à tous
-  { id: 15, label: "Chat", icon: MessageSquare, path: "/chat", color: "text-emerald-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 16, label: "Notifications", icon: Bell, path: "/notifications", color: "text-yellow-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 17, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
+  { id: 16, label: "Chat", icon: MessageSquare, path: "/chat", color: "text-emerald-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
+  { id: 17, label: "Notifications", icon: Bell, path: "/notifications", color: "text-yellow-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
+  { id: 18, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
 ];
 
 function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: { 
