@@ -15,11 +15,46 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { CallerRevenueSummary } from "./CallerRevenueSummary";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function CallerDashboard() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const { data: stats, isLoading } = useQuery({
+  // Set up real-time subscriptions for orders and payments
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('Setting up Realtime subscriptions for caller dashboard...');
+
+    // Subscribe to orders created by this caller
+    const ordersChannel = supabase
+      .channel('caller-orders-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `created_by=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Order change for caller:', payload);
+          queryClient.invalidateQueries({ queryKey: ['caller-stats', user.id] });
+        }
+      )
+      .subscribe((status) => {
+        console.log('Caller orders channel status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up caller dashboard Realtime subscriptions...');
+      supabase.removeChannel(ordersChannel);
+    };
+  }, [user?.id, queryClient]);
+
+  const { data: stats, isLoading, error } = useQuery({
     queryKey: ["caller-stats", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
@@ -33,7 +68,10 @@ export function CallerDashboard() {
         .select("id, status, total_amount, created_at")
         .eq("created_by", user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching caller stats:', error);
+        throw error;
+      }
 
       const counters = {
         total: 0,
@@ -96,6 +134,7 @@ export function CallerDashboard() {
       };
     },
     enabled: !!user?.id,
+    retry: 3,
     refetchInterval: 30000,
     refetchOnWindowFocus: true,
   });
@@ -104,6 +143,29 @@ export function CallerDashboard() {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Mon Espace</h1>
+          <p className="text-muted-foreground">
+            Visualisez vos performances en temps réel
+          </p>
+        </div>
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-2">
+              <p className="font-semibold text-destructive">Données indisponibles</p>
+              <p className="text-sm text-muted-foreground">
+                Impossible de charger les statistiques. Veuillez réessayer plus tard.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
