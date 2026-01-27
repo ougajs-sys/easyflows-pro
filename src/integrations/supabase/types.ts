@@ -689,112 +689,6 @@ export type Database = {
           },
         ]
       }
-      collected_revenues: {
-        Row: {
-          amount: number
-          collected_at: string
-          collected_by: string
-          created_at: string
-          deposit_id: string | null
-          id: string
-          order_id: string
-          payment_id: string
-          payment_method: Database["public"]["Enums"]["payment_method"]
-          status: Database["public"]["Enums"]["revenue_status"]
-        }
-        Insert: {
-          amount: number
-          collected_at?: string
-          collected_by: string
-          created_at?: string
-          deposit_id?: string | null
-          id?: string
-          order_id: string
-          payment_id: string
-          payment_method: Database["public"]["Enums"]["payment_method"]
-          status?: Database["public"]["Enums"]["revenue_status"]
-        }
-        Update: {
-          amount?: number
-          collected_at?: string
-          collected_by?: string
-          created_at?: string
-          deposit_id?: string | null
-          id?: string
-          order_id?: string
-          payment_id?: string
-          payment_method?: Database["public"]["Enums"]["payment_method"]
-          status?: Database["public"]["Enums"]["revenue_status"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "collected_revenues_collected_by_fkey"
-            columns: ["collected_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "collected_revenues_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "collected_revenues_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "payments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_collected_revenues_deposit"
-            columns: ["deposit_id"]
-            isOneToOne: false
-            referencedRelation: "revenue_deposits"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      revenue_deposits: {
-        Row: {
-          created_at: string
-          deposited_at: string
-          deposited_by: string
-          id: string
-          notes: string | null
-          revenue_count: number
-          total_amount: number
-        }
-        Insert: {
-          created_at?: string
-          deposited_at?: string
-          deposited_by: string
-          id?: string
-          notes?: string | null
-          revenue_count?: number
-          total_amount: number
-        }
-        Update: {
-          created_at?: string
-          deposited_at?: string
-          deposited_by?: string
-          id?: string
-          notes?: string | null
-          revenue_count?: number
-          total_amount?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "revenue_deposits_deposited_by_fkey"
-            columns: ["deposited_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       products: {
         Row: {
           created_at: string
@@ -1490,7 +1384,6 @@ export type Database = {
         | "reported"
       payment_method: "cash" | "mobile_money" | "card" | "transfer"
       payment_status: "pending" | "completed" | "failed" | "refunded"
-      revenue_status: "collected" | "deposited"
     }
     CompositeTypes: {
       [_ in never]: never

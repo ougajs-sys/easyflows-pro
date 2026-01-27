@@ -59,23 +59,6 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
-- Supabase (Backend & Database)
-
-## Features
-
-### Revenue Tracking & Deposit System
-
-EasyFlows Pro includes a comprehensive revenue tracking and deposit management system:
-
-- **Automatic Revenue Tracking**: Every payment recorded on an order automatically creates a revenue record
-- **Caller Dashboard Widget**: Real-time display of collected revenues for the current day
-- **Deposit Operations**: One-click deposit declaration for callers at end of day
-- **Supervisor Monitoring**: Complete visibility of all revenues by caller with filtering capabilities
-- **Real-time Updates**: Dashboard data refreshes automatically every 30 seconds
-
-For detailed information, see:
-- [Revenue Tracking Documentation](docs/REVENUE_TRACKING.md)
-- [Testing Guide](docs/REVENUE_TRACKING_TESTING.md)
 
 ## How can I deploy this project?
 

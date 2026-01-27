@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { formatCurrency } from "@/lib/formatCurrency";
-import { CallerRevenueSummary } from "./CallerRevenueSummary";
 
 export function CallerDashboard() {
   const { user } = useAuth();
@@ -148,9 +147,6 @@ export function CallerDashboard() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Revenue Summary - NEW */}
-      <CallerRevenueSummary />
 
       {/* Stats Grid - Today */}
       <div>
