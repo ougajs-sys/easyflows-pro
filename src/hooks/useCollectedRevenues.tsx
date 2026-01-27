@@ -47,9 +47,22 @@ export function useCollectedRevenues() {
 
       if (error) throw error;
       return data as (CollectedRevenue & {
-        payment?: any;
-        order?: any;
-        deposit?: any;
+        payment?: {
+          reference?: string | null;
+          notes?: string | null;
+        };
+        order?: {
+          order_number?: string | null;
+          client?: {
+            full_name?: string;
+            phone?: string;
+          } | null;
+        };
+        deposit?: {
+          id: string;
+          deposited_at: string;
+          notes?: string | null;
+        } | null;
       })[];
     },
     enabled: !!user?.id,

@@ -32,8 +32,8 @@ export function CallerRevenueSummary() {
       toast.success("Versement enregistré avec succès");
       setDepositDialogOpen(false);
       setNotes("");
-    } catch (error: any) {
-      toast.error(error.message || "Erreur lors du versement");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erreur lors du versement");
     }
   };
 

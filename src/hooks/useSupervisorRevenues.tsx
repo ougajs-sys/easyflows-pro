@@ -53,10 +53,26 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
 
       if (error) throw error;
       return data as (CollectedRevenue & {
-        collected_by_profile?: any;
-        payment?: any;
-        order?: any;
-        deposit?: any;
+        collected_by_profile?: {
+          full_name?: string | null;
+          phone?: string | null;
+        };
+        payment?: {
+          reference?: string | null;
+          notes?: string | null;
+        };
+        order?: {
+          order_number?: string | null;
+          client?: {
+            full_name?: string;
+            phone?: string;
+          } | null;
+        };
+        deposit?: {
+          id: string;
+          deposited_at: string;
+          notes?: string | null;
+        } | null;
       })[];
     },
   });
@@ -88,7 +104,10 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
 
       if (error) throw error;
       return data as (RevenueDeposit & {
-        deposited_by_profile?: any;
+        deposited_by_profile?: {
+          full_name?: string | null;
+          phone?: string | null;
+        };
       })[];
     },
   });
