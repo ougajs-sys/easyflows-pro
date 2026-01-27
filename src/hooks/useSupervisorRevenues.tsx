@@ -21,7 +21,6 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
         .from('collected_revenues')
         .select(`
           *,
-          collected_by_profile:profiles!collected_revenues_collected_by_fkey(full_name, phone),
           payment:payments(reference, notes),
           order:orders(
             order_number,
@@ -52,7 +51,21 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as (CollectedRevenue & {
+      
+      // Fetch profiles for collected_by users
+      const userIds = [...new Set(data?.map(r => r.collected_by) || [])];
+      if (userIds.length === 0) return [];
+      
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds);
+        
+      // Merge profiles into revenue data
+      return data.map(revenue => ({
+        ...revenue,
+        collected_by_profile: profiles?.find(p => p.id === revenue.collected_by),
+      })) as (CollectedRevenue & {
         collected_by_profile?: {
           full_name?: string | null;
           phone?: string | null;
@@ -83,10 +96,7 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
     queryFn: async () => {
       let query = supabase
         .from('revenue_deposits')
-        .select(`
-          *,
-          deposited_by_profile:profiles!revenue_deposits_deposited_by_fkey(full_name, phone)
-        `)
+        .select('*')
         .order('deposited_at', { ascending: false });
 
       // Apply filters
@@ -103,7 +113,21 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as (RevenueDeposit & {
+      
+      // Fetch profiles for deposited_by users
+      const userIds = [...new Set(data?.map(r => r.deposited_by) || [])];
+      if (userIds.length === 0) return [];
+      
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds);
+        
+      // Merge profiles into deposit data
+      return data.map(deposit => ({
+        ...deposit,
+        deposited_by_profile: profiles?.find(p => p.id === deposit.deposited_by),
+      })) as (RevenueDeposit & {
         deposited_by_profile?: {
           full_name?: string | null;
           phone?: string | null;

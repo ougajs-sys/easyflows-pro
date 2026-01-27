@@ -219,13 +219,27 @@ export function SupervisorRevenueTracking() {
             <Input
               type="date"
               placeholder="Date début"
-              onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+              onChange={(e) => {
+                if (e.target.value) {
+                  const date = new Date(e.target.value + 'T00:00:00');
+                  setStartDate(date);
+                } else {
+                  setStartDate(undefined);
+                }
+              }}
             />
 
             <Input
               type="date"
               placeholder="Date fin"
-              onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : undefined)}
+              onChange={(e) => {
+                if (e.target.value) {
+                  const date = new Date(e.target.value + 'T23:59:59');
+                  setEndDate(date);
+                } else {
+                  setEndDate(undefined);
+                }
+              }}
             />
 
             <Button variant="outline" onClick={() => {

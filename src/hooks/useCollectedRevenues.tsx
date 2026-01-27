@@ -110,7 +110,6 @@ export function useCollectedRevenues() {
       const { data, error } = await supabase.rpc('get_caller_revenue_summary', {
         p_user_id: user.id,
         p_start_date: today.toISOString(),
-        p_end_date: null,
       });
 
       if (error) throw error;
