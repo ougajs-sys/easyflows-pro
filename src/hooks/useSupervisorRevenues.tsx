@@ -53,7 +53,8 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
       if (error) throw error;
       
       // Fetch profiles for collected_by users
-      const userIds = [...new Set(data?.map(r => r.collected_by) ?? [])];
+      // Handle undefined data with nullish coalescing before mapping
+      const userIds = data ? [...new Set(data.map(r => r.collected_by))] : [];
       if (userIds.length === 0) return [];
       
       const { data: profiles } = await supabase
@@ -115,7 +116,8 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
       if (error) throw error;
       
       // Fetch profiles for deposited_by users
-      const userIds = [...new Set(data?.map(r => r.deposited_by) ?? [])];
+      // Handle undefined data with nullish coalescing before mapping
+      const userIds = data ? [...new Set(data.map(r => r.deposited_by))] : [];
       if (userIds.length === 0) return [];
       
       const { data: profiles } = await supabase

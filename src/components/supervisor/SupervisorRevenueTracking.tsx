@@ -222,6 +222,7 @@ export function SupervisorRevenueTracking() {
               onChange={(e) => {
                 if (e.target.value) {
                   // Create date at start of day in local timezone
+                  // Format: YYYY-MM-DD from input, we append time to create local date
                   const date = new Date(e.target.value + 'T00:00:00');
                   setStartDate(date);
                 } else {
@@ -236,6 +237,7 @@ export function SupervisorRevenueTracking() {
               onChange={(e) => {
                 if (e.target.value) {
                   // Create date at end of day in local timezone
+                  // Format: YYYY-MM-DD from input, we append time to create local date
                   const date = new Date(e.target.value + 'T23:59:59');
                   setEndDate(date);
                 } else {
