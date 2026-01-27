@@ -134,6 +134,7 @@ BEGIN
   -- Only create collected revenue for completed payments with positive amounts
   IF NEW.status = 'completed' 
      AND NEW.received_by IS NOT NULL 
+     AND NEW.amount IS NOT NULL
      AND NEW.amount > 0 THEN
     INSERT INTO public.collected_revenues (
       payment_id,

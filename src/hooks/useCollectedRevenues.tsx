@@ -104,12 +104,13 @@ export function useCollectedRevenues() {
         };
       }
 
+      // Get start of current day in local timezone
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       const { data, error } = await supabase.rpc('get_caller_revenue_summary', {
         p_user_id: user.id,
-        p_start_date: today.toISOString(),
+        p_start_date: today.toISOString(), // Will be in UTC, server handles timezone
       });
 
       if (error) throw error;
