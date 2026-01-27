@@ -511,6 +511,8 @@ export type Database = {
           assigned_to: string | null
           cancellation_reason: string | null
           client_id: string
+          client_phone: string | null
+          client_phone_secondary: string | null
           created_at: string
           created_by: string | null
           delivered_at: string | null
@@ -534,6 +536,8 @@ export type Database = {
           assigned_to?: string | null
           cancellation_reason?: string | null
           client_id: string
+          client_phone?: string | null
+          client_phone_secondary?: string | null
           created_at?: string
           created_by?: string | null
           delivered_at?: string | null
@@ -557,6 +561,8 @@ export type Database = {
           assigned_to?: string | null
           cancellation_reason?: string | null
           client_id?: string
+          client_phone?: string | null
+          client_phone_secondary?: string | null
           created_at?: string
           created_by?: string | null
           delivered_at?: string | null
@@ -1312,6 +1318,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_user_role: {
+        Args: {
+          target_email: string
+          target_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: undefined
+      }
       can_chat: {
         Args: { receiver_id: string; sender_id: string }
         Returns: boolean
