@@ -47,8 +47,8 @@
     # Permissions Policy
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     
-    # Content Security Policy - allow frame-ancestors for embeds
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://esm.sh https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://sentry.io https://api.messenger360.com wss://*.supabase.co; frame-ancestors 'self' https://*.wordpress.com https://*.elementor.cloud *;"
+    # Content Security Policy - allow frame-ancestors for embeds and Google Fonts
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://esm.sh https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://sentry.io https://api.messenger360.com wss://*.supabase.co; frame-ancestors 'self' https://*.wordpress.com https://*.elementor.cloud *;"
 
 # Permissive headers for embed forms (allow iframe on any site)
 [[headers]]

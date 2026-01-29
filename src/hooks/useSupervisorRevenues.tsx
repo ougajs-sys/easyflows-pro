@@ -1,9 +1,30 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Database } from '@/integrations/supabase/types';
 
-type CollectedRevenue = Database['public']['Tables']['collected_revenues']['Row'];
-type RevenueDeposit = Database['public']['Tables']['revenue_deposits']['Row'];
+// Define types locally since tables may not exist in generated types yet
+interface CollectedRevenue {
+  id: string;
+  payment_id: string;
+  order_id: string;
+  amount: number;
+  collected_by: string;
+  collected_at: string;
+  status: 'collected' | 'deposited';
+  deposit_id: string | null;
+  payment_method?: 'cash' | 'mobile_money' | 'card' | 'transfer';
+  created_at: string;
+  updated_at: string;
+}
+
+interface RevenueDeposit {
+  id: string;
+  deposited_by: string;
+  total_amount: number;
+  revenues_count: number;
+  deposited_at: string;
+  notes: string | null;
+  created_at: string;
+}
 
 interface RevenueFilters {
   callerId?: string;
@@ -12,13 +33,22 @@ interface RevenueFilters {
   endDate?: Date;
 }
 
+// Helper to check if error is due to missing table
+function isTableNotFoundError(error: any): boolean {
+  return (
+    error?.code === 'PGRST116' || 
+    error?.code === '42883' ||    
+    error?.message?.includes('does not exist')
+  );
+}
+
 export function useSupervisorRevenues(filters?: RevenueFilters) {
   // Get all collected revenues with filters
   const { data: allRevenues = [], isLoading, error } = useQuery({
     queryKey: ['supervisor-revenues', filters],
     queryFn: async () => {
-      let query = supabase
-        .from('collected_revenues')
+      // Use type assertion to bypass missing table type
+      let query = (supabase.from as any)('collected_revenues')
         .select(`
           *,
           payment:payments(reference, notes),
@@ -50,11 +80,16 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        if (isTableNotFoundError(error)) {
+          console.warn('Table collected_revenues not found. Please apply migration.');
+          return [];
+        }
+        throw error;
+      }
       
       // Fetch profiles for collected_by users
-      // Handle undefined data with nullish coalescing before mapping
-      const userIds = data ? [...new Set(data.map(r => r.collected_by))] : [];
+      const userIds = data ? [...new Set((data as any[]).map(r => r.collected_by))] : [];
       if (userIds.length === 0) return [];
       
       const { data: profiles } = await supabase
@@ -63,7 +98,7 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
         .in('id', userIds);
         
       // Merge profiles into revenue data
-      return data.map(revenue => ({
+      return (data as any[]).map(revenue => ({
         ...revenue,
         collected_by_profile: profiles?.find(p => p.id === revenue.collected_by),
       })) as (CollectedRevenue & {
@@ -89,14 +124,18 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
         } | null;
       })[];
     },
+    retry: (failureCount, error) => {
+      if (isTableNotFoundError(error)) return false;
+      return failureCount < 3;
+    },
   });
 
   // Get all deposits
   const { data: allDeposits = [], isLoading: depositsLoading } = useQuery({
     queryKey: ['supervisor-deposits', filters],
     queryFn: async () => {
-      let query = supabase
-        .from('revenue_deposits')
+      // Use type assertion to bypass missing table type
+      let query = (supabase.from as any)('revenue_deposits')
         .select('*')
         .order('deposited_at', { ascending: false });
 
@@ -113,11 +152,16 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        if (isTableNotFoundError(error)) {
+          console.warn('Table revenue_deposits not found. Please apply migration.');
+          return [];
+        }
+        throw error;
+      }
       
       // Fetch profiles for deposited_by users
-      // Handle undefined data with nullish coalescing before mapping
-      const userIds = data ? [...new Set(data.map(r => r.deposited_by))] : [];
+      const userIds = data ? [...new Set((data as any[]).map(r => r.deposited_by))] : [];
       if (userIds.length === 0) return [];
       
       const { data: profiles } = await supabase
@@ -126,7 +170,7 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
         .in('id', userIds);
         
       // Merge profiles into deposit data
-      return data.map(deposit => ({
+      return (data as any[]).map(deposit => ({
         ...deposit,
         deposited_by_profile: profiles?.find(p => p.id === deposit.deposited_by),
       })) as (RevenueDeposit & {
@@ -136,14 +180,18 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
         };
       })[];
     },
+    retry: (failureCount, error) => {
+      if (isTableNotFoundError(error)) return false;
+      return failureCount < 3;
+    },
   });
 
   // Get revenue statistics by caller
   const { data: revenueByCallers = [], isLoading: statsLoading } = useQuery({
     queryKey: ['revenue-by-callers', filters],
     queryFn: async () => {
-      let query = supabase
-        .from('collected_revenues')
+      // Use type assertion to bypass missing table type
+      let query = (supabase.from as any)('collected_revenues')
         .select('collected_by, amount, status, collected_at');
 
       // Apply date filters
@@ -159,7 +207,13 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
 
       const { data: revenues, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        if (isTableNotFoundError(error)) {
+          console.warn('Table collected_revenues not found. Please apply migration.');
+          return [];
+        }
+        throw error;
+      }
 
       // Group by caller and calculate stats
       const callerMap = new Map<string, {
@@ -171,7 +225,7 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
         depositedCount: number;
       }>();
 
-      revenues?.forEach((rev) => {
+      (revenues as any[] || []).forEach((rev) => {
         const existing = callerMap.get(rev.collected_by) || {
           callerId: rev.collected_by,
           totalCollected: 0,
@@ -206,6 +260,10 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
         ...stats,
         profile: profiles?.find(p => p.id === stats.callerId),
       }));
+    },
+    retry: (failureCount, error) => {
+      if (isTableNotFoundError(error)) return false;
+      return failureCount < 3;
     },
   });
 
