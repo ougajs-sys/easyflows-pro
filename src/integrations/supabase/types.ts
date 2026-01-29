@@ -689,112 +689,6 @@ export type Database = {
           },
         ]
       }
-      collected_revenues: {
-        Row: {
-          amount: number
-          collected_at: string
-          collected_by: string
-          created_at: string
-          deposit_id: string | null
-          id: string
-          order_id: string
-          payment_id: string
-          payment_method: Database["public"]["Enums"]["payment_method"]
-          status: Database["public"]["Enums"]["revenue_status"]
-        }
-        Insert: {
-          amount: number
-          collected_at?: string
-          collected_by: string
-          created_at?: string
-          deposit_id?: string | null
-          id?: string
-          order_id: string
-          payment_id: string
-          payment_method: Database["public"]["Enums"]["payment_method"]
-          status?: Database["public"]["Enums"]["revenue_status"]
-        }
-        Update: {
-          amount?: number
-          collected_at?: string
-          collected_by?: string
-          created_at?: string
-          deposit_id?: string | null
-          id?: string
-          order_id?: string
-          payment_id?: string
-          payment_method?: Database["public"]["Enums"]["payment_method"]
-          status?: Database["public"]["Enums"]["revenue_status"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "collected_revenues_collected_by_fkey"
-            columns: ["collected_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "collected_revenues_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "collected_revenues_payment_id_fkey"
-            columns: ["payment_id"]
-            isOneToOne: false
-            referencedRelation: "payments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_collected_revenues_deposit"
-            columns: ["deposit_id"]
-            isOneToOne: false
-            referencedRelation: "revenue_deposits"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      revenue_deposits: {
-        Row: {
-          created_at: string
-          deposited_at: string
-          deposited_by: string
-          id: string
-          notes: string | null
-          revenue_count: number
-          total_amount: number
-        }
-        Insert: {
-          created_at?: string
-          deposited_at?: string
-          deposited_by: string
-          id?: string
-          notes?: string | null
-          revenue_count?: number
-          total_amount: number
-        }
-        Update: {
-          created_at?: string
-          deposited_at?: string
-          deposited_by?: string
-          id?: string
-          notes?: string | null
-          revenue_count?: number
-          total_amount?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "revenue_deposits_deposited_by_fkey"
-            columns: ["deposited_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       products: {
         Row: {
           created_at: string
@@ -1421,7 +1315,56 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_role_requests_view: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          reason: string | null
+          requested_role: Database["public"]["Enums"]["app_role"] | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          reason?: string | null
+          requested_role?: Database["public"]["Enums"]["app_role"] | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          reason?: string | null
+          requested_role?: Database["public"]["Enums"]["app_role"] | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      role_requests_view: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          phone: string | null
+          reason: string | null
+          request_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_email: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          status: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_set_user_role: {
@@ -1431,6 +1374,11 @@ export type Database = {
         }
         Returns: undefined
       }
+      approve_role_request: {
+        Args: { p_request_id: string; p_reviewer_id: string }
+        Returns: undefined
+      }
+      backfill_payments_received_by: { Args: never; Returns: number }
       can_chat: {
         Args: { receiver_id: string; sender_id: string }
         Returns: boolean
@@ -1451,6 +1399,35 @@ export type Database = {
             }
             Returns: boolean
           }
+      is_admin: { Args: never; Returns: boolean }
+      is_admin_user: { Args: { p_user_id: string }; Returns: boolean }
+      reject_role_request: {
+        Args: { p_reason: string; p_request_id: string; p_reviewer_id: string }
+        Returns: undefined
+      }
+      role_requests_view_secure: {
+        Args: never
+        Returns: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          phone: string | null
+          reason: string | null
+          request_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_email: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          status: string | null
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "role_requests_view"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       transfer_stock_from_delivery: {
         Args: {
           p_delivery_person_id: string
@@ -1490,7 +1467,6 @@ export type Database = {
         | "reported"
       payment_method: "cash" | "mobile_money" | "card" | "transfer"
       payment_status: "pending" | "completed" | "failed" | "refunded"
-      revenue_status: "collected" | "deposited"
     }
     CompositeTypes: {
       [_ in never]: never

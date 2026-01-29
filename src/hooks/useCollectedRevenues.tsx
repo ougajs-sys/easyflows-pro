@@ -1,11 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 
-type CollectedRevenue = Database['public']['Tables']['collected_revenues']['Row'];
-type RevenueDeposit = Database['public']['Tables']['revenue_deposits']['Row'];
+// Define types locally since tables may not exist in generated types yet
+interface CollectedRevenue {
+  id: string;
+  payment_id: string;
+  order_id: string;
+  amount: number;
+  collected_by: string;
+  collected_at: string;
+  status: 'collected' | 'deposited';
+  deposit_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface RevenueDeposit {
+  id: string;
+  deposited_by: string;
+  total_amount: number;
+  revenues_count: number;
+  deposited_at: string;
+  notes: string | null;
+  created_at: string;
+}
 
 interface RevenueSummary {
   total_collected: number;
@@ -45,8 +65,8 @@ export function useCollectedRevenues() {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
-        .from('collected_revenues')
+      // Use type assertion to bypass missing table type
+      const { data, error } = await (supabase.from as any)('collected_revenues')
         .select(`
           *,
           payment:payments(
@@ -106,8 +126,8 @@ export function useCollectedRevenues() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const { data, error } = await supabase
-        .from('collected_revenues')
+      // Use type assertion to bypass missing table type
+      const { data, error } = await (supabase.from as any)('collected_revenues')
         .select('*')
         .eq('collected_by', user.id)
         .gte('collected_at', today.toISOString())
@@ -120,7 +140,7 @@ export function useCollectedRevenues() {
         }
         throw error;
       }
-      return data;
+      return data as CollectedRevenue[];
     },
     enabled: !!user?.id,
     retry: getRevenueRetryConfig(),
@@ -144,7 +164,8 @@ export function useCollectedRevenues() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const { data, error } = await supabase.rpc('get_caller_revenue_summary', {
+      // Use type assertion to bypass missing RPC type definition
+      const { data, error } = await (supabase.rpc as any)('get_caller_revenue_summary', {
         p_user_id: user.id,
         p_start_date: today.toISOString(), // Will be in UTC, server handles timezone
       });
@@ -164,8 +185,8 @@ export function useCollectedRevenues() {
         throw error;
       }
 
-      // Return first row or default values
-      if (data && data.length > 0) {
+      // Return first row or default values - use Array.isArray for type safety
+      if (data && Array.isArray(data) && data.length > 0) {
         return {
           total_collected: Number(data[0].total_collected || 0),
           total_deposited: Number(data[0].total_deposited || 0),
@@ -193,7 +214,8 @@ export function useCollectedRevenues() {
     mutationFn: async (notes?: string) => {
       if (!user?.id) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase.rpc('process_revenue_deposit', {
+      // Use type assertion to bypass missing RPC type definition
+      const { data, error } = await (supabase.rpc as any)('process_revenue_deposit', {
         p_user_id: user.id,
         p_notes: notes || null,
       });
@@ -215,8 +237,8 @@ export function useCollectedRevenues() {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
-        .from('revenue_deposits')
+      // Use type assertion to bypass missing table type
+      const { data, error } = await (supabase.from as any)('revenue_deposits')
         .select('*')
         .eq('deposited_by', user.id)
         .order('deposited_at', { ascending: false });

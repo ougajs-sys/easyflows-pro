@@ -79,6 +79,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state change:', event);
+        
+        // Handle token refresh failure - redirect to login
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          console.warn('Token refresh failed, clearing session...');
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+          setRole(null);
+          setLoading(false);
+          // Clear local storage and redirect
+          localStorage.removeItem('sb-qpxzuglvvfvookzmpgfe-auth-token');
+          if (window.location.pathname !== '/auth' && window.location.pathname !== '/') {
+            window.location.href = '/auth';
+          }
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -100,7 +118,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      // Handle session retrieval error (expired/invalid token)
+      if (error) {
+        console.warn('Session retrieval error:', error.message);
+        setUser(null);
+        setSession(null);
+        setProfile(null);
+        setRole(null);
+        setLoading(false);
+        // Clear potentially corrupted token
+        localStorage.removeItem('sb-qpxzuglvvfvookzmpgfe-auth-token');
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       
