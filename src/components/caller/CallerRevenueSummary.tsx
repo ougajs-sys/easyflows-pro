@@ -10,14 +10,15 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { useCollectedRevenues, useRealtimeRevenues } from "@/hooks/useCollectedRevenues";
+import { useCollectedRevenues, useRealtimeRevenues, usePaymentsFallback } from "@/hooks/useCollectedRevenues";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { DollarSign, TrendingUp, ArrowUpCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export function CallerRevenueSummary() {
-  const { summary, summaryLoading, processDeposit, error } = useCollectedRevenues();
+  const { summary, summaryLoading, processDeposit, error, useFallbackMode } = useCollectedRevenues();
+  const fallback = usePaymentsFallback(useFallbackMode);
   const [depositDialogOpen, setDepositDialogOpen] = useState(false);
   const [notes, setNotes] = useState("");
 
@@ -40,7 +41,9 @@ export function CallerRevenueSummary() {
     }
   };
 
-  if (summaryLoading) {
+  const isLoading = summaryLoading || (useFallbackMode && fallback.isLoading);
+
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="pt-6">
@@ -52,32 +55,19 @@ export function CallerRevenueSummary() {
     );
   }
 
-  // Show info message if data is unavailable due to error
-  if (error) {
-    return (
-      <Card className="border-warning/50 bg-warning/5">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-warning" />
-            Mes Recettes du Jour
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center space-y-2 py-4">
-            <p className="text-sm font-medium text-warning">
-              Fonctionnalité en cours de déploiement
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Le suivi des recettes sera bientôt disponible
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Use fallback data from payments table if revenue tables don't exist
+  const totalCollected = useFallbackMode 
+    ? fallback.totalCollected 
+    : (summary?.total_to_deposit || 0);
+  
+  const collectedCount = useFallbackMode 
+    ? fallback.collectedCount 
+    : (summary?.collected_count || 0);
 
-  const totalCollected = summary?.total_to_deposit || 0;
   const hasRevenuesToDeposit = totalCollected > 0;
+  
+  // In fallback mode, deposit functionality is not available
+  const canDeposit = !useFallbackMode && hasRevenuesToDeposit;
 
   return (
     <>
@@ -101,34 +91,36 @@ export function CallerRevenueSummary() {
                   <p className="text-2xl font-bold text-green-600">
                     {formatCurrency(totalCollected)}
                   </p>
-                  {summary && summary.collected_count > 0 && (
+                  {collectedCount > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {summary.collected_count} paiement{summary.collected_count > 1 ? 's' : ''}
+                      {collectedCount} paiement{collectedCount > 1 ? 's' : ''}
                     </p>
                   )}
                 </div>
               </div>
-              {hasRevenuesToDeposit && (
+              {hasRevenuesToDeposit && !useFallbackMode && (
                 <Badge variant="secondary" className="bg-green-500/10 text-green-700">
                   À verser
                 </Badge>
               )}
             </div>
 
-            {/* Deposit Button */}
-            <Button
-              onClick={() => setDepositDialogOpen(true)}
-              disabled={!hasRevenuesToDeposit || processDeposit.isPending}
-              className="w-full"
-              size="lg"
-            >
-              <ArrowUpCircle className="mr-2 h-5 w-5" />
-              Verser mes recettes
-            </Button>
+            {/* Deposit Button - Only available when full revenue system is active */}
+            {!useFallbackMode && (
+              <Button
+                onClick={() => setDepositDialogOpen(true)}
+                disabled={!canDeposit || processDeposit.isPending}
+                className="w-full"
+                size="lg"
+              >
+                <ArrowUpCircle className="mr-2 h-5 w-5" />
+                Verser mes recettes
+              </Button>
+            )}
 
             {!hasRevenuesToDeposit && (
               <p className="text-sm text-center text-muted-foreground">
-                Aucune recette à verser pour le moment
+                Aucune recette encaissée aujourd'hui
               </p>
             )}
           </div>
@@ -153,9 +145,9 @@ export function CallerRevenueSummary() {
                   {formatCurrency(totalCollected)}
                 </span>
               </div>
-              {summary && summary.collected_count > 0 && (
+              {collectedCount > 0 && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  Basé sur {summary.collected_count} paiement{summary.collected_count > 1 ? 's' : ''} encaissé{summary.collected_count > 1 ? 's' : ''}
+                  Basé sur {collectedCount} paiement{collectedCount > 1 ? 's' : ''} encaissé{collectedCount > 1 ? 's' : ''}
                 </p>
               )}
             </div>
