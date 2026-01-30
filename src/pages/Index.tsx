@@ -11,9 +11,9 @@ const Index = () => {
     if (!loading) {
       if (user && role) {
         // Redirection selon le rôle
-        if (role === 'livreur') {
+        if (role === "livreur") {
           navigate("/delivery");
-        } else if (role === 'superviseur' || role === 'administrateur') {
+        } else if (role === "superviseur" || role === "administrateur") {
           navigate("/supervisor");
         } else {
           navigate("/dashboard");
@@ -25,7 +25,7 @@ const Index = () => {
         // 2. Role creation happens during/after signup and will be populated shortly
         // 3. ProtectedRoute allows access if user exists (even without role)
         // 4. New users always get 'appelant' role, so this state is temporary
-        console.warn('User logged in but no role found, redirecting to dashboard');
+        console.warn("User logged in but no role found, redirecting to dashboard");
         navigate("/dashboard");
       } else if (!user) {
         navigate("/auth");
