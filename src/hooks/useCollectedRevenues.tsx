@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 // Define types locally since tables may not exist in generated types yet
 interface CollectedRevenue {
@@ -58,6 +58,7 @@ function getRevenueRetryConfig() {
 export function useCollectedRevenues() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [useFallbackMode, setUseFallbackMode] = useState(false);
 
   // Get all collected revenues for the current user
   const { data: revenues = [], isLoading, error } = useQuery({
@@ -89,7 +90,8 @@ export function useCollectedRevenues() {
       if (error) {
         // Handle table not found gracefully (404 errors)
         if (isTableNotFoundError(error)) {
-          console.warn('Table collected_revenues not found. Please apply migration.');
+          console.warn('Table collected_revenues not found. Using fallback mode.');
+          setUseFallbackMode(true);
           return [];
         }
         throw error;
@@ -173,7 +175,8 @@ export function useCollectedRevenues() {
       if (error) {
         // Handle function not found or table not existing gracefully
         if (isTableNotFoundError(error)) {
-          console.warn('Revenue tracking not available. Please apply migration.');
+          console.warn('Revenue tracking not available. Using fallback mode.');
+          setUseFallbackMode(true);
           return {
             total_collected: 0,
             total_deposited: 0,
@@ -267,6 +270,48 @@ export function useCollectedRevenues() {
     processDeposit,
     deposits,
     depositsLoading,
+    useFallbackMode,
+  };
+}
+
+// Hook to fetch payments directly as fallback when revenue tables don't exist
+export function usePaymentsFallback(enabled: boolean) {
+  const { user } = useAuth();
+
+  const { data: todayPayments = [], isLoading } = useQuery({
+    queryKey: ['caller-today-payments-fallback', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data, error } = await supabase
+        .from('payments')
+        .select('amount, status, created_at')
+        .eq('received_by', user.id)
+        .gte('created_at', today.toISOString())
+        .eq('status', 'completed');
+
+      if (error) {
+        console.error('Error fetching payments fallback:', error);
+        return [];
+      }
+
+      return data || [];
+    },
+    enabled: enabled && !!user?.id,
+    refetchInterval: 15000, // Refresh every 15 seconds
+  });
+
+  const totalCollected = todayPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const collectedCount = todayPayments.length;
+
+  return {
+    todayPayments,
+    totalCollected,
+    collectedCount,
+    isLoading,
   };
 }
 

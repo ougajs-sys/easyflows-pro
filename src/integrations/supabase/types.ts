@@ -319,6 +319,67 @@ export type Database = {
         }
         Relationships: []
       }
+      collected_revenues: {
+        Row: {
+          amount: number
+          collected_at: string
+          collected_by: string
+          created_at: string
+          deposit_id: string | null
+          id: string
+          order_id: string
+          payment_id: string
+          status: Database["public"]["Enums"]["revenue_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          collected_at?: string
+          collected_by: string
+          created_at?: string
+          deposit_id?: string | null
+          id?: string
+          order_id: string
+          payment_id: string
+          status?: Database["public"]["Enums"]["revenue_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          collected_at?: string
+          collected_by?: string
+          created_at?: string
+          deposit_id?: string | null
+          id?: string
+          order_id?: string
+          payment_id?: string
+          status?: Database["public"]["Enums"]["revenue_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collected_revenues_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collected_revenues_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_collected_revenues_deposit"
+            columns: ["deposit_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_deposits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_person_stock: {
         Row: {
           created_at: string
@@ -746,6 +807,36 @@ export type Database = {
           id?: string
           phone?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      revenue_deposits: {
+        Row: {
+          created_at: string
+          deposited_at: string
+          deposited_by: string
+          id: string
+          notes: string | null
+          revenues_count: number
+          total_amount: number
+        }
+        Insert: {
+          created_at?: string
+          deposited_at?: string
+          deposited_by: string
+          id?: string
+          notes?: string | null
+          revenues_count?: number
+          total_amount: number
+        }
+        Update: {
+          created_at?: string
+          deposited_at?: string
+          deposited_by?: string
+          id?: string
+          notes?: string | null
+          revenues_count?: number
+          total_amount?: number
         }
         Relationships: []
       }
@@ -1245,6 +1336,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          phone: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          phone?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          phone?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           confirmed: boolean
@@ -1383,7 +1504,18 @@ export type Database = {
         Args: { receiver_id: string; sender_id: string }
         Returns: boolean
       }
+      current_tenant_id: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
+      get_caller_revenue_summary: {
+        Args: { p_start_date?: string; p_user_id: string }
+        Returns: {
+          collected_count: number
+          deposited_count: number
+          total_collected: number
+          total_deposited: number
+          total_to_deposit: number
+        }[]
+      }
       has_role:
         | {
             Args: {
@@ -1401,6 +1533,10 @@ export type Database = {
           }
       is_admin: { Args: never; Returns: boolean }
       is_admin_user: { Args: { p_user_id: string }; Returns: boolean }
+      process_revenue_deposit: {
+        Args: { p_notes?: string; p_user_id: string }
+        Returns: string
+      }
       reject_role_request: {
         Args: { p_reason: string; p_request_id: string; p_reviewer_id: string }
         Returns: undefined
@@ -1467,6 +1603,7 @@ export type Database = {
         | "reported"
       payment_method: "cash" | "mobile_money" | "card" | "transfer"
       payment_status: "pending" | "completed" | "failed" | "refunded"
+      revenue_status: "collected" | "deposited"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1615,6 +1752,7 @@ export const Constants = {
       ],
       payment_method: ["cash", "mobile_money", "card", "transfer"],
       payment_status: ["pending", "completed", "failed", "refunded"],
+      revenue_status: ["collected", "deposited"],
     },
   },
 } as const
