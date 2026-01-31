@@ -20,14 +20,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Package, ArrowUpDown, Search, History, RefreshCw, Loader2 } from "lucide-react";
+import { Package, ArrowUpDown, Search, History, RefreshCw, Loader2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { z } from "zod";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface DeliveryStockProps {
   deliveryPersonId: string;
@@ -60,6 +69,9 @@ interface StockMovement {
 export function DeliveryStock({ deliveryPersonId }: DeliveryStockProps) {
   const [search, setSearch] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnProductId, setReturnProductId] = useState("");
+  const [returnQty, setReturnQty] = useState("");
   const queryClient = useQueryClient();
 
   // Fetch delivery person stock
@@ -150,6 +162,72 @@ export function DeliveryStock({ deliveryPersonId }: DeliveryStockProps) {
     item.product?.name?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const returnableItems = (stockItems || []).filter((i) => i.quantity > 0);
+  const selectedReturnItem = returnableItems.find((i) => i.product_id === returnProductId);
+
+  const returnSchema = z.object({
+    productId: z.string().min(1, "Veuillez sélectionner un produit"),
+    qty: z.number().int().positive("Quantité invalide"),
+  });
+
+  const resetReturnForm = () => {
+    setReturnProductId("");
+    setReturnQty("");
+  };
+
+  const returnToShop = useMutation({
+    mutationFn: async ({ productId, qty }: { productId: string; qty: number }) => {
+      const { data, error } = await supabase.rpc("transfer_stock_from_delivery", {
+        // côté serveur: si l'appelant est livreur, l'ID est vérifié/forcé sur son propre profil
+        p_delivery_person_id: deliveryPersonId,
+        p_product_id: productId,
+        p_quantity: qty,
+      });
+
+      if (error) throw error;
+
+      const result = data as unknown as { success?: boolean; error?: string } | null;
+      if (result && typeof result === "object" && "success" in result && result.success === false) {
+        throw new Error(result.error || "Erreur lors du retour");
+      }
+
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["delivery-stock", deliveryPersonId] });
+      queryClient.invalidateQueries({ queryKey: ["delivery-stock-movements", deliveryPersonId] });
+      toast.success("Stock retourné à la boutique");
+      setReturnOpen(false);
+      resetReturnForm();
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Erreur lors du retour");
+    },
+  });
+
+  const handleReturnToShop = () => {
+    const qty = Number.parseInt(returnQty, 10);
+    const parsed = returnSchema.safeParse({ productId: returnProductId, qty });
+
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message || "Veuillez vérifier les champs";
+      toast.error(msg);
+      return;
+    }
+
+    if (!selectedReturnItem) {
+      toast.error("Veuillez sélectionner un produit");
+      return;
+    }
+
+    if (qty > selectedReturnItem.quantity) {
+      toast.error("Quantité supérieure au stock disponible");
+      return;
+    }
+
+    returnToShop.mutate({ productId: returnProductId, qty });
+  };
+
   const totalItems = stockItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const totalValue = stockItems?.reduce(
     (sum, item) => sum + item.quantity * (item.product?.price || 0),
@@ -233,11 +311,95 @@ export function DeliveryStock({ deliveryPersonId }: DeliveryStockProps) {
               <Package className="w-5 h-5 text-primary" />
               Mon Stock
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <Dialog
+                open={returnOpen}
+                onOpenChange={(open) => {
+                  setReturnOpen(open);
+                  if (!open) resetReturnForm();
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    disabled={returnableItems.length === 0}
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Retour boutique
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Retourner du stock vers la boutique</DialogTitle>
+                    <DialogDescription>
+                      Le stock sera déduit de votre inventaire et ajouté à la boutique.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4 py-2">
+                    <div className="space-y-2">
+                      <Label>Produit</Label>
+                      <Select value={returnProductId} onValueChange={setReturnProductId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner un produit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {returnableItems.map((item) => (
+                            <SelectItem key={item.product_id} value={item.product_id}>
+                              {item.product?.name} (Stock: {item.quantity})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Quantité</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={selectedReturnItem?.quantity}
+                        value={returnQty}
+                        onChange={(e) => setReturnQty(e.target.value)}
+                        placeholder="Quantité à retourner"
+                      />
+                      {selectedReturnItem && (
+                        <p className="text-sm text-muted-foreground">
+                          Stock disponible: {selectedReturnItem.quantity}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setReturnOpen(false);
+                        resetReturnForm();
+                      }}
+                    >
+                      Annuler
+                    </Button>
+                    <Button onClick={handleReturnToShop} disabled={returnToShop.isPending}>
+                      {returnToShop.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                      )}
+                      Retourner
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
               <Button
                 variant={showHistory ? "secondary" : "outline"}
                 size="sm"
                 onClick={() => setShowHistory(!showHistory)}
+                className="w-full sm:w-auto"
               >
                 <History className="w-4 h-4 mr-2" />
                 Historique
