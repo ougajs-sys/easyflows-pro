@@ -301,15 +301,16 @@ export function StockTransferManager() {
   return (
     <div className="space-y-6">
       {/* Actions */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <Dialog open={transferDialog.open && transferDialog.type === "to"} onOpenChange={(open) => {
           if (!open) resetForm();
           else setTransferDialog({ open: true, type: "to" });
         }}>
           <DialogTrigger asChild>
-            <Button className="bg-success hover:bg-success/90">
+            <Button className="w-full sm:w-auto bg-success hover:bg-success/90">
               <ArrowRight className="w-4 h-4 mr-2" />
-              Transférer vers livreur
+              <span className="hidden sm:inline">Transférer vers livreur</span>
+              <span className="sm:hidden">Vers livreur</span>
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -396,9 +397,10 @@ export function StockTransferManager() {
           else setTransferDialog({ open: true, type: "from" });
         }}>
           <DialogTrigger asChild>
-            <Button variant="outline">
+            <Button variant="outline" className="w-full sm:w-auto">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour vers boutique
+              <span className="hidden sm:inline">Retour vers boutique</span>
+              <span className="sm:hidden">Vers boutique</span>
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -517,31 +519,55 @@ export function StockTransferManager() {
                       </p>
                     </div>
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Produit</TableHead>
-                        <TableHead>Quantité</TableHead>
-                        <TableHead>Valeur</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.product?.name}</TableCell>
-                          <TableCell>
-                            <span className={cn(
-                              "font-bold",
-                              item.quantity <= 5 ? "text-warning" : "text-success"
-                            )}>
-                              {item.quantity}
-                            </span>
-                          </TableCell>
-                          <TableCell>{formatCurrency(item.quantity * (item.product?.price || 0))} F</TableCell>
+                  
+                  {/* Mobile: Cards */}
+                  <div className="block md:hidden space-y-2">
+                    {data.items.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center p-3 bg-secondary/20 rounded-lg">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{item.product?.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatCurrency(item.quantity * (item.product?.price || 0))} F
+                          </p>
+                        </div>
+                        <span className={cn(
+                          "font-bold text-lg ml-3",
+                          item.quantity <= 5 ? "text-warning" : "text-success"
+                        )}>
+                          {item.quantity}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Desktop: Table */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Produit</TableHead>
+                          <TableHead>Quantité</TableHead>
+                          <TableHead>Valeur</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {data.items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.product?.name}</TableCell>
+                            <TableCell>
+                              <span className={cn(
+                                "font-bold",
+                                item.quantity <= 5 ? "text-warning" : "text-success"
+                              )}>
+                                {item.quantity}
+                              </span>
+                            </TableCell>
+                            <TableCell>{formatCurrency(item.quantity * (item.product?.price || 0))} F</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               ))}
             </div>
