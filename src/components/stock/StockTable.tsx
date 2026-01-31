@@ -155,88 +155,165 @@ export function StockTable({ onSelectProduct, selectedProductId }: StockTablePro
               Aucun produit trouvé
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produit</TableHead>
-                    <TableHead>Prix</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>État</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProducts?.map((product) => (
-                    <TableRow
-                      key={product.id}
-                      className={cn(
-                        "cursor-pointer transition-colors",
-                        selectedProductId === product.id && "bg-primary/5"
-                      )}
-                      onClick={() => onSelectProduct(product.id === selectedProductId ? null : product.id)}
-                    >
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{formatCurrency(Number(product.price))} FCFA</TableCell>
-                      <TableCell>
+            <>
+              {/* Mobile: Cards */}
+              <div className="block md:hidden space-y-2">
+                {filteredProducts?.map((product) => (
+                  <div 
+                    key={product.id}
+                    className={cn(
+                      "p-3 rounded-lg border transition-colors cursor-pointer",
+                      selectedProductId === product.id ? "bg-primary/10 border-primary" : "bg-secondary/20 border-border"
+                    )}
+                    onClick={() => onSelectProduct(product.id === selectedProductId ? null : product.id)}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(Number(product.price))} FCFA</p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
                         <span className={cn(
-                          "font-bold",
+                          "font-bold text-lg",
                           product.stock === 0 && "text-destructive",
                           product.stock > 0 && product.stock <= 10 && "text-warning",
                           product.stock > 10 && "text-success"
                         )}>
                           {product.stock}
                         </span>
-                      </TableCell>
-                      <TableCell>{getStockBadge(product.stock)}</TableCell>
-                      <TableCell>
+                        {getStockBadge(product.stock)}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         {product.is_active ? (
                           <Badge variant="outline" className="text-xs">Actif</Badge>
                         ) : (
                           <Badge variant="secondary" className="text-xs">Inactif</Badge>
                         )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAdjustDialog({
-                                open: true,
-                                product: { id: product.id, name: product.name, stock: product.stock },
-                                type: "add",
-                              });
-                            }}
-                          >
-                            <Plus className="h-4 w-4 text-success" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAdjustDialog({
-                                open: true,
-                                product: { id: product.id, name: product.name, stock: product.stock },
-                                type: "remove",
-                              });
-                            }}
-                            disabled={product.stock === 0}
-                          >
-                            <Minus className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAdjustDialog({
+                              open: true,
+                              product: { id: product.id, name: product.name, stock: product.stock },
+                              type: "add",
+                            });
+                          }}
+                        >
+                          <Plus className="h-4 w-4 text-success" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAdjustDialog({
+                              open: true,
+                              product: { id: product.id, name: product.name, stock: product.stock },
+                              type: "remove",
+                            });
+                          }}
+                          disabled={product.stock === 0}
+                        >
+                          <Minus className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produit</TableHead>
+                      <TableHead>Prix</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>État</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts?.map((product) => (
+                      <TableRow
+                        key={product.id}
+                        className={cn(
+                          "cursor-pointer transition-colors",
+                          selectedProductId === product.id && "bg-primary/5"
+                        )}
+                        onClick={() => onSelectProduct(product.id === selectedProductId ? null : product.id)}
+                      >
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{formatCurrency(Number(product.price))} FCFA</TableCell>
+                        <TableCell>
+                          <span className={cn(
+                            "font-bold",
+                            product.stock === 0 && "text-destructive",
+                            product.stock > 0 && product.stock <= 10 && "text-warning",
+                            product.stock > 10 && "text-success"
+                          )}>
+                            {product.stock}
+                          </span>
+                        </TableCell>
+                        <TableCell>{getStockBadge(product.stock)}</TableCell>
+                        <TableCell>
+                          {product.is_active ? (
+                            <Badge variant="outline" className="text-xs">Actif</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">Inactif</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAdjustDialog({
+                                  open: true,
+                                  product: { id: product.id, name: product.name, stock: product.stock },
+                                  type: "add",
+                                });
+                              }}
+                            >
+                              <Plus className="h-4 w-4 text-success" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAdjustDialog({
+                                  open: true,
+                                  product: { id: product.id, name: product.name, stock: product.stock },
+                                  type: "remove",
+                                });
+                              }}
+                              disabled={product.stock === 0}
+                            >
+                              <Minus className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

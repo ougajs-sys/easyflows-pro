@@ -30,25 +30,31 @@ export default function Stock() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-          {canManageTransfers && (
-            <>
-              <TabsTrigger value="transfers" className="flex items-center gap-2">
-                <Truck className="w-4 h-4" />
-                Stock Livreurs
-              </TabsTrigger>
-              <TabsTrigger value="alerts" className="flex items-center gap-2">
-                <Bell className="w-4 h-4" />
-                Alertes
-              </TabsTrigger>
-              <TabsTrigger value="requests" className="flex items-center gap-2">
-                <Send className="w-4 h-4" />
-                Demandes
-              </TabsTrigger>
-            </>
-          )}
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 pb-2">
+          <TabsList className="w-max md:w-auto">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm">
+              <span className="hidden sm:inline">Vue d'ensemble</span>
+              <span className="sm:hidden">Vue</span>
+            </TabsTrigger>
+            {canManageTransfers && (
+              <>
+                <TabsTrigger value="transfers" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                  <Truck className="w-4 h-4" />
+                  <span className="hidden sm:inline">Stock Livreurs</span>
+                  <span className="sm:hidden">Livreurs</span>
+                </TabsTrigger>
+                <TabsTrigger value="alerts" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                  <Bell className="w-4 h-4" />
+                  <span className="hidden sm:inline">Alertes</span>
+                </TabsTrigger>
+                <TabsTrigger value="requests" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                  <Send className="w-4 h-4" />
+                  <span className="hidden sm:inline">Demandes</span>
+                </TabsTrigger>
+              </>
+            )}
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-6">
           {/* Overview Stats */}
