@@ -1,136 +1,166 @@
 
 
-# Plan de Correction: Systeme d'enregistrement des paiements et suivi des recettes
+# Plan de Correction: Problemes de Responsivite Mobile
 
-## Diagnostic du probleme
+## Diagnostic du Probleme
 
-### Cause racine identifiee
-Les erreurs 404 dans la console montrent clairement le probleme:
+L'image montre clairement les problemes suivants sur mobile:
+
+1. **Texte affiche verticalement dans les tableaux** - Les noms de produits ("FORCAPIL", "FTC", "CDC", "CAC") sont affiches lettre par lettre verticalement au lieu d'horizontalement
+2. **TabsList trop large** - Les onglets "Vue d'ensemble", "Stock Livreurs", "Alertes", "Demandes" debordent de l'ecran
+3. **Tableaux non responsifs** - Les tableaux dans `StockTransferManager.tsx` n'ont pas de `min-width` sur les cellules et sont comprimes excessivement
+
+### Cause Racine
+- Le composant `Table` utilise `w-full` ce qui force la compression sur ecrans etroits
+- Les `TableCell` n'ont pas de protection contre la compression excessive
+- Les `TabsList` utilisent `inline-flex` sans defilement horizontal sur mobile
+
+---
+
+## Plan de Correction
+
+### 1. Corriger le composant TabsList pour mobile
+
+**Fichier**: `src/components/ui/tabs.tsx`
+
+Ajouter un wrapper avec defilement horizontal pour mobile:
+
+```typescript
+const TabsList = React.forwardRef<...>(({ className, ...props }, ref) => (
+  <TabsPrimitive.List
+    ref={ref}
+    className={cn(
+      "inline-flex h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground",
+      "overflow-x-auto scrollbar-thin max-w-full", // Ajout du scroll horizontal
+      className,
+    )}
+    {...props}
+  />
+));
 ```
-GET /rest/v1/collected_revenues - 404 (Not Found)
-"Could not find the table 'public.collected_revenues'"
 
-POST /rest/v1/rpc/get_caller_revenue_summary - 404 (Not Found)  
-"Could not find the function public.get_caller_revenue_summary"
+### 2. Corriger la page Stock.tsx pour mobile
+
+**Fichier**: `src/pages/Stock.tsx`
+
+- Wrapper les TabsList dans un conteneur avec overflow
+- Simplifier les labels d'onglets sur mobile (icones seules ou texte court)
+
+```typescript
+<div className="overflow-x-auto -mx-4 px-4">
+  <TabsList className="w-full md:w-auto">
+    <TabsTrigger value="overview">
+      <span className="hidden sm:inline">Vue d'ensemble</span>
+      <span className="sm:hidden">Vue</span>
+    </TabsTrigger>
+    ...
+  </TabsList>
+</div>
 ```
 
-**La migration `20260127160000_revenue_tracking_system.sql` existe dans le code mais n'a JAMAIS ete appliquee a la base de donnees.**
+### 3. Corriger StockTransferManager.tsx pour mobile
 
-### Tables manquantes dans la base de donnees
-1. `collected_revenues` - Suivi des paiements encaisses
-2. `revenue_deposits` - Suivi des versements
+**Fichier**: `src/components/supervisor/StockTransferManager.tsx`
 
-### Fonctions manquantes
-1. `get_caller_revenue_summary` - Resume des recettes
-2. `process_revenue_deposit` - Traitement des versements
-3. `create_collected_revenue_on_payment` - Trigger automatique
+Remplacer les tableaux par des cartes empilees sur mobile:
 
-## Solution en deux parties
+```typescript
+{/* Vue mobile: cartes empilees */}
+<div className="block md:hidden space-y-2">
+  {data.items.map((item) => (
+    <div key={item.id} className="flex justify-between items-center p-3 bg-secondary/20 rounded-lg">
+      <div>
+        <p className="font-medium text-sm">{item.product?.name}</p>
+        <p className="text-xs text-muted-foreground">
+          {formatCurrency(item.quantity * (item.product?.price || 0))} F
+        </p>
+      </div>
+      <span className={cn("font-bold text-lg", ...)}>
+        {item.quantity}
+      </span>
+    </div>
+  ))}
+</div>
 
-### Partie 1: Correction immediate (UI resiliente)
-Modifier le composant `CallerRevenueSummary.tsx` pour ne pas bloquer l'interface avec des erreurs 404, et permettre aux appelants d'utiliser le systeme de paiements existant (`usePayments.tsx`) qui fonctionne correctement.
+{/* Vue desktop: tableau */}
+<div className="hidden md:block">
+  <Table>...</Table>
+</div>
+```
 
-### Partie 2: Application de la migration
-Creer une nouvelle migration SQL qui:
-1. Verifie si les objets existent deja (idempotent)
-2. Cree les tables `collected_revenues` et `revenue_deposits`
-3. Cree les fonctions RPC necessaires
-4. Configure les politiques RLS
-5. Ajoute le trigger sur la table `payments`
+### 4. Ameliorer le composant Table pour mobile
 
-## Fichiers a modifier
+**Fichier**: `src/components/ui/table.tsx`
+
+Ajouter une protection contre la compression excessive:
+
+```typescript
+const TableCell = React.forwardRef<...>(({ className, ...props }, ref) => (
+  <td 
+    ref={ref} 
+    className={cn(
+      "p-4 align-middle [&:has([role=checkbox])]:pr-0",
+      "whitespace-nowrap", // Empecher le texte vertical
+      className
+    )} 
+    {...props} 
+  />
+));
+```
+
+### 5. Corriger les boutons d'action en mode mobile
+
+**Fichier**: `src/components/supervisor/StockTransferManager.tsx`
+
+Les boutons "Transferer vers livreur" et "Retour vers boutique" doivent s'empiler verticalement sur mobile:
+
+```typescript
+<div className="flex flex-col sm:flex-row gap-3">
+  <Button className="w-full sm:w-auto bg-success hover:bg-success/90">
+    ...
+  </Button>
+  <Button variant="outline" className="w-full sm:w-auto">
+    ...
+  </Button>
+</div>
+```
+
+---
+
+## Fichiers a Modifier
 
 | Fichier | Modification |
 |---------|-------------|
-| `src/components/caller/CallerRevenueSummary.tsx` | Afficher un fallback fonctionnel base sur les paiements existants |
-| `src/hooks/useCollectedRevenues.tsx` | Meilleure gestion des erreurs 404 et mode de repli |
-| `supabase/migrations/20260130_revenue_tracking_fix.sql` | Nouvelle migration idempotente |
+| `src/components/ui/tabs.tsx` | Ajouter scroll horizontal sur TabsList |
+| `src/pages/Stock.tsx` | Wrapper TabsList + labels courts sur mobile |
+| `src/components/supervisor/StockTransferManager.tsx` | Cartes empilees au lieu de tableaux sur mobile + boutons empiles |
+| `src/components/ui/table.tsx` | Ajouter `whitespace-nowrap` sur TableCell |
+| `src/components/stock/StockTable.tsx` | Meme pattern: cartes sur mobile, table sur desktop |
 
-## Details techniques
+---
 
-### 1. CallerRevenueSummary.tsx - Fallback intelligent
-Au lieu d'afficher "Fonctionnalite en cours de deploiement", utiliser les donnees de paiements existantes:
+## Impact Visuel Attendu
 
-```typescript
-// Calculer les recettes a partir de la table payments (qui existe)
-const { data: todayPayments } = useQuery({
-  queryKey: ['caller-today-payments', user?.id],
-  queryFn: async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const { data } = await supabase
-      .from('payments')
-      .select('amount, status')
-      .eq('received_by', user.id)
-      .gte('created_at', today.toISOString())
-      .eq('status', 'completed');
-    
-    return data || [];
-  }
-});
+### Avant (probleme actuel)
+- Texte vertical illisible dans les tableaux
+- Onglets qui debordent de l'ecran
+- Interface difficile a utiliser sur telephone
 
-const totalCollected = todayPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-```
+### Apres correction
+- Cartes lisibles sur mobile avec texte horizontal
+- Defilement horizontal fluide pour les onglets
+- Boutons pleine largeur faciles a toucher
+- Tableaux visibles uniquement sur desktop
 
-### 2. useCollectedRevenues.tsx - Mode de repli
-Ajouter une logique de fallback quand les tables n'existent pas:
+---
 
-```typescript
-// Si les tables revenue n'existent pas, utiliser payments directement
-const useFallbackMode = error?.code === 'PGRST205';
+## Ordre d'Implementation
 
-if (useFallbackMode) {
-  // Requete alternative sur la table payments
-  const { data } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('received_by', user.id)
-    .eq('status', 'completed');
-}
-```
+1. **TabsList** - Correction du defilement horizontal (impact global)
+2. **TableCell** - Protection whitespace (impact global)
+3. **Stock.tsx** - Onglets adaptatifs
+4. **StockTransferManager.tsx** - Cartes mobiles + boutons
+5. **StockTable.tsx** - Meme adaptation
 
-### 3. Migration SQL idempotente
-Creer une migration qui verifie l'existence avant de creer:
-
-```sql
--- Verifier et creer le type enum
-DO $$ BEGIN
-  CREATE TYPE public.revenue_status AS ENUM ('collected', 'deposited');
-EXCEPTION
-  WHEN duplicate_object THEN null;
-END $$;
-
--- Creer la table si elle n'existe pas
-CREATE TABLE IF NOT EXISTS public.collected_revenues (...);
-
--- Creer les fonctions avec CREATE OR REPLACE
-CREATE OR REPLACE FUNCTION public.get_caller_revenue_summary(...)
-```
-
-## Impact sur les utilisateurs
-
-### Avant la correction
-- Les appelants voient "Fonctionnalite en cours de deploiement"
-- Le tableau des paiements peut ne pas s'actualiser correctement
-- Erreurs 404 dans la console
-
-### Apres la correction
-- Affichage immediat des recettes du jour basees sur les paiements
-- Le systeme de paiements fonctionne normalement
-- Pas d'erreurs 404 visibles
-- Quand la migration sera appliquee, le suivi des versements sera actif
-
-## Ordre d'implementation
-
-1. **Modifier `CallerRevenueSummary.tsx`** - Fallback sur `payments`
-2. **Modifier `useCollectedRevenues.tsx`** - Mode de repli intelligent
-3. **Creer la migration SQL** - Version idempotente et sure
-4. **Invalider les caches React Query** - Rafraichir les donnees
-
-## Securite
-
-- Les politiques RLS existantes sur `payments` protegent deja les donnees
-- La nouvelle migration ajoute des RLS strictes pour les nouvelles tables
-- Les appelants ne peuvent voir que leurs propres paiements/recettes
+Ces corrections rendront l'interface completement utilisable sur mobile sans casser l'affichage desktop.
 
