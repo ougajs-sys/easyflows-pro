@@ -14,7 +14,8 @@ import {
   Sun,
   Users,
   RefreshCw,
-  Wallet
+  Wallet,
+  User
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,6 +34,7 @@ const menuItems = [
   { id: "clients", label: "Suivi Clients", icon: Users },
   { id: "followups", label: "Relances", icon: RefreshCw },
   { id: "training", label: "Formation", icon: GraduationCap },
+  { id: "profile", label: "Mon Profil", icon: User },
 ];
 
 export function CallerLayout({ 

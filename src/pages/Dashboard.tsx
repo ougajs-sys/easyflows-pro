@@ -8,6 +8,7 @@ import { CallerClients } from "@/components/caller/CallerClients";
 import { CallerFollowUps } from "@/components/caller/CallerFollowUps";
 import { CallerTraining } from "@/components/caller/CallerTraining";
 import { InternalChat } from "@/components/chat/InternalChat";
+import { UserProfile } from "@/components/profile/UserProfile";
 
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -41,6 +42,8 @@ export default function Dashboard() {
         return <CallerTraining />;
       case "chat":
         return <InternalChat fullHeight={false} />;
+      case "profile":
+        return <UserProfile />;
       default:
         return <CallerDashboard />;
     }
