@@ -142,7 +142,7 @@ export default function EmbedOrderForm() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-green-50 to-emerald-100">
+      <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-green-50 to-emerald-100">
         <Card className="w-full h-full sm:h-auto sm:max-w-md text-center shadow-xl border-0 sm:rounded-lg rounded-none">
           <CardContent className="pt-12 pb-8">
             <div 
@@ -171,7 +171,7 @@ export default function EmbedOrderForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-slate-50 to-slate-100">
       <Card className="w-full h-full sm:h-auto sm:max-w-lg shadow-xl border-0 sm:rounded-lg rounded-none overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div 
           className="h-2 w-full" 
@@ -179,7 +179,7 @@ export default function EmbedOrderForm() {
         />
         <CardHeader className="space-y-0.5 pb-2 sm:pb-4 pt-4 sm:pt-6">
           {brandName && (
-            <p className="text-sm font-medium" style={{ color: brandColor }}>
+            <p className="text-xs sm:text-sm font-medium" style={{ color: brandColor }}>
               {brandName}
             </p>
           )}
@@ -351,7 +351,7 @@ export default function EmbedOrderForm() {
               )}
             </Button>
 
-            <p className="text-xs text-center text-muted-foreground">
+            <p className="text-xs text-center text-muted-foreground leading-tight">
               En confirmant, vous acceptez nos conditions de vente.
               <br />Paiement à la livraison.
             </p>
