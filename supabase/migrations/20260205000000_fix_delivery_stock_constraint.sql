@@ -10,9 +10,9 @@ BEGIN
       AND a.delivery_person_id = b.delivery_person_id
       AND a.product_id = b.product_id;
 
-    -- 2. Drop potential existing constraint or index to ensure clean state
-    ALTER TABLE public.delivery_person_stock DROP CONSTRAINT IF EXISTS delivery_person_stock_delivery_person_id_product_id_key;
+    -- 2. Drop potential existing index or constraint to ensure clean state
     DROP INDEX IF EXISTS public.delivery_person_stock_delivery_person_id_product_id_key;
+    ALTER TABLE public.delivery_person_stock DROP CONSTRAINT IF EXISTS delivery_person_stock_delivery_person_id_product_id_key;
 
     -- 3. Add the unique constraint explicitly
     ALTER TABLE public.delivery_person_stock
