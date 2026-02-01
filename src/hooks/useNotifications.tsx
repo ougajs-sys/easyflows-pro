@@ -8,7 +8,7 @@ type OrderStatus = Database['public']['Enums']['order_status'];
 
 interface Notification {
   id: string;
-  type: 'new_order' | 'status_change' | 'payment' | 'follow_up' | 'order_assigned';
+  type: 'new_order' | 'status_change' | 'payment' | 'follow_up' | 'order_assigned' | 'stock_adjustment';
   title: string;
   message: string;
   data?: any;
@@ -291,12 +291,69 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         console.log('Deposits channel status:', status);
       });
 
+    // Subscribe to stock movements for delivery persons (for manual withdrawal notifications)
+    let stockMovementsChannel: any = null;
+    if (role === 'livreur') {
+      // Get delivery person ID for current user
+      const setupStockNotifications = async () => {
+        const { data: deliveryPerson } = await supabase
+          .from('delivery_persons')
+          .select('id')
+          .eq('user_id', user?.id)
+          .single();
+
+        if (deliveryPerson) {
+          stockMovementsChannel = supabase
+            .channel('stock-movements-delivery')
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'stock_movements',
+                filter: `delivery_person_id=eq.${deliveryPerson.id}`,
+              },
+              async (payload) => {
+                console.log('Stock movement detected:', payload);
+
+                // Only notify on adjustment type movements (manual withdrawals)
+                if (payload.new.movement_type === 'adjustment' && payload.new.quantity < 0) {
+                  const { data: product } = await supabase
+                    .from('products')
+                    .select('name')
+                    .eq('id', payload.new.product_id)
+                    .single();
+
+                  const absQty = Math.abs(payload.new.quantity);
+                  const notes = payload.new.notes || 'Aucun motif fourni';
+
+                  addNotification({
+                    type: 'stock_adjustment',
+                    title: '⚠️ Retrait de stock',
+                    message: `${absQty} unité(s) de ${product?.name || 'produit'} ont été retirées de votre stock. Motif: ${notes}`,
+                    data: payload.new,
+                  });
+                }
+              }
+            )
+            .subscribe((status) => {
+              console.log('Stock movements channel status:', status);
+            });
+        }
+      };
+
+      setupStockNotifications();
+    }
+
     return () => {
       console.log('Cleaning up Supabase Realtime subscriptions...');
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(paymentsChannel);
       supabase.removeChannel(followUpsChannel);
       supabase.removeChannel(depositsChannel);
+      if (stockMovementsChannel) {
+        supabase.removeChannel(stockMovementsChannel);
+      }
     };
   }, [user, role, addNotification]);
 
