@@ -273,7 +273,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               addNotification({
                 type: 'payment',
                 title: '✅ Versement confirmé',
-                message: `Votre versement de ${Number(payload.new.total_amount).toLocaleString()} DH a été réceptionné.`,
+                message: `Votre versement de ${Number(payload.new.total_amount).toLocaleString()} DH a été validé.`,
                 data: payload.new,
               });
             } else if (newStatus === 'rejected') {
