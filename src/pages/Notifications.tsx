@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Bell, Package, CreditCard, Phone, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, Package, CreditCard, Phone, CheckCheck, Trash2, UserCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,7 @@ const notificationIcons = {
   status_change: Package,
   payment: CreditCard,
   follow_up: Phone,
-  order_assigned: Package,
+  order_assigned: UserCheck,
 };
 
 const notificationColors = {
