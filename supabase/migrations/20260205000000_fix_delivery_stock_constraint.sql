@@ -3,7 +3,7 @@
 
 DO $$
 BEGIN
-    -- 1. Cleanup duplicates if any exist (keeping the most recently updated one)
+    -- 1. Cleanup duplicates if any exist (keeping the one with the highest ID)
     DELETE FROM public.delivery_person_stock a
     USING public.delivery_person_stock b
     WHERE a.id < b.id
