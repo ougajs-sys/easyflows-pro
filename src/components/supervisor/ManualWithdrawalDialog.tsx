@@ -79,7 +79,6 @@ export function ManualWithdrawalDialog({
         p_product_id: productId,
         p_quantity: qty,
         p_reason: withdrawalReason,
-        p_performed_by: user?.id,
       });
 
       if (error) throw error;
