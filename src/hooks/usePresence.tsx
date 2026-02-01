@@ -125,8 +125,8 @@ export function usePresence() {
         return {
           user_id: profile.id,
           role: profile.role,
-          last_seen_at: presence?.last_seen_at || new Date().toISOString(),
-          updated_at: presence?.updated_at || new Date().toISOString(),
+          last_seen_at: presence?.last_seen_at || new Date(0).toISOString(), // Use epoch time for users without presence
+          updated_at: presence?.updated_at || new Date(0).toISOString(),
           is_online: isOnline,
           profile: {
             full_name: profile.full_name,

@@ -181,12 +181,12 @@ export function InternalChat({ fullHeight = true }: InternalChatProps) {
                 <div className="text-center py-8">
                   <Users className="w-10 h-10 mx-auto mb-2 text-muted-foreground opacity-50" />
                   <p className="text-xs text-muted-foreground">
-                    Aucun contact disponible
+                    Aucun contact autorisé
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {role === "superviseur" 
-                      ? "Les appelants, livreurs et admins apparaîtront ici"
-                      : "Les superviseurs apparaîtront ici"}
+                      ? "Aucun appelant, livreur ou admin disponible"
+                      : "Aucun superviseur disponible"}
                   </p>
                 </div>
               )}
