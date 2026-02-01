@@ -52,7 +52,7 @@ BEGIN
     );
   END IF;
   
-  -- Vérifier le stock du livreur
+  -- Check delivery person's stock
   SELECT quantity INTO v_delivery_stock 
   FROM public.delivery_person_stock 
   WHERE delivery_person_id = p_delivery_person_id AND product_id = p_product_id;
@@ -64,17 +64,17 @@ BEGIN
     );
   END IF;
 
-  -- Retirer du stock livreur
+  -- Deduct from delivery person's stock
   UPDATE public.delivery_person_stock 
   SET quantity = quantity - p_quantity, updated_at = now()
   WHERE delivery_person_id = p_delivery_person_id AND product_id = p_product_id;
 
-  -- Ajouter au stock principal (boutique/central)
+  -- Add to central shop stock
   UPDATE public.products 
   SET stock = stock + p_quantity, updated_at = now() 
   WHERE id = p_product_id;
 
-  -- Enregistrer le mouvement avec le motif dans les notes
+  -- Record the stock movement with reason in notes
   INSERT INTO public.stock_movements (
     delivery_person_id, 
     product_id, 
