@@ -55,8 +55,8 @@ const isNonCriticalError = (error: Error): boolean => {
     /Invalid Date/i,
     /CSP/i,
     /Content Security Policy/i,
-    /Script error/i,
-    /translate_http/i,
+    /^Script error\.?$/i,  // Cross-origin script errors (typically from browser extensions)
+    /translate_http/i,     // Google Translate extension errors
   ];
   
   const errorMessage = error.message || String(error);
