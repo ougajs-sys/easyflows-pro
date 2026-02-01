@@ -30,7 +30,8 @@ import {
   Download,
   Loader2,
   Filter,
-  AlertCircle
+  AlertCircle,
+  CheckCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -41,7 +42,7 @@ export function SupervisorRevenueTracking() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [callerFilter, setCallerFilter] = useState<string | undefined>(undefined);
 
-  const { allRevenues, isLoading, revenueByCallers, statsLoading } = useSupervisorRevenues({
+  const { allRevenues, isLoading, allDeposits, revenueByCallers, statsLoading } = useSupervisorRevenues({
     status: statusFilter,
     startDate,
     endDate,
@@ -64,6 +65,11 @@ export function SupervisorRevenueTracking() {
 
   const totalRevenue = totalCollected + totalDeposited;
 
+  // Calculate confirmed deposits (Caisse) - only confirmed status
+  const totalConfirmedDeposits = allDeposits
+    .filter(d => d.status === 'confirmed')
+    .reduce((sum, d) => sum + Number(d.total_amount), 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -80,7 +86,7 @@ export function SupervisorRevenueTracking() {
       <PendingDepositsPanel />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
         <Card>
           <CardContent className="pt-4 md:pt-6">
             <div className="flex items-center gap-2 md:gap-3">
@@ -118,6 +124,22 @@ export function SupervisorRevenueTracking() {
               <div>
                 <p className="text-xs md:text-sm text-muted-foreground">Versé</p>
                 <p className="text-lg md:text-2xl font-bold text-sky-600">{formatCurrency(totalDeposited)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-green-500/30 bg-green-500/5">
+          <CardContent className="pt-4 md:pt-6">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <CheckCircle className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs md:text-sm text-muted-foreground">Recettes Confirmées (Caisse)</p>
+                <p className="text-lg md:text-2xl font-bold text-green-600">
+                  {formatCurrency(totalConfirmedDeposits)}
+                </p>
               </div>
             </div>
           </CardContent>
