@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Bell, Package, CreditCard, Phone, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, Package, CreditCard, Phone, CheckCheck, Trash2, UserCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ const notificationIcons = {
   status_change: Package,
   payment: CreditCard,
   follow_up: Phone,
+  order_assigned: UserCheck,
 };
 
 const notificationColors = {
@@ -22,6 +23,7 @@ const notificationColors = {
   status_change: 'text-warning bg-warning/10',
   payment: 'text-success bg-success/10',
   follow_up: 'text-accent-foreground bg-accent',
+  order_assigned: 'text-primary bg-primary/10',
 };
 
 export default function Notifications() {
@@ -71,6 +73,7 @@ export default function Notifications() {
               status_change: 'Changements de statut',
               payment: 'Paiements',
               follow_up: 'Relances',
+              order_assigned: 'Commandes assignées',
             };
 
             return (
@@ -110,8 +113,8 @@ export default function Notifications() {
               <ScrollArea className="h-[500px] pr-4">
                 <div className="space-y-3">
                   {notifications.map((notification) => {
-                    const Icon = notificationIcons[notification.type];
-                    const color = notificationColors[notification.type];
+                    const Icon = notificationIcons[notification.type] || Bell;
+                    const color = notificationColors[notification.type] || 'text-muted-foreground bg-muted/10';
 
                     return (
                       <div
