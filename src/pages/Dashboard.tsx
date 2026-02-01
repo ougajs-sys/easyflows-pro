@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { CallerLayout } from "@/components/caller/CallerLayout";
 import { CallerDashboard } from "@/components/caller/CallerDashboard";
@@ -7,18 +7,11 @@ import { CallerOrders } from "@/components/caller/CallerOrders";
 import { CallerClients } from "@/components/caller/CallerClients";
 import { CallerFollowUps } from "@/components/caller/CallerFollowUps";
 import { CallerTraining } from "@/components/caller/CallerTraining";
+import { InternalChat } from "@/components/chat/InternalChat";
 
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const { role, loading } = useAuth();
-  const navigate = useNavigate();
-
-  // Redirect to chat page when chat section is selected
-  useEffect(() => {
-    if (activeSection === "chat") {
-      navigate("/chat");
-    }
-  }, [activeSection, navigate]);
 
   // Redirect supervisors and admins to their dedicated dashboard
   if (!loading && (role === 'superviseur' || role === 'administrateur')) {
@@ -46,6 +39,8 @@ export default function Dashboard() {
         return <CallerFollowUps />;
       case "training":
         return <CallerTraining />;
+      case "chat":
+        return <InternalChat fullHeight={false} />;
       default:
         return <CallerDashboard />;
     }
