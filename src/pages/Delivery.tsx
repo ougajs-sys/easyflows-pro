@@ -6,6 +6,7 @@ import { DeliveryTraining } from "@/components/delivery/DeliveryTraining";
 import { DeliveryStock } from "@/components/delivery/DeliveryStock";
 import { DeliverySupplyRequest } from "@/components/delivery/DeliverySupplyRequest";
 import { InternalChat } from "@/components/chat/InternalChat";
+import { UserProfile } from "@/components/profile/UserProfile";
 import { useDeliveryPerson } from "@/hooks/useDeliveryPerson";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/card";
@@ -184,6 +185,8 @@ export default function Delivery() {
         return <DeliveryTraining />;
       case "chat":
         return <InternalChat fullHeight={false} />;
+      case "profile":
+        return <UserProfile />;
       default:
         return null;
     }

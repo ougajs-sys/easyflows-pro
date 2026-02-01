@@ -13,7 +13,8 @@ import {
   Moon,
   Sun,
   Boxes,
-  Send
+  Send,
+  User
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +40,7 @@ const menuItems = [
   { id: "supply", label: "Approvisionnement", icon: Send },
   { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "training", label: "Formation", icon: GraduationCap },
+  { id: "profile", label: "Mon Profil", icon: User },
 ];
 
 export function DeliveryLayout({ 
