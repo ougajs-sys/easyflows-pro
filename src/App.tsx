@@ -41,6 +41,28 @@ const AIAgent = lazy(() => import("./pages/AIAgent"));
 const RevenueTracking = lazy(() => import("./pages/RevenueTracking"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// Helper function to check if error should be ignored (non-critical)
+const isNonCriticalError = (error: Error): boolean => {
+  const nonCriticalPatterns = [
+    /ResizeObserver/i,
+    /Loading chunk/i,
+    /ChunkLoadError/i,
+    /Failed to fetch dynamically imported module/i,
+    /NetworkError/i,
+    /AbortError/i,
+    /NotFoundError.*removeChild/i,
+    /NotFoundError.*Node/i,
+    /Invalid Date/i,
+    /CSP/i,
+    /Content Security Policy/i,
+    /Script error/i,
+    /translate_http/i,
+  ];
+  
+  const errorMessage = error.message || String(error);
+  return nonCriticalPatterns.some(pattern => pattern.test(errorMessage));
+};
+
 interface NavigationErrorBoundaryProps {
   children: React.ReactNode;
   resetKey: string;
@@ -53,7 +75,12 @@ class NavigationErrorBoundary extends React.Component<
 > {
   state = { hasError: false };
 
-  static getDerivedStateFromError() {
+  static getDerivedStateFromError(error: Error) {
+    // Don't show error screen for non-critical errors
+    if (isNonCriticalError(error)) {
+      console.warn('Non-critical error in getDerivedStateFromError (logged only):', error.message);
+      return { hasError: false };
+    }
     return { hasError: true };
   }
 
@@ -90,33 +117,13 @@ class NavigationErrorBoundary extends React.Component<
     window.removeEventListener("unhandledrejection", this.handleUnhandledRejection);
   }
 
-  // Helper to check if error should be ignored (non-critical)
-  isNonCriticalError = (error: Error): boolean => {
-    const nonCriticalPatterns = [
-      /ResizeObserver/i,
-      /Loading chunk/i,
-      /ChunkLoadError/i,
-      /Failed to fetch dynamically imported module/i,
-      /NetworkError/i,
-      /AbortError/i,
-      /NotFoundError.*removeChild/i,
-      /NotFoundError.*Node/i,
-      /Invalid Date/i,
-      /CSP/i,
-      /Content Security Policy/i,
-    ];
-    
-    const errorMessage = error.message || String(error);
-    return nonCriticalPatterns.some(pattern => pattern.test(errorMessage));
-  };
-
   handleWindowError = (event: ErrorEvent) => {
     if (!(event.error instanceof Error)) {
       return;
     }
 
     // Check if this is a non-critical error we should just log
-    if (this.isNonCriticalError(event.error)) {
+    if (isNonCriticalError(event.error)) {
       console.warn('Non-critical error (logged only):', event.error.message);
       bugsnagClient.notify(event.error, (bugEvent) => {
         bugEvent.context = "window.error.non-critical";
@@ -150,7 +157,7 @@ class NavigationErrorBoundary extends React.Component<
     }
 
     // Check if this is a non-critical error we should just log
-    if (this.isNonCriticalError(event.reason)) {
+    if (isNonCriticalError(event.reason)) {
       console.warn('Non-critical rejection (logged only):', event.reason.message);
       bugsnagClient.notify(event.reason, (bugEvent) => {
         bugEvent.context = "unhandledrejection.non-critical";
