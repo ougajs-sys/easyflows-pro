@@ -110,24 +110,24 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
   return (
     <>
       {/* Logo */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
+      <div className="flex items-center justify-between h-16 px-4 border-b border-border">
         <Link to="/dashboard" className="flex items-center gap-3" onClick={onItemClick}>
-          <div className="w-10 h-10 rounded-xl bg-sidebar-primary/20 flex items-center justify-center glow">
-            <Zap className="w-5 h-5 text-sidebar-primary" />
+          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center glow">
+            <Zap className="w-5 h-5 text-primary" />
           </div>
           {!collapsed && (
-            <span className="font-bold text-lg text-sidebar-primary">Pipeline</span>
+            <span className="font-bold text-lg text-primary">Pipeline</span>
           )}
         </Link>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
+            className="p-2 rounded-lg hover:bg-accent transition-colors"
           >
             {collapsed ? (
-              <ChevronRight className="w-4 h-4 text-sidebar-foreground" />
+              <ChevronRight className="w-4 h-4 text-foreground" />
             ) : (
-              <ChevronLeft className="w-4 h-4 text-sidebar-foreground" />
+              <ChevronLeft className="w-4 h-4 text-foreground" />
             )}
           </button>
         )}
@@ -149,8 +149,8 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
                 cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
                   isActive
-                    ? "bg-sidebar-primary/15 border border-sidebar-primary/30"
-                    : "hover:bg-sidebar-accent border border-transparent",
+                    ? "bg-primary/15 border border-primary/30"
+                    : "hover:bg-accent border border-transparent",
                   isPending && "opacity-70"
                 )
               }
@@ -158,13 +158,13 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
               <div
                 className={cn(
                   "flex items-center justify-center w-8 h-8 rounded-lg transition-all relative",
-                  isActive ? "bg-sidebar-primary/20" : "bg-sidebar-accent group-hover:bg-sidebar-primary/10"
+                  isActive ? "bg-primary/20" : "bg-accent group-hover:bg-primary/10"
                 )}
               >
                 <Icon
                   className={cn(
                     "w-4 h-4 transition-colors",
-                    isActive ? "text-sidebar-primary" : item.color
+                    isActive ? "text-primary" : item.color
                   )}
                 />
                 {isNotifications && unreadCount > 0 && (
@@ -178,7 +178,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
                   <span
                     className={cn(
                       "text-sm font-medium transition-colors",
-                      isActive ? "text-sidebar-primary" : "text-sidebar-foreground"
+                      isActive ? "text-primary" : "text-foreground"
                     )}
                   >
                     {item.label}
@@ -196,25 +196,25 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
       </nav>
 
       {/* Bottom Section */}
-      <div className="p-3 border-t border-sidebar-border space-y-1">
+      <div className="p-3 border-t border-border space-y-1">
         {/* Profile Link */}
         <Link
           to="/profile"
           onClick={onItemClick}
           className={cn(
-            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent",
-            location.pathname === "/profile" && "bg-sidebar-primary/15 border border-sidebar-primary/30"
+            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-accent",
+            location.pathname === "/profile" && "bg-primary/15 border border-primary/30"
           )}
         >
           <Avatar className="w-8 h-8">
             <AvatarImage src={profile?.avatar_url || undefined} />
-            <AvatarFallback className="bg-sidebar-accent text-xs">
+            <AvatarFallback className="bg-accent text-xs">
               {getInitials(profile?.full_name)}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <span className="text-sm font-medium text-sidebar-foreground truncate block">
+              <span className="text-sm font-medium text-foreground truncate block">
                 {profile?.full_name || 'Mon profil'}
               </span>
             </div>
@@ -225,10 +225,10 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
         <button
           onClick={toggleTheme}
           className={cn(
-            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent"
+            "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-accent"
           )}
         >
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-sidebar-accent">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent">
             {theme === "dark" ? (
               <Sun className="w-4 h-4 text-yellow-400" />
             ) : (
@@ -236,7 +236,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
             )}
           </div>
           {!collapsed && (
-            <span className="text-sm font-medium text-sidebar-foreground">
+            <span className="text-sm font-medium text-foreground">
               {theme === "dark" ? "Mode clair" : "Mode sombre"}
             </span>
           )}
@@ -280,8 +280,8 @@ export function Sidebar() {
               <Menu className="w-5 h-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-72 bg-sidebar-background text-sidebar-foreground border-sidebar-border opacity-100">
-            <div className="flex flex-col h-full bg-sidebar-background">
+          <SheetContent side="left" className="p-0 w-72 bg-background text-foreground border-border border-r opacity-100">
+            <div className="flex flex-col h-full bg-background">
               <SidebarContent 
                 collapsed={false} 
                 onItemClick={() => setMobileOpen(false)}
@@ -296,7 +296,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col",
+        "fixed left-0 top-0 z-40 h-screen bg-background border-r border-border transition-all duration-300 flex flex-col",
         collapsed ? "w-20" : "w-64"
       )}
     >
