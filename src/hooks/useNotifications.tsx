@@ -223,13 +223,82 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         console.log('Follow-ups channel status:', status);
       });
 
+    // Subscribe to revenue deposits
+    const depositsChannel = supabase
+      .channel('deposits-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'revenue_deposits',
+        },
+        async (payload) => {
+          console.log('New deposit created:', payload);
+
+          // Notify supervisors and admins only
+          if (role === 'supervisor' || role === 'admin') {
+            // Fetch caller info
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', payload.new.deposited_by)
+              .single();
+
+            addNotification({
+              type: 'payment',
+              title: '💰 Nouveau versement en attente',
+              message: `${profile?.full_name || 'Un appelant'} a versé ${Number(payload.new.total_amount).toLocaleString()} DH. En attente de confirmation.`,
+              data: payload.new,
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'revenue_deposits',
+        },
+        async (payload) => {
+          console.log('Deposit updated:', payload);
+
+          const oldStatus = (payload.old as any).status;
+          const newStatus = payload.new.status;
+
+          // Notify caller when their deposit is confirmed or rejected
+          if (oldStatus !== newStatus && payload.new.deposited_by === user?.id) {
+            if (newStatus === 'confirmed') {
+              addNotification({
+                type: 'payment',
+                title: '✅ Versement confirmé',
+                message: `Votre versement de ${Number(payload.new.total_amount).toLocaleString()} DH a été validé.`,
+                data: payload.new,
+              });
+            } else if (newStatus === 'rejected') {
+              addNotification({
+                type: 'payment',
+                title: '❌ Versement rejeté',
+                message: `Votre versement de ${Number(payload.new.total_amount).toLocaleString()} DH a été refusé. Veuillez vérifier avec votre superviseur.`,
+                data: payload.new,
+              });
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Deposits channel status:', status);
+      });
+
     return () => {
       console.log('Cleaning up Supabase Realtime subscriptions...');
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(paymentsChannel);
       supabase.removeChannel(followUpsChannel);
+      supabase.removeChannel(depositsChannel);
     };
-  }, [user, addNotification]);
+  }, [user, role, addNotification]);
 
   const markAsRead = (id: string) => {
     setNotifications(prev =>

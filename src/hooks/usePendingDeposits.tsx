@@ -132,6 +132,7 @@ export function usePendingDeposits() {
       queryClient.invalidateQueries({ queryKey: ['confirmed-deposits'] });
       queryClient.invalidateQueries({ queryKey: ['supervisor-revenues'] });
       queryClient.invalidateQueries({ queryKey: ['supervisor-deposits'] });
+      queryClient.invalidateQueries({ queryKey: ['revenue-summary'] });
     },
   });
 
