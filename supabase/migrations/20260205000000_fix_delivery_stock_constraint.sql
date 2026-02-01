@@ -18,5 +18,5 @@ BEGIN
     ALTER TABLE public.delivery_person_stock
     ADD CONSTRAINT delivery_person_stock_delivery_person_id_product_id_key
     UNIQUE (delivery_person_id, product_id);
-    
+
 END $$;
