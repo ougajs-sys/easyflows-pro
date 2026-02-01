@@ -32,10 +32,11 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Package, ArrowRight, ArrowLeft, Truck, Loader2, RefreshCw } from "lucide-react";
+import { Package, ArrowRight, ArrowLeft, Truck, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { ManualWithdrawalDialog } from "./ManualWithdrawalDialog";
 
 interface DeliveryPerson {
   id: string;
@@ -506,18 +507,32 @@ export function StockTransferManager() {
             <div className="space-y-6">
               {Object.entries(stocksByPerson).map(([personId, data]) => (
                 <div key={personId} className="border border-border rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-primary" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Truck className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">
+                          {data.person?.profile?.full_name || "Livreur"}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {data.items.length} produit(s) en stock
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">
-                        {data.person?.profile?.full_name || "Livreur"}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {data.items.length} produit(s) en stock
-                      </p>
-                    </div>
+                    <ManualWithdrawalDialog
+                      deliveryPersonId={personId}
+                      deliveryPersonName={data.person?.profile?.full_name || "Livreur"}
+                      stockItems={data.items}
+                      trigger={
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span className="hidden sm:inline">Retrait Manuel</span>
+                          <span className="sm:hidden">Retrait</span>
+                        </Button>
+                      }
+                    />
                   </div>
                   
                   {/* Mobile: Cards */}
