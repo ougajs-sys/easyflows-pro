@@ -812,30 +812,39 @@ export type Database = {
       }
       revenue_deposits: {
         Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           deposited_at: string
           deposited_by: string
           id: string
           notes: string | null
           revenues_count: number
+          status: string
           total_amount: number
         }
         Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           deposited_at?: string
           deposited_by: string
           id?: string
           notes?: string | null
           revenues_count?: number
+          status?: string
           total_amount: number
         }
         Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           deposited_at?: string
           deposited_by?: string
           id?: string
           notes?: string | null
           revenues_count?: number
+          status?: string
           total_amount?: number
         }
         Relationships: []
@@ -1504,6 +1513,10 @@ export type Database = {
         Args: { receiver_id: string; sender_id: string }
         Returns: boolean
       }
+      confirm_revenue_deposit: {
+        Args: { p_deposit_id: string; p_supervisor_id: string }
+        Returns: Json
+      }
       current_tenant_id: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
       get_caller_revenue_summary: {
@@ -1536,6 +1549,14 @@ export type Database = {
       process_revenue_deposit: {
         Args: { p_notes?: string; p_user_id: string }
         Returns: string
+      }
+      reject_revenue_deposit: {
+        Args: {
+          p_deposit_id: string
+          p_reason?: string
+          p_supervisor_id: string
+        }
+        Returns: Json
       }
       reject_role_request: {
         Args: { p_reason: string; p_request_id: string; p_reviewer_id: string }

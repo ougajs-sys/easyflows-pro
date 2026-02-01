@@ -19,6 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useSupervisorRevenues } from "@/hooks/useSupervisorRevenues";
+import { usePendingDeposits, useRealtimePendingDeposits } from "@/hooks/usePendingDeposits";
+import { PendingDepositsPanel } from "./PendingDepositsPanel";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { 
   DollarSign, 
@@ -27,7 +29,8 @@ import {
   Calendar,
   Download,
   Loader2,
-  Filter
+  Filter,
+  AlertCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -44,6 +47,11 @@ export function SupervisorRevenueTracking() {
     endDate,
     callerId: callerFilter,
   });
+
+  const { pendingCount, totalPendingAmount } = usePendingDeposits();
+  
+  // Enable real-time updates
+  useRealtimePendingDeposits();
 
   // Calculate totals
   const totalCollected = allRevenues
@@ -68,59 +76,81 @@ export function SupervisorRevenueTracking() {
         </p>
       </div>
 
+      {/* Pending Deposits Panel - Most Important! */}
+      <PendingDepositsPanel />
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
+          <CardContent className="pt-4 md:pt-6">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
-                <DollarSign className="h-5 w-5 text-primary" />
+                <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Recettes</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Total Recettes</p>
+                <p className="text-lg md:text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+          <CardContent className="pt-4 md:pt-6">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10">
+                <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Encaissé</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(totalCollected)}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Encaissé</p>
+                <p className="text-lg md:text-2xl font-bold text-emerald-600">{formatCurrency(totalCollected)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
+          <CardContent className="pt-4 md:pt-6">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 rounded-lg bg-sky-500/10">
+                <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-sky-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Versé</p>
-                <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalDeposited)}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Versé</p>
+                <p className="text-lg md:text-2xl font-bold text-sky-600">{formatCurrency(totalDeposited)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={pendingCount > 0 ? "border-amber-500/30 bg-amber-500/5" : ""}>
+          <CardContent className="pt-4 md:pt-6">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs md:text-sm text-muted-foreground">En attente</p>
+                <p className="text-lg md:text-2xl font-bold text-amber-600">
+                  {formatCurrency(totalPendingAmount)}
+                </p>
+                {pendingCount > 0 && (
+                  <p className="text-xs text-amber-600">{pendingCount} versement{pendingCount > 1 ? 's' : ''}</p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/10">
-                <Users className="h-5 w-5 text-orange-600" />
+          <CardContent className="pt-4 md:pt-6">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 rounded-lg bg-violet-500/10">
+                <Users className="h-4 w-4 md:h-5 md:w-5 text-violet-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Appelants</p>
-                <p className="text-2xl font-bold">{revenueByCallers.length}</p>
+                <p className="text-xs md:text-sm text-muted-foreground">Appelants</p>
+                <p className="text-lg md:text-2xl font-bold">{revenueByCallers.length}</p>
               </div>
             </div>
           </CardContent>
@@ -145,49 +175,91 @@ export function SupervisorRevenueTracking() {
               Aucune recette trouvée
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Appelant</TableHead>
-                  <TableHead className="text-right">Encaissé</TableHead>
-                  <TableHead className="text-right">Versé</TableHead>
-                  <TableHead className="text-right">À Verser</TableHead>
-                  <TableHead className="text-right">Paiements</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Vue Mobile: Cartes */}
+              <div className="block md:hidden space-y-3">
                 {revenueByCallers.map((caller) => (
-                  <TableRow key={caller.callerId}>
-                    <TableCell>
+                  <Card key={caller.callerId} className="p-4">
+                    <div className="flex justify-between items-start mb-3">
                       <div>
                         <p className="font-medium">{caller.profile?.full_name || 'N/A'}</p>
                         <p className="text-xs text-muted-foreground">{caller.profile?.phone || ''}</p>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-medium text-green-600">
-                        {formatCurrency(caller.totalCollected)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-medium text-blue-600">
-                        {formatCurrency(caller.totalDeposited)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-medium text-orange-600">
-                        {formatCurrency(caller.totalToDeposit)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
                       <Badge variant="secondary">
-                        {caller.collectedCount + caller.depositedCount}
+                        {caller.collectedCount + caller.depositedCount} paiements
                       </Badge>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Encaissé</p>
+                        <p className="font-medium text-sm text-emerald-600">
+                          {formatCurrency(caller.totalCollected)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Versé</p>
+                        <p className="font-medium text-sm text-sky-600">
+                          {formatCurrency(caller.totalDeposited)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">À verser</p>
+                        <p className="font-medium text-sm text-amber-600">
+                          {formatCurrency(caller.totalToDeposit)}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Vue Desktop: Tableau */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Appelant</TableHead>
+                      <TableHead className="text-right">Encaissé</TableHead>
+                      <TableHead className="text-right">Versé</TableHead>
+                      <TableHead className="text-right">À Verser</TableHead>
+                      <TableHead className="text-right">Paiements</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {revenueByCallers.map((caller) => (
+                      <TableRow key={caller.callerId}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{caller.profile?.full_name || 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground">{caller.profile?.phone || ''}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="font-medium text-emerald-600">
+                            {formatCurrency(caller.totalCollected)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="font-medium text-sky-600">
+                            {formatCurrency(caller.totalDeposited)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="font-medium text-amber-600">
+                            {formatCurrency(caller.totalToDeposit)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="secondary">
+                            {caller.collectedCount + caller.depositedCount}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -201,7 +273,7 @@ export function SupervisorRevenueTracking() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <Select
               value={statusFilter || 'all'}
               onValueChange={(value) => setStatusFilter(value === 'all' ? undefined : value as 'collected' | 'deposited')}
@@ -221,8 +293,6 @@ export function SupervisorRevenueTracking() {
               placeholder="Date début"
               onChange={(e) => {
                 if (e.target.value) {
-                  // Create date at start of day in local timezone
-                  // Format: YYYY-MM-DD from input, we append time to create local date
                   const date = new Date(e.target.value + 'T00:00:00');
                   setStartDate(date);
                 } else {
@@ -236,8 +306,6 @@ export function SupervisorRevenueTracking() {
               placeholder="Date fin"
               onChange={(e) => {
                 if (e.target.value) {
-                  // Create date at end of day in local timezone
-                  // Format: YYYY-MM-DD from input, we append time to create local date
                   const date = new Date(e.target.value + 'T23:59:59');
                   setEndDate(date);
                 } else {
@@ -256,7 +324,7 @@ export function SupervisorRevenueTracking() {
             </Button>
           </div>
 
-          {/* Revenue Details Table */}
+          {/* Revenue Details */}
           <div className="border rounded-lg">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -267,57 +335,110 @@ export function SupervisorRevenueTracking() {
                 Aucune recette trouvée
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Appelant</TableHead>
-                    <TableHead>Commande</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Méthode</TableHead>
-                    <TableHead className="text-right">Montant</TableHead>
-                    <TableHead>Statut</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allRevenues.map((revenue) => (
-                    <TableRow key={revenue.id}>
-                      <TableCell className="text-sm">
-                        {format(new Date(revenue.collected_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <p className="font-medium">{revenue.collected_by_profile?.full_name || 'N/A'}</p>
-                          <p className="text-xs text-muted-foreground">{revenue.collected_by_profile?.phone || ''}</p>
+              <>
+                {/* Vue Mobile: Cartes */}
+                <div className="block md:hidden p-3 space-y-3">
+                  {allRevenues.slice(0, 20).map((revenue) => (
+                    <Card key={revenue.id} className="p-3">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(revenue.collected_at), 'dd/MM/yy HH:mm', { locale: fr })}
+                          </p>
+                          <p className="font-medium text-sm">{revenue.order?.order_number || 'N/A'}</p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-sm font-medium">
-                        {revenue.order?.order_number || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <p>{revenue.order?.client?.full_name || 'N/A'}</p>
-                          <p className="text-xs text-muted-foreground">{revenue.order?.client?.phone || ''}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {revenue.payment_method === 'cash' && 'Espèces'}
-                        {revenue.payment_method === 'mobile_money' && 'Mobile Money'}
-                        {revenue.payment_method === 'card' && 'Carte'}
-                        {revenue.payment_method === 'transfer' && 'Virement'}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(Number(revenue.amount))}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={revenue.status === 'collected' ? 'default' : 'secondary'}>
+                        <Badge variant={revenue.status === 'collected' ? 'default' : 'secondary'} className="text-xs">
                           {revenue.status === 'collected' ? 'Encaissé' : 'Versé'}
                         </Badge>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Appelant</p>
+                          <p className="font-medium truncate">{revenue.collected_by_profile?.full_name || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Client</p>
+                          <p className="font-medium truncate">{revenue.order?.client?.full_name || 'N/A'}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center mt-2 pt-2 border-t">
+                        <span className="text-xs text-muted-foreground">
+                          {revenue.payment_method === 'cash' && 'Espèces'}
+                          {revenue.payment_method === 'mobile_money' && 'Mobile Money'}
+                          {revenue.payment_method === 'card' && 'Carte'}
+                          {revenue.payment_method === 'transfer' && 'Virement'}
+                          {!revenue.payment_method && 'N/A'}
+                        </span>
+                        <span className="font-bold text-primary">
+                          {formatCurrency(Number(revenue.amount))}
+                        </span>
+                      </div>
+                    </Card>
                   ))}
-                </TableBody>
-              </Table>
+                  {allRevenues.length > 20 && (
+                    <p className="text-center text-sm text-muted-foreground py-2">
+                      Et {allRevenues.length - 20} autres recettes...
+                    </p>
+                  )}
+                </div>
+
+                {/* Vue Desktop: Tableau */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Appelant</TableHead>
+                        <TableHead>Commande</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Méthode</TableHead>
+                        <TableHead className="text-right">Montant</TableHead>
+                        <TableHead>Statut</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allRevenues.map((revenue) => (
+                        <TableRow key={revenue.id}>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {format(new Date(revenue.collected_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <p className="font-medium">{revenue.collected_by_profile?.full_name || 'N/A'}</p>
+                              <p className="text-xs text-muted-foreground">{revenue.collected_by_profile?.phone || ''}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm font-medium whitespace-nowrap">
+                            {revenue.order?.order_number || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <p>{revenue.order?.client?.full_name || 'N/A'}</p>
+                              <p className="text-xs text-muted-foreground">{revenue.order?.client?.phone || ''}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {revenue.payment_method === 'cash' && 'Espèces'}
+                            {revenue.payment_method === 'mobile_money' && 'Mobile Money'}
+                            {revenue.payment_method === 'card' && 'Carte'}
+                            {revenue.payment_method === 'transfer' && 'Virement'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium whitespace-nowrap">
+                            {formatCurrency(Number(revenue.amount))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={revenue.status === 'collected' ? 'default' : 'secondary'}>
+                              {revenue.status === 'collected' ? 'Encaissé' : 'Versé'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </div>
         </CardContent>
