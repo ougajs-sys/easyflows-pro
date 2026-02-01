@@ -67,7 +67,7 @@ export function usePresence() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, role]);
 
-  // Fetch online users with DB fallback
+  // Fetch all authorized contacts with presence status
   const { data: onlineUsers = [], isLoading } = useQuery({
     queryKey: ["user-presence", role],
     queryFn: async () => {
@@ -78,67 +78,64 @@ export function usePresence() {
       
       if (allowedRoles.length === 0) return [];
 
-      // Fetch presence data for allowed roles - use type assertion
-      const { data: presenceData, error: presenceError } = await (supabase
-        .from("user_presence") as any)
-        .select("user_id, role, last_seen_at, updated_at")
-        .in("role", allowedRoles)
-        .neq("user_id", user.id);
-
-      if (presenceError) {
-        console.error("Error fetching presence:", presenceError);
-        throw presenceError;
-      }
-
-      // Type the presence data explicitly
-      const typedPresenceData = presenceData as {
-        user_id: string;
-        role: string;
-        last_seen_at: string;
-        updated_at: string;
-      }[] | null;
-
-      if (!typedPresenceData || typedPresenceData.length === 0) return [];
-
-      // Get user profiles
-      const userIds = typedPresenceData.map(p => p.user_id);
+      // First, fetch all profiles matching the allowed roles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, full_name, avatar_url")
-        .in("id", userIds);
+        .select("id, full_name, avatar_url, role")
+        .in("role", allowedRoles)
+        .neq("id", user.id);
 
       if (profilesError) {
         console.error("Error fetching profiles:", profilesError);
+        throw profilesError;
       }
 
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      if (!profiles || profiles.length === 0) return [];
 
-      // Filter only online users and enrich with profile data
+      // Get presence data for these users
+      const userIds = profiles.map(p => p.id);
+      const { data: presenceData, error: presenceError } = await (supabase
+        .from("user_presence") as any)
+        .select("user_id, role, last_seen_at, updated_at")
+        .in("user_id", userIds);
+
+      if (presenceError) {
+        console.error("Error fetching presence:", presenceError);
+        // Don't throw - we can still show users without presence data
+      }
+
+      // Create a map of presence data by user_id
+      const presenceMap = new Map(
+        (presenceData as {
+          user_id: string;
+          role: string;
+          last_seen_at: string;
+          updated_at: string;
+        }[] || []).map(p => [p.user_id, p])
+      );
+
+      // Combine profiles with presence data
       const now = new Date().getTime();
-      const onlineUsersData: UserPresence[] = typedPresenceData
-        .map((p): UserPresence | null => {
-          const lastSeen = new Date(p.last_seen_at).getTime();
-          const isOnline = (now - lastSeen) < ONLINE_THRESHOLD;
-          
-          if (!isOnline) return null;
+      const allContacts: UserPresence[] = profiles.map((profile) => {
+        const presence = presenceMap.get(profile.id);
+        const isOnline = presence 
+          ? (now - new Date(presence.last_seen_at).getTime()) < ONLINE_THRESHOLD
+          : false;
 
-          const profile = profileMap.get(p.user_id);
-          
-          return {
-            user_id: p.user_id,
-            role: p.role,
-            last_seen_at: p.last_seen_at,
-            updated_at: p.updated_at,
-            is_online: true,
-            profile: profile ? {
-              full_name: profile.full_name,
-              avatar_url: profile.avatar_url,
-            } : undefined,
-          } as UserPresence;
-        })
-        .filter((p): p is UserPresence => p !== null);
+        return {
+          user_id: profile.id,
+          role: profile.role,
+          last_seen_at: presence?.last_seen_at || new Date().toISOString(),
+          updated_at: presence?.updated_at || new Date().toISOString(),
+          is_online: isOnline,
+          profile: {
+            full_name: profile.full_name,
+            avatar_url: profile.avatar_url,
+          },
+        } as UserPresence;
+      });
 
-      return onlineUsersData;
+      return allContacts;
     },
     enabled: !!user?.id && !!role,
     refetchInterval: 30000, // Refetch every 30 seconds

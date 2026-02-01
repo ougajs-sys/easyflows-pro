@@ -98,8 +98,8 @@ export function InternalChat({ fullHeight = true }: InternalChatProps) {
         </h1>
         <p className="text-muted-foreground">
           {role === "superviseur" 
-            ? "Communiquez avec les appelants, livreurs et administrateurs en ligne"
-            : "Communiquez avec les superviseurs en ligne"}
+            ? "Communiquez avec les appelants, livreurs et administrateurs"
+            : "Communiquez avec les superviseurs"}
         </p>
       </div>
 
@@ -109,7 +109,7 @@ export function InternalChat({ fullHeight = true }: InternalChatProps) {
           <CardHeader className="py-3 border-b flex-shrink-0">
             <CardTitle className="text-sm flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Contacts en ligne
+              Contacts
             </CardTitle>
           </CardHeader>
           <ScrollArea className="flex-1">
@@ -153,7 +153,12 @@ export function InternalChat({ fullHeight = true }: InternalChatProps) {
                                     {getInitials(contact.profile?.full_name)}
                                   </AvatarFallback>
                                 </Avatar>
-                                <Circle className="w-2.5 h-2.5 fill-success text-success absolute -bottom-0.5 -right-0.5 border-2 border-background rounded-full" />
+                                <Circle className={cn(
+                                  "w-2.5 h-2.5 absolute -bottom-0.5 -right-0.5 border-2 border-background rounded-full",
+                                  contact.is_online 
+                                    ? "fill-success text-success" 
+                                    : "fill-muted-foreground text-muted-foreground"
+                                )} />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate">
@@ -176,7 +181,7 @@ export function InternalChat({ fullHeight = true }: InternalChatProps) {
                 <div className="text-center py-8">
                   <Users className="w-10 h-10 mx-auto mb-2 text-muted-foreground opacity-50" />
                   <p className="text-xs text-muted-foreground">
-                    Aucun utilisateur en ligne
+                    Aucun contact disponible
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {role === "superviseur" 
@@ -202,14 +207,21 @@ export function InternalChat({ fullHeight = true }: InternalChatProps) {
                         <AvatarImage src={selectedContact.profile?.avatar_url || undefined} />
                         <AvatarFallback>{getInitials(selectedContact.profile?.full_name)}</AvatarFallback>
                       </Avatar>
-                      <Circle className="w-3 h-3 fill-success text-success absolute -bottom-0.5 -right-0.5 border-2 border-background rounded-full" />
+                      <Circle className={cn(
+                        "w-3 h-3 absolute -bottom-0.5 -right-0.5 border-2 border-background rounded-full",
+                        selectedContact.is_online 
+                          ? "fill-success text-success" 
+                          : "fill-muted-foreground text-muted-foreground"
+                      )} />
                     </div>
                     <div>
                       <p className="font-medium">{selectedContact.profile?.full_name || "Utilisateur"}</p>
                       <p className={cn("text-xs flex items-center gap-1", roleLabels[selectedContact.role]?.color)}>
                         {roleLabels[selectedContact.role]?.icon}
                         {roleLabels[selectedContact.role]?.label}
-                        <span className="text-success ml-1">• En ligne</span>
+                        <span className={cn("ml-1", selectedContact.is_online ? "text-success" : "text-muted-foreground")}>
+                          • {selectedContact.is_online ? "En ligne" : "Hors ligne"}
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -313,7 +325,7 @@ export function InternalChat({ fullHeight = true }: InternalChatProps) {
                   Sélectionnez un contact
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Choisissez un utilisateur en ligne pour démarrer une conversation
+                  Choisissez un contact pour démarrer une conversation
                 </p>
               </div>
             </div>
