@@ -51,7 +51,7 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
       let query = (supabase.from as any)('collected_revenues')
         .select(`
           *,
-          payment:payments(reference, notes),
+          payment:payments(reference, notes, method),
           order:orders(
             order_number,
             client:clients(full_name, phone)
@@ -100,8 +100,11 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
       // Merge profiles into revenue data
       return (data as any[]).map(revenue => ({
         ...revenue,
+        // Map payment method from the payment relation
+        payment_method: revenue.payment?.method,
         collected_by_profile: profiles?.find(p => p.id === revenue.collected_by),
       })) as (CollectedRevenue & {
+        payment_method?: 'cash' | 'mobile_money' | 'card' | 'transfer';
         collected_by_profile?: {
           full_name?: string | null;
           phone?: string | null;
@@ -109,6 +112,7 @@ export function useSupervisorRevenues(filters?: RevenueFilters) {
         payment?: {
           reference?: string | null;
           notes?: string | null;
+          method?: 'cash' | 'mobile_money' | 'card' | 'transfer';
         };
         order?: {
           order_number?: string | null;
