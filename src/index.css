@@ -306,3 +306,7 @@
     background: hsl(var(--muted-foreground));
   }
 }
+
+.notranslate {
+  translate: no;
+}
