@@ -23,6 +23,7 @@ interface RevenueDeposit {
   revenues_count: number;
   deposited_at: string;
   notes: string | null;
+  status: string;
   created_at: string;
 }
 
