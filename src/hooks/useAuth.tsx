@@ -100,14 +100,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Defer Supabase calls with setTimeout to prevent deadlock
+        // Fetch user data directly without setTimeout to prevent race conditions
         if (session?.user) {
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
+          fetchUserData(session.user.id).finally(() => {
+            setLoading(false);
+          });
         } else {
           setProfile(null);
           setRole(null);
+          setLoading(false);
         }
 
         if (event === 'SIGNED_OUT') {

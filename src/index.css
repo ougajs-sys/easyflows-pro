@@ -233,7 +233,8 @@
 @layer utilities {
   /* Empêcher la traduction automatique des navigateurs */
   .notranslate {
-    translate: no;
+    -webkit-transform: translateX(0);
+    transform: translateX(0);
   }
 
   /* Scrollbar styling */
