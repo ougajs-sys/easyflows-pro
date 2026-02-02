@@ -231,11 +231,6 @@
 }
 
 @layer utilities {
-  /* Empêcher la traduction automatique des navigateurs */
-  .notranslate {
-    translate: no;
-  }
-
   /* Scrollbar styling */
   .scrollbar-thin {
     scrollbar-width: thin;
@@ -259,4 +254,9 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground));
   }
+}
+
+/* Empêcher la traduction automatique des navigateurs */
+.notranslate {
+  translate: no;
 }
