@@ -1,166 +1,139 @@
 
+# Plan : Corriger les erreurs de build et renforcer la configuration de langue
 
-# Plan de Correction: Problemes de Responsivite Mobile
+## Contexte
 
-## Diagnostic du Probleme
-
-L'image montre clairement les problemes suivants sur mobile:
-
-1. **Texte affiche verticalement dans les tableaux** - Les noms de produits ("FORCAPIL", "FTC", "CDC", "CAC") sont affiches lettre par lettre verticalement au lieu d'horizontalement
-2. **TabsList trop large** - Les onglets "Vue d'ensemble", "Stock Livreurs", "Alertes", "Demandes" debordent de l'ecran
-3. **Tableaux non responsifs** - Les tableaux dans `StockTransferManager.tsx` n'ont pas de `min-width` sur les cellules et sont comprimes excessivement
-
-### Cause Racine
-- Le composant `Table` utilise `w-full` ce qui force la compression sur ecrans etroits
-- Les `TableCell` n'ont pas de protection contre la compression excessive
-- Les `TabsList` utilisent `inline-flex` sans defilement horizontal sur mobile
+L'application a actuellement **11 erreurs de build** qui empechent son fonctionnement. Ces erreurs sont liees a des problemes de typage TypeScript. De plus, nous devons ajouter les protections contre les traducteurs automatiques.
 
 ---
 
-## Plan de Correction
+## Partie 1 : Corrections des erreurs de build (Prioritaire)
 
-### 1. Corriger le composant TabsList pour mobile
+### 1.1 Fichier `src/hooks/usePresence.tsx`
 
-**Fichier**: `src/components/ui/tabs.tsx`
+**Probleme** : La table `profiles` ne contient pas de colonne `role`. Le role est stocke dans la table `user_roles`.
 
-Ajouter un wrapper avec defilement horizontal pour mobile:
+**Solution** : Modifier la requete pour joindre `user_roles` ou utiliser une sous-requete.
 
 ```typescript
-const TabsList = React.forwardRef<...>(({ className, ...props }, ref) => (
-  <TabsPrimitive.List
-    ref={ref}
-    className={cn(
-      "inline-flex h-10 items-center justify-start rounded-md bg-muted p-1 text-muted-foreground",
-      "overflow-x-auto scrollbar-thin max-w-full", // Ajout du scroll horizontal
-      className,
-    )}
-    {...props}
-  />
-));
+// Ligne 82-86 - Avant
+const { data: profiles, error: profilesError } = await supabase
+  .from("profiles")
+  .select("id, full_name, avatar_url, role")
+  .in("role", allowedRoles)
+  .neq("id", user.id);
+
+// Apres - Utiliser user_roles pour le role
+const { data: userRolesData } = await supabase
+  .from("user_roles")
+  .select("user_id, role")
+  .in("role", allowedRoles);
+
+const allowedUserIds = (userRolesData || []).map(ur => ur.user_id);
+
+const { data: profiles, error: profilesError } = await supabase
+  .from("profiles")
+  .select("id, full_name, avatar_url")
+  .in("id", allowedUserIds)
+  .neq("id", user.id);
 ```
 
-### 2. Corriger la page Stock.tsx pour mobile
+### 1.2 Fichier `src/hooks/useNotifications.tsx`
 
-**Fichier**: `src/pages/Stock.tsx`
+**Probleme** : Comparaison avec `'supervisor'` et `'admin'` au lieu des roles francais.
 
-- Wrapper les TabsList dans un conteneur avec overflow
-- Simplifier les labels d'onglets sur mobile (icones seules ou texte court)
+**Solution** : Utiliser les noms de roles corrects.
 
 ```typescript
-<div className="overflow-x-auto -mx-4 px-4">
-  <TabsList className="w-full md:w-auto">
-    <TabsTrigger value="overview">
-      <span className="hidden sm:inline">Vue d'ensemble</span>
-      <span className="sm:hidden">Vue</span>
-    </TabsTrigger>
-    ...
-  </TabsList>
-</div>
+// Ligne 240 - Avant
+if (role === 'supervisor' || role === 'admin') {
+
+// Apres
+if (role === 'superviseur' || role === 'administrateur') {
 ```
 
-### 3. Corriger StockTransferManager.tsx pour mobile
+### 1.3 Fichier `src/components/supervisor/SupervisorRevenueTracking.tsx`
 
-**Fichier**: `src/components/supervisor/StockTransferManager.tsx`
+**Probleme** : `RevenueDeposit` dans le hook ne definit pas la propriete `status`.
 
-Remplacer les tableaux par des cartes empilees sur mobile:
+**Solution** : Ajouter `status` au type `RevenueDeposit` dans `useSupervisorRevenues.tsx`.
 
 ```typescript
-{/* Vue mobile: cartes empilees */}
-<div className="block md:hidden space-y-2">
-  {data.items.map((item) => (
-    <div key={item.id} className="flex justify-between items-center p-3 bg-secondary/20 rounded-lg">
-      <div>
-        <p className="font-medium text-sm">{item.product?.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {formatCurrency(item.quantity * (item.product?.price || 0))} F
-        </p>
-      </div>
-      <span className={cn("font-bold text-lg", ...)}>
-        {item.quantity}
-      </span>
-    </div>
-  ))}
-</div>
-
-{/* Vue desktop: tableau */}
-<div className="hidden md:block">
-  <Table>...</Table>
-</div>
+// Dans src/hooks/useSupervisorRevenues.tsx, ligne 19-27
+interface RevenueDeposit {
+  id: string;
+  deposited_by: string;
+  total_amount: number;
+  revenues_count: number;
+  deposited_at: string;
+  notes: string | null;
+  status: string;  // AJOUTER CETTE LIGNE
+  created_at: string;
+}
 ```
 
-### 4. Ameliorer le composant Table pour mobile
+### 1.4 Fichier `src/components/supervisor/ManualWithdrawalDialog.tsx`
 
-**Fichier**: `src/components/ui/table.tsx`
+**Probleme** : La fonction RPC `manual_withdrawal_from_delivery` n'existe pas dans les types.
 
-Ajouter une protection contre la compression excessive:
-
-```typescript
-const TableCell = React.forwardRef<...>(({ className, ...props }, ref) => (
-  <td 
-    ref={ref} 
-    className={cn(
-      "p-4 align-middle [&:has([role=checkbox])]:pr-0",
-      "whitespace-nowrap", // Empecher le texte vertical
-      className
-    )} 
-    {...props} 
-  />
-));
-```
-
-### 5. Corriger les boutons d'action en mode mobile
-
-**Fichier**: `src/components/supervisor/StockTransferManager.tsx`
-
-Les boutons "Transferer vers livreur" et "Retour vers boutique" doivent s'empiler verticalement sur mobile:
+**Solution** : Utiliser un type assertion pour contourner la verification de type.
 
 ```typescript
-<div className="flex flex-col sm:flex-row gap-3">
-  <Button className="w-full sm:w-auto bg-success hover:bg-success/90">
-    ...
-  </Button>
-  <Button variant="outline" className="w-full sm:w-auto">
-    ...
-  </Button>
-</div>
+// Ligne 77 - Avant
+const { data, error } = await supabase.rpc("manual_withdrawal_from_delivery", {...});
+
+// Apres
+const { data, error } = await (supabase.rpc as any)("manual_withdrawal_from_delivery", {...});
 ```
 
 ---
 
-## Fichiers a Modifier
+## Partie 2 : Configuration de la langue francaise
+
+### 2.1 Fichier `index.html`
+
+Ajouter les balises meta et attributs pour desactiver la traduction automatique :
+
+```html
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Language" content="fr" />
+  <meta name="google" content="notranslate" />
+  <!-- autres meta... -->
+</head>
+<body class="notranslate" translate="no">
+  <div id="root"></div>
+</body>
+```
+
+### 2.2 Fichier `src/index.css`
+
+Ajouter une regle CSS pour renforcer la desactivation :
+
+```css
+/* Empecher la traduction automatique des navigateurs */
+.notranslate {
+  translate: no;
+}
+```
+
+---
+
+## Resume des fichiers a modifier
 
 | Fichier | Modification |
-|---------|-------------|
-| `src/components/ui/tabs.tsx` | Ajouter scroll horizontal sur TabsList |
-| `src/pages/Stock.tsx` | Wrapper TabsList + labels courts sur mobile |
-| `src/components/supervisor/StockTransferManager.tsx` | Cartes empilees au lieu de tableaux sur mobile + boutons empiles |
-| `src/components/ui/table.tsx` | Ajouter `whitespace-nowrap` sur TableCell |
-| `src/components/stock/StockTable.tsx` | Meme pattern: cartes sur mobile, table sur desktop |
+|---------|--------------|
+| `src/hooks/usePresence.tsx` | Corriger la requete pour obtenir les roles depuis `user_roles` |
+| `src/hooks/useNotifications.tsx` | Remplacer `'supervisor'`/`'admin'` par `'superviseur'`/`'administrateur'` |
+| `src/hooks/useSupervisorRevenues.tsx` | Ajouter `status: string` au type `RevenueDeposit` |
+| `src/components/supervisor/ManualWithdrawalDialog.tsx` | Utiliser type assertion pour l'appel RPC |
+| `index.html` | Ajouter meta Content-Language, notranslate |
+| `src/index.css` | Ajouter regle CSS `.notranslate` |
 
 ---
 
-## Impact Visuel Attendu
+## Impact attendu
 
-### Avant (probleme actuel)
-- Texte vertical illisible dans les tableaux
-- Onglets qui debordent de l'ecran
-- Interface difficile a utiliser sur telephone
-
-### Apres correction
-- Cartes lisibles sur mobile avec texte horizontal
-- Defilement horizontal fluide pour les onglets
-- Boutons pleine largeur faciles a toucher
-- Tableaux visibles uniquement sur desktop
-
----
-
-## Ordre d'Implementation
-
-1. **TabsList** - Correction du defilement horizontal (impact global)
-2. **TableCell** - Protection whitespace (impact global)
-3. **Stock.tsx** - Onglets adaptatifs
-4. **StockTransferManager.tsx** - Cartes mobiles + boutons
-5. **StockTable.tsx** - Meme adaptation
-
-Ces corrections rendront l'interface completement utilisable sur mobile sans casser l'affichage desktop.
-
+1. **Erreurs de build** : Toutes les 11 erreurs seront corrigees
+2. **Traduction automatique** : Les navigateurs ne tenteront plus de traduire l'interface, evitant les crashes React lies a la modification du DOM
+3. **Stabilite** : L'application sera plus stable pour les utilisateurs francophones
