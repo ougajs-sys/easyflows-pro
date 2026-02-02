@@ -231,12 +231,6 @@
 }
 
 @layer utilities {
-  /* Empêcher la traduction automatique des navigateurs */
-  .notranslate {
-    -webkit-transform: translateX(0);
-    transform: translateX(0);
-  }
-
   /* Scrollbar styling */
   .scrollbar-thin {
     scrollbar-width: thin;
