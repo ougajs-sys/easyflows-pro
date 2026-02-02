@@ -237,7 +237,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           console.log('New deposit created:', payload);
 
           // Notify supervisors and admins only
-          if (role === 'supervisor' || role === 'admin') {
+          if (role === 'superviseur' || role === 'administrateur') {
             // Fetch caller info
             const { data: profile } = await supabase
               .from('profiles')

@@ -78,12 +78,35 @@ export function usePresence() {
       
       if (allowedRoles.length === 0) return [];
 
-      // First, fetch all profiles matching the allowed roles
+      // First, fetch users with allowed roles from user_roles table
+      const { data: userRolesData, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("role", allowedRoles as any[]);
+
+      if (rolesError) {
+        console.error("Error fetching user roles:", rolesError);
+        throw rolesError;
+      }
+
+      if (!userRolesData || userRolesData.length === 0) return [];
+
+      // Create a map of user_id -> role
+      const userRoleMap = new Map<string, string>();
+      userRolesData.forEach(ur => {
+        if (ur.user_id !== user.id) {
+          userRoleMap.set(ur.user_id, ur.role);
+        }
+      });
+
+      const allowedUserIds = Array.from(userRoleMap.keys());
+      if (allowedUserIds.length === 0) return [];
+
+      // Fetch profiles for these users
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, full_name, avatar_url, role")
-        .in("role", allowedRoles)
-        .neq("id", user.id);
+        .select("id, full_name, avatar_url")
+        .in("id", allowedUserIds);
 
       if (profilesError) {
         console.error("Error fetching profiles:", profilesError);
@@ -93,11 +116,10 @@ export function usePresence() {
       if (!profiles || profiles.length === 0) return [];
 
       // Get presence data for these users
-      const userIds = profiles.map(p => p.id);
       const { data: presenceData, error: presenceError } = await (supabase
         .from("user_presence") as any)
         .select("user_id, role, last_seen_at, updated_at")
-        .in("user_id", userIds);
+        .in("user_id", allowedUserIds);
 
       if (presenceError) {
         console.error("Error fetching presence:", presenceError);
@@ -118,14 +140,15 @@ export function usePresence() {
       const now = new Date().getTime();
       const allContacts: UserPresence[] = profiles.map((profile) => {
         const presence = presenceMap.get(profile.id);
+        const userRole = userRoleMap.get(profile.id) || "";
         const isOnline = presence 
           ? (now - new Date(presence.last_seen_at).getTime()) < ONLINE_THRESHOLD
           : false;
 
         return {
           user_id: profile.id,
-          role: profile.role,
-          last_seen_at: presence?.last_seen_at || new Date(0).toISOString(), // Use epoch time for users without presence
+          role: userRole,
+          last_seen_at: presence?.last_seen_at || new Date(0).toISOString(),
           updated_at: presence?.updated_at || new Date(0).toISOString(),
           is_online: isOnline,
           profile: {

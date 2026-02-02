@@ -74,7 +74,7 @@ export function ManualWithdrawalDialog({
       qty: number;
       withdrawalReason: string;
     }) => {
-      const { data, error } = await supabase.rpc("manual_withdrawal_from_delivery", {
+      const { data, error } = await (supabase.rpc as any)("manual_withdrawal_from_delivery", {
         p_delivery_person_id: deliveryPersonId,
         p_product_id: productId,
         p_quantity: qty,
