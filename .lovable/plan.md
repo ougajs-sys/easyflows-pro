@@ -1,112 +1,160 @@
 
+# Plan : Correction de la Fonction check_stock_alerts
 
-# Plan : Solution Definitive pour la Synchronisation Temps Reel
+## Probleme Confirme
 
-## Diagnostic Confirme
-
-L'analyse de la base de donnees revele que les tables suivantes sont **manquantes** dans la publication Supabase Realtime :
-
-| Table | Impact |
-|-------|--------|
-| `clients` | Les modifications de clients ne declenchent pas de rafraichissement |
-| `delivery_persons` | Les changements de statut livreur ne sont pas synchronises |
-| `products` | Les mises a jour de stock ne sont pas propagees en temps reel |
-| `collected_revenues` | Les recettes collectees ne s'affichent pas instantanement |
-| `revenue_deposits` | Les versements ne se mettent pas a jour en temps reel |
-
-## Solution en 3 Etapes
-
-### Etape 1 : Migration SQL - Ajouter les tables manquantes a Realtime
-
-Creer une migration pour ajouter les 5 tables manquantes a la publication `supabase_realtime` :
+La fonction `check_stock_alerts()` utilise une syntaxe `ON CONFLICT` incompatible avec les index partiels PostgreSQL :
 
 ```sql
--- Ajouter les tables manquantes a la publication Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.clients;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.delivery_persons;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.collected_revenues;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.revenue_deposits;
+-- Ligne 147 - PROBLEME
+ON CONFLICT (product_id, alert_type) WHERE delivery_person_id IS NULL
+
+-- Ligne 178 - PROBLEME  
+ON CONFLICT (product_id, alert_type, delivery_person_id)
 ```
 
-### Etape 2 : Optimiser useDeliveryPerson.tsx - Supprimer la double souscription
+Les index existants sont des **index partiels** avec clause `WHERE`, ce qui empeche l'utilisation de `ON CONFLICT` standard.
 
-Actuellement, il y a **deux souscriptions Realtime concurrentes** pour les livreurs :
-1. Dans `useDeliveryPerson.tsx` (lignes 141-182) - souscription locale
-2. Dans `Delivery.tsx` via `useRealtimeSync` - souscription centralisee
+## Solution
 
-**Solution** : Supprimer la souscription locale dans `useDeliveryPerson.tsx` et s'appuyer uniquement sur `useRealtimeSync` qui gere deja tout.
+Creer une migration SQL qui remplace la logique `ON CONFLICT` par une approche `SELECT + UPDATE/INSERT` explicite.
 
-**Modification de `useDeliveryPerson.tsx`** :
-- Supprimer le bloc `useEffect` qui cree une souscription Realtime (lignes 140-182)
-- Le hook `useRealtimeSync` dans `Delivery.tsx` gere deja les invalidations avec les bons query keys
+### Migration SQL a Appliquer
 
-### Etape 3 : Ajouter les tables supplementaires a useRealtimeSync
+```sql
+-- Corriger la fonction check_stock_alerts pour utiliser INSERT/UPDATE explicite
+-- au lieu de ON CONFLICT qui ne fonctionne pas avec les index partiels
 
-Mettre a jour les appels a `useRealtimeSync` pour inclure les nouvelles tables :
-
-**Dans `CallerDashboard.tsx`** :
-```typescript
-useRealtimeSync({
-  tables: ['orders', 'payments', 'clients'],  // Ajouter 'clients'
-  debug: false,
-});
+CREATE OR REPLACE FUNCTION public.check_stock_alerts()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_threshold RECORD;
+  v_severity varchar;
+  v_existing_alert_id uuid;
+BEGIN
+  -- Verifier le stock principal (warehouse)
+  IF TG_TABLE_NAME = 'products' THEN
+    SELECT * INTO v_threshold
+    FROM stock_thresholds
+    WHERE product_id = NEW.id AND location_type = 'warehouse';
+    
+    IF FOUND THEN
+      IF NEW.stock <= v_threshold.critical_threshold THEN
+        v_severity := 'critical';
+      ELSIF NEW.stock <= v_threshold.warning_threshold THEN
+        v_severity := 'warning';
+      ELSE
+        -- Stock OK, supprimer l'alerte existante
+        DELETE FROM stock_alerts 
+        WHERE product_id = NEW.id 
+          AND alert_type = 'warehouse' 
+          AND is_acknowledged = false;
+        RETURN NEW;
+      END IF;
+      
+      -- Chercher une alerte existante pour warehouse
+      SELECT id INTO v_existing_alert_id
+      FROM stock_alerts
+      WHERE product_id = NEW.id 
+        AND alert_type = 'warehouse'
+        AND delivery_person_id IS NULL;
+      
+      IF v_existing_alert_id IS NOT NULL THEN
+        -- Mettre a jour l'alerte existante
+        UPDATE stock_alerts
+        SET current_quantity = NEW.stock,
+            severity = v_severity,
+            updated_at = now()
+        WHERE id = v_existing_alert_id;
+      ELSE
+        -- Creer une nouvelle alerte
+        INSERT INTO stock_alerts (product_id, alert_type, threshold, current_quantity, severity)
+        VALUES (NEW.id, 'warehouse', v_threshold.warning_threshold, NEW.stock, v_severity);
+      END IF;
+    END IF;
+  END IF;
+  
+  -- Verifier le stock livreur
+  IF TG_TABLE_NAME = 'delivery_person_stock' THEN
+    SELECT * INTO v_threshold
+    FROM stock_thresholds
+    WHERE product_id = NEW.product_id AND location_type = 'delivery_person';
+    
+    IF FOUND THEN
+      IF NEW.quantity <= v_threshold.critical_threshold THEN
+        v_severity := 'critical';
+      ELSIF NEW.quantity <= v_threshold.warning_threshold THEN
+        v_severity := 'warning';
+      ELSE
+        -- Stock OK, supprimer l'alerte existante
+        DELETE FROM stock_alerts 
+        WHERE product_id = NEW.product_id 
+          AND delivery_person_id = NEW.delivery_person_id 
+          AND is_acknowledged = false;
+        RETURN NEW;
+      END IF;
+      
+      -- Chercher une alerte existante pour ce livreur
+      SELECT id INTO v_existing_alert_id
+      FROM stock_alerts
+      WHERE product_id = NEW.product_id 
+        AND alert_type = 'delivery_person'
+        AND delivery_person_id = NEW.delivery_person_id;
+      
+      IF v_existing_alert_id IS NOT NULL THEN
+        -- Mettre a jour l'alerte existante
+        UPDATE stock_alerts
+        SET current_quantity = NEW.quantity,
+            severity = v_severity,
+            updated_at = now()
+        WHERE id = v_existing_alert_id;
+      ELSE
+        -- Creer une nouvelle alerte
+        INSERT INTO stock_alerts (product_id, alert_type, delivery_person_id, threshold, current_quantity, severity)
+        VALUES (NEW.product_id, 'delivery_person', NEW.delivery_person_id, v_threshold.warning_threshold, NEW.quantity, v_severity);
+      END IF;
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$function$;
 ```
 
-**Dans `Delivery.tsx`** :
-```typescript
-useRealtimeSync({
-  tables: ['orders', 'payments', 'delivery_persons', 'products'],  // Ajouter 'products'
-  deliveryPersonId: deliveryProfile?.id,
-  debug: false,
-});
-```
+## Resume
 
----
-
-## Resume des Fichiers a Modifier
-
-| Fichier | Action |
+| Element | Action |
 |---------|--------|
-| **Migration SQL** | Ajouter 5 tables a `supabase_realtime` |
-| `src/hooks/useDeliveryPerson.tsx` | Supprimer le bloc useEffect de souscription Realtime (lignes 140-182) |
-| `src/components/caller/CallerDashboard.tsx` | Ajouter `'clients'` aux tables surveillees |
-| `src/pages/Delivery.tsx` | Ajouter `'products'` aux tables surveillees |
+| **Fichier** | Nouvelle migration SQL |
+| **Fonction** | `check_stock_alerts()` |
+| **Changement** | Remplacer `ON CONFLICT` par `SELECT + IF/UPDATE/INSERT` |
 
----
+## Resultat
 
-## Resultat Attendu
+Apres cette migration, les administrateurs pourront :
 
-Apres ces modifications :
+1. Transferer du stock vers les livreurs
+2. Retourner du stock vers la boutique
+3. Effectuer des retraits manuels de stock
+4. Les alertes de stock continueront de fonctionner correctement
 
-1. **100% des tables critiques** seront dans la publication Realtime
-2. **Plus de double souscription** - code plus propre et performant
-3. **Synchronisation instantanee** sur tous les tableaux de bord :
-   - Appelant : commandes, paiements, clients
-   - Livreur : commandes, statut livreur, stock produits
-   - Superviseur : toutes les tables
+## Flux Corrige
 
 ```
-+------------------+     +------------------+     +------------------+
-|   APPELANT       |     |   LIVREUR        |     |   SUPERVISEUR    |
-+------------------+     +------------------+     +------------------+
-| orders        ✓  |     | orders        ✓  |     | orders        ✓  |
-| payments      ✓  |     | payments      ✓  |     | payments      ✓  |
-| clients       ✓  |     | delivery_persons |     | clients       ✓  |
-|                  |     | products      ✓  |     | products      ✓  |
-|                  |     |                  |     | delivery_persons |
-|                  |     |                  |     | revenues      ✓  |
-+------------------+     +------------------+     +------------------+
-        ↓                        ↓                        ↓
-        +------------------------+------------------------+
-                                 |
-                    SUPABASE REALTIME PUBLICATION
-                    (toutes les tables configurees)
+AVANT (Erreur)                    APRES (Corrige)
+================                  ================
+UPDATE stock                      UPDATE stock
+       |                                 |
+TRIGGER check_stock_alerts        TRIGGER check_stock_alerts
+       |                                 |
+INSERT ... ON CONFLICT            SELECT id FROM stock_alerts
+       |                                 |
+ERROR: no constraint match!       IF EXISTS -> UPDATE
+                                  ELSE -> INSERT
+                                         |
+                                  SUCCES!
 ```
-
----
-
-## Priorite
-
-**HAUTE** - Ces modifications garantissent une synchronisation temps reel a 100% sur tous les espaces utilisateurs.
-
