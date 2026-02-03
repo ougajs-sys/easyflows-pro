@@ -48,10 +48,18 @@ export function FloatingChat() {
   const [newMessage, setNewMessage] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Get online users based on role
+  // Determine if chat should be shown BEFORE calling dependent hooks
+  // This ensures hooks are always called in the same order
+  const shouldShow = !!user && 
+    location.pathname !== '/auth' && 
+    !location.pathname.startsWith('/embed');
+
+  // Get online users based on role - ALWAYS call this hook
   const { onlineUsers, isLoading: presenceLoading } = usePresence();
 
-  // Get DM messages and functionality
+  // Get DM messages and functionality - ALWAYS call this hook
+  // Pass undefined when not showing to disable queries
+  const contactId = shouldShow ? selectedContact?.user_id : undefined;
   const {
     messages,
     messagesLoading,
@@ -60,20 +68,22 @@ export function FloatingChat() {
     markAsRead,
     unreadCounts,
     totalUnread,
-  } = useDirectMessages(selectedContact?.user_id);
+  } = useDirectMessages(contactId);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom - ALWAYS call this hook
   useEffect(() => {
+    if (!shouldShow) return;
     if (scrollAreaRef.current) {
       const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollElement) {
         scrollElement.scrollTop = scrollElement.scrollHeight;
       }
     }
-  }, [messages]);
+  }, [messages, shouldShow]);
 
-  // Mark as read when viewing contact - only if there are unread messages
+  // Mark as read when viewing contact - ALWAYS call this hook
   useEffect(() => {
+    if (!shouldShow) return;
     if (selectedContact?.user_id) {
       const unreadCount = unreadCounts[selectedContact.user_id] || 0;
       if (unreadCount > 0) {
@@ -84,10 +94,10 @@ export function FloatingChat() {
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [selectedContact?.user_id, unreadCounts, markAsRead]);
+  }, [selectedContact?.user_id, unreadCounts, markAsRead, shouldShow]);
 
-  // Don't show on auth page or embed pages
-  if (!user || location.pathname === '/auth' || location.pathname.startsWith('/embed')) {
+  // NOW we can do conditional rendering - all hooks have been called
+  if (!shouldShow) {
     return null;
   }
 
