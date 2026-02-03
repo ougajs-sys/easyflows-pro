@@ -105,49 +105,48 @@ export function useRoleRequests() {
     }) => {
       if (!user) throw new Error('Non authentifié');
 
-      // Update the request status
-      const { error: updateError } = await supabase
-        .from('role_requests')
-        .update({
-          status,
-          reviewed_by: user.id,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq('id', requestId);
-
-      if (updateError) throw updateError;
-
-      // If approved, update the user's role
+      // If approved, use the RPC function for atomic operation
       if (status === 'approved') {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .upsert({
-            user_id: userId,
-            role: requestedRole,
-          }, {
-            onConflict: 'user_id',
-          });
+        const { error: approveError } = await supabase.rpc('approve_role_request', {
+          p_request_id: requestId,
+          p_reviewer_id: user.id,
+        });
 
-        if (roleError) throw roleError;
+        if (approveError) throw approveError;
 
         // If the role is livreur, create a delivery_persons entry
         if (requestedRole === 'livreur') {
-          // Use upsert to avoid duplicate key errors
-          const { error: dpError } = await supabase
+          // Check if entry already exists
+          const { data: existingDp } = await supabase
             .from('delivery_persons')
-            .upsert({
-              user_id: userId,
-              status: 'offline',
-              is_active: true,
-            }, {
-              onConflict: 'user_id',
-            });
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
 
-          if (dpError) {
-            console.error('Error creating delivery_persons entry:', dpError);
-            throw dpError;
+          if (!existingDp) {
+            const { error: dpError } = await supabase
+              .from('delivery_persons')
+              .insert({
+                user_id: userId,
+                status: 'offline',
+                is_active: true,
+              });
+
+            if (dpError) {
+              console.error('Error creating delivery_persons entry:', dpError);
+              // Non-blocking error - the role is already assigned
+            }
           }
         }
+      } else {
+        // For rejection, use the reject RPC function
+        const { error: rejectError } = await supabase.rpc('reject_role_request', {
+          p_request_id: requestId,
+          p_reviewer_id: user.id,
+          p_reason: 'Demande rejetée par administrateur',
+        });
+
+        if (rejectError) throw rejectError;
       }
     },
     onSuccess: () => {
