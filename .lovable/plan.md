@@ -1,139 +1,363 @@
 
-# Plan : Corriger les erreurs de build et renforcer la configuration de langue
+# Plan : Reorganisation du Tableau de Bord Superviseur et de l'Espace Commandes
 
-## Contexte
+## Objectif
 
-L'application a actuellement **11 erreurs de build** qui empechent son fonctionnement. Ces erreurs sont liees a des problemes de typage TypeScript. De plus, nous devons ajouter les protections contre les traducteurs automatiques.
+Transformer l'architecture des pages superviseur :
+- **Tableau de bord** : Espace de suivi des indicateurs (KPI, performances, statistiques)
+- **Espace Commandes** : Espace operationnel (distribution, gestion, actions sur les commandes)
+
+## Corrections Prealables
+
+### Erreur de Build a Corriger
+
+Le fichier `src/hooks/useOrders.tsx` contient une erreur de typage :
+
+```text
+error TS2352: Type 'delivery_person.profile' is incompatible
+"could not find the relation between delivery_persons and profiles"
+```
+
+**Cause** : La table `delivery_persons` n'a pas de relation directe avec `profiles` dans la base de donnees. La requete imbriquee `profile:profiles(full_name)` echoue.
+
+**Solution** : Modifier la requete pour recuperer les profils separement, comme fait dans `ConfirmedOrdersDispatch.tsx` et `RecentOrders.tsx`.
 
 ---
 
-## Partie 1 : Corrections des erreurs de build (Prioritaire)
+## Modifications a Effectuer
 
-### 1.1 Fichier `src/hooks/usePresence.tsx`
+### 1. Fichier `src/hooks/useOrders.tsx`
 
-**Probleme** : La table `profiles` ne contient pas de colonne `role`. Le role est stocke dans la table `user_roles`.
-
-**Solution** : Modifier la requete pour joindre `user_roles` ou utiliser une sous-requete.
-
+**Avant (ligne 28-39)** :
 ```typescript
-// Ligne 82-86 - Avant
-const { data: profiles, error: profilesError } = await supabase
-  .from("profiles")
-  .select("id, full_name, avatar_url, role")
-  .in("role", allowedRoles)
-  .neq("id", user.id);
-
-// Apres - Utiliser user_roles pour le role
-const { data: userRolesData } = await supabase
-  .from("user_roles")
-  .select("user_id, role")
-  .in("role", allowedRoles);
-
-const allowedUserIds = (userRolesData || []).map(ur => ur.user_id);
-
-const { data: profiles, error: profilesError } = await supabase
-  .from("profiles")
-  .select("id, full_name, avatar_url")
-  .in("id", allowedUserIds)
-  .neq("id", user.id);
+const { data, error } = await supabase
+  .from('orders')
+  .select(`
+    *,
+    client:clients(id, full_name, phone),
+    product:products(id, name, price),
+    delivery_person:delivery_persons(id, user_id, status, profile:profiles(full_name))
+  `)
 ```
 
-### 1.2 Fichier `src/hooks/useNotifications.tsx`
-
-**Probleme** : Comparaison avec `'supervisor'` et `'admin'` au lieu des roles francais.
-
-**Solution** : Utiliser les noms de roles corrects.
-
+**Apres** :
 ```typescript
-// Ligne 240 - Avant
-if (role === 'supervisor' || role === 'admin') {
+// Etape 1: Recuperer les commandes avec delivery_persons (sans profiles)
+const { data: ordersData, error } = await supabase
+  .from('orders')
+  .select(`
+    *,
+    client:clients(id, full_name, phone),
+    product:products(id, name, price),
+    delivery_person:delivery_persons(id, user_id, status)
+  `)
+  .order('created_at', { ascending: false });
 
-// Apres
-if (role === 'superviseur' || role === 'administrateur') {
+if (error) throw error;
+
+// Etape 2: Recuperer les profils des livreurs separement
+const deliveryUserIds = ordersData
+  ?.filter(o => o.delivery_person?.user_id)
+  .map(o => o.delivery_person!.user_id) || [];
+
+let profilesMap: Record<string, string> = {};
+if (deliveryUserIds.length > 0) {
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', [...new Set(deliveryUserIds)]);
+
+  profilesMap = profiles?.reduce((acc, p) => {
+    acc[p.id] = p.full_name || 'Inconnu';
+    return acc;
+  }, {} as Record<string, string>) || {};
+}
+
+// Etape 3: Fusionner les donnees
+return ordersData?.map(order => ({
+  ...order,
+  delivery_person: order.delivery_person ? {
+    ...order.delivery_person,
+    profile: order.delivery_person.user_id 
+      ? { full_name: profilesMap[order.delivery_person.user_id] || null }
+      : null
+  } : null
+})) as OrderWithRelations[];
 ```
 
-### 1.3 Fichier `src/components/supervisor/SupervisorRevenueTracking.tsx`
+---
 
-**Probleme** : `RevenueDeposit` dans le hook ne definit pas la propriete `status`.
+### 2. Fichier `src/pages/SupervisorDashboard.tsx`
 
-**Solution** : Ajouter `status` au type `RevenueDeposit` dans `useSupervisorRevenues.tsx`.
+**Retirer les composants operationnels** :
+- Supprimer `ConfirmedOrdersDispatch`
+- Supprimer `RecentOrders`
 
+**Nouvelle structure** :
 ```typescript
-// Dans src/hooks/useSupervisorRevenues.tsx, ligne 19-27
-interface RevenueDeposit {
-  id: string;
-  deposited_by: string;
-  total_amount: number;
-  revenues_count: number;
-  deposited_at: string;
-  notes: string | null;
-  status: string;  // AJOUTER CETTE LIGNE
-  created_at: string;
+import React from "react";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { DeliveryPerformance } from "@/components/supervisor/DeliveryPerformance";
+import { CallerPerformance } from "@/components/supervisor/CallerPerformance";
+import { SalesSummary } from "@/components/supervisor/SalesSummary";
+import { SupervisorStats } from "@/components/supervisor/SupervisorStats";
+import { DeliveryStatus } from "@/components/dashboard/DeliveryStatus";
+import { StockOverviewPanel } from "@/components/supervisor/StockOverviewPanel";
+import { ConnectedWorkers } from "@/components/supervisor/ConnectedWorkers";
+
+export default function SupervisorDashboard() {
+  return (
+    <DashboardLayout>
+      {/* En-tete */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">
+          <span className="text-gradient">Tableau de Bord</span> Superviseur
+        </h1>
+        <p className="text-muted-foreground">
+          Suivi des indicateurs et performances
+        </p>
+      </div>
+
+      {/* Statistiques */}
+      <SupervisorStats />
+
+      {/* Travailleurs connectes */}
+      <div className="mt-6">
+        <ConnectedWorkers />
+      </div>
+
+      {/* Vue Stock */}
+      <div className="mt-6">
+        <StockOverviewPanel />
+      </div>
+
+      {/* Grille Performances */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <DeliveryPerformance />
+        <DeliveryStatus />
+      </div>
+
+      {/* Performance Appelants */}
+      <div className="mt-6">
+        <CallerPerformance />
+      </div>
+
+      {/* Resume Ventes */}
+      <div className="mt-6">
+        <SalesSummary />
+      </div>
+    </DashboardLayout>
+  );
 }
 ```
 
-### 1.4 Fichier `src/components/supervisor/ManualWithdrawalDialog.tsx`
-
-**Probleme** : La fonction RPC `manual_withdrawal_from_delivery` n'existe pas dans les types.
-
-**Solution** : Utiliser un type assertion pour contourner la verification de type.
-
-```typescript
-// Ligne 77 - Avant
-const { data, error } = await supabase.rpc("manual_withdrawal_from_delivery", {...});
-
-// Apres
-const { data, error } = await (supabase.rpc as any)("manual_withdrawal_from_delivery", {...});
-```
-
 ---
 
-## Partie 2 : Configuration de la langue francaise
+### 3. Fichier `src/pages/Orders.tsx`
 
-### 2.1 Fichier `index.html`
+**Ajouter les composants operationnels deplacent du tableau de bord** :
+- Ajouter `ConfirmedOrdersDispatch` (commandes a distribuer)
+- Ajouter `RecentOrders` (commandes recentes avec actions rapides)
 
-Ajouter les balises meta et attributs pour desactiver la traduction automatique :
+**Nouvelle structure** :
+```typescript
+import { useState } from 'react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { OrderForm } from '@/components/orders/OrderForm';
+import { OrdersTable } from '@/components/orders/OrdersTable';
+import { OrderStats } from '@/components/orders/OrderStats';
+import { ConfirmedOrdersDispatch } from '@/components/supervisor/ConfirmedOrdersDispatch';
+import { RecentOrders } from '@/components/supervisor/RecentOrders';
+import { Plus, Search, Send, Clock, List } from 'lucide-react';
+import { Database } from '@/integrations/supabase/types';
+import { useAuth } from '@/hooks/useAuth';
 
-```html
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Language" content="fr" />
-  <meta name="google" content="notranslate" />
-  <!-- autres meta... -->
-</head>
-<body class="notranslate" translate="no">
-  <div id="root"></div>
-</body>
-```
+type OrderStatus = Database['public']['Enums']['order_status'];
 
-### 2.2 Fichier `src/index.css`
+export default function Orders() {
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+  const [activeTab, setActiveTab] = useState('dispatch');
+  const { role } = useAuth();
 
-Ajouter une regle CSS pour renforcer la desactivation :
+  const isSupervisor = role === 'superviseur' || role === 'administrateur';
 
-```css
-/* Empecher la traduction automatique des navigateurs */
-.notranslate {
-  translate: no;
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* En-tete */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {isSupervisor ? 'Gestion des Commandes' : 'Commandes'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isSupervisor 
+                ? 'Distribuez et gerez les commandes en temps reel' 
+                : 'Gerez les commandes et suivez les livraisons'}
+            </p>
+          </div>
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouvelle commande
+          </Button>
+        </div>
+
+        {/* Statistiques */}
+        <OrderStats />
+
+        {/* Onglets pour superviseurs */}
+        {isSupervisor ? (
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="dispatch" className="gap-2">
+                <Send className="w-4 h-4" />
+                A Distribuer
+              </TabsTrigger>
+              <TabsTrigger value="recent" className="gap-2">
+                <Clock className="w-4 h-4" />
+                Recentes
+              </TabsTrigger>
+              <TabsTrigger value="all" className="gap-2">
+                <List className="w-4 h-4" />
+                Toutes
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="dispatch" className="mt-6">
+              <ConfirmedOrdersDispatch />
+            </TabsContent>
+
+            <TabsContent value="recent" className="mt-6">
+              <RecentOrders />
+            </TabsContent>
+
+            <TabsContent value="all" className="mt-6 space-y-4">
+              {/* Filtres */}
+              <div className="flex gap-4">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher une commande..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as OrderStatus | 'all')}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filtrer par statut" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="pending">En attente</SelectItem>
+                    <SelectItem value="confirmed">Confirmees</SelectItem>
+                    <SelectItem value="in_transit">En livraison</SelectItem>
+                    <SelectItem value="delivered">Livrees</SelectItem>
+                    <SelectItem value="cancelled">Annulees</SelectItem>
+                    <SelectItem value="reported">Reportees</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <OrdersTable searchQuery={searchQuery} statusFilter={statusFilter} />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          /* Vue standard pour les appelants */
+          <>
+            <div className="flex gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher une commande..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as OrderStatus | 'all')}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filtrer par statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="confirmed">Confirmees</SelectItem>
+                  <SelectItem value="in_transit">En livraison</SelectItem>
+                  <SelectItem value="delivered">Livrees</SelectItem>
+                  <SelectItem value="cancelled">Annulees</SelectItem>
+                  <SelectItem value="reported">Reportees</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <OrdersTable searchQuery={searchQuery} statusFilter={statusFilter} />
+          </>
+        )}
+
+        <OrderForm open={isFormOpen} onOpenChange={setIsFormOpen} />
+      </div>
+    </DashboardLayout>
+  );
 }
 ```
 
 ---
 
-## Resume des fichiers a modifier
+## Resume des Changements
 
 | Fichier | Modification |
 |---------|--------------|
-| `src/hooks/usePresence.tsx` | Corriger la requete pour obtenir les roles depuis `user_roles` |
-| `src/hooks/useNotifications.tsx` | Remplacer `'supervisor'`/`'admin'` par `'superviseur'`/`'administrateur'` |
-| `src/hooks/useSupervisorRevenues.tsx` | Ajouter `status: string` au type `RevenueDeposit` |
-| `src/components/supervisor/ManualWithdrawalDialog.tsx` | Utiliser type assertion pour l'appel RPC |
-| `index.html` | Ajouter meta Content-Language, notranslate |
-| `src/index.css` | Ajouter regle CSS `.notranslate` |
+| `src/hooks/useOrders.tsx` | Corriger la requete pour recuperer les profils livreurs separement (fix erreur de build) |
+| `src/pages/SupervisorDashboard.tsx` | Retirer `ConfirmedOrdersDispatch` et `RecentOrders` - focus sur les indicateurs |
+| `src/pages/Orders.tsx` | Ajouter onglets avec `ConfirmedOrdersDispatch`, `RecentOrders`, et table complete pour superviseurs |
 
 ---
 
-## Impact attendu
+## Nouvelle Architecture
 
-1. **Erreurs de build** : Toutes les 11 erreurs seront corrigees
-2. **Traduction automatique** : Les navigateurs ne tenteront plus de traduire l'interface, evitant les crashes React lies a la modification du DOM
-3. **Stabilite** : L'application sera plus stable pour les utilisateurs francophones
+```text
+TABLEAU DE BORD SUPERVISEUR (/supervisor)
++------------------------------------------+
+|  Indicateurs (SupervisorStats)           |
+|  Travailleurs connectes                  |
+|  Vue Stock                               |
+|  Performances Livreurs / Statut          |
+|  Performances Appelants                  |
+|  Resume Ventes                           |
++------------------------------------------+
+
+ESPACE COMMANDES (/orders) - SUPERVISEUR
++------------------------------------------+
+|  [A Distribuer] [Recentes] [Toutes]      |
+|                                          |
+|  Onglet 1: Commandes confirmees          |
+|            a assigner aux livreurs       |
+|                                          |
+|  Onglet 2: Commandes recentes            |
+|            avec actions rapides          |
+|                                          |
+|  Onglet 3: Tableau complet               |
+|            avec recherche/filtres        |
++------------------------------------------+
+
+ESPACE COMMANDES (/orders) - APPELANT
++------------------------------------------+
+|  Statistiques                            |
+|  Recherche + Filtres                     |
+|  Tableau des commandes                   |
++------------------------------------------+
+```
+
+---
+
+## Impact
+
+1. **Tableau de bord** devient un espace de monitoring pur (KPIs, graphiques, performances)
+2. **Espace Commandes** devient le centre operationnel pour la distribution et la gestion
+3. **Experience utilisateur** amelioree avec des onglets dedies pour chaque action
+4. **Erreur de build** corrigee en modifiant la requete Supabase
