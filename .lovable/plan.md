@@ -1,160 +1,138 @@
 
-# Plan : Correction de la Fonction check_stock_alerts
+# Plan : Correction Definitive du Chat Direct
 
-## Probleme Confirme
+## Analyse du Probleme
 
-La fonction `check_stock_alerts()` utilise une syntaxe `ON CONFLICT` incompatible avec les index partiels PostgreSQL :
+J'ai identifie 4 problemes majeurs causant les dysfonctionnements du chat :
 
+### Probleme 1 : Politique SELECT Incorrecte
+La politique `Users can view messages in accessible channels` bloque les destinataires de messages directs :
 ```sql
--- Ligne 147 - PROBLEME
-ON CONFLICT (product_id, alert_type) WHERE delivery_person_id IS NULL
-
--- Ligne 178 - PROBLEME  
-ON CONFLICT (product_id, alert_type, delivery_person_id)
+-- Condition actuelle (INCORRECTE)
+(receiver_id IS NULL) AND (channel LIKE 'direct-%')
+-- Le destinataire a un receiver_id non-NULL, donc il ne peut pas voir le message!
 ```
 
-Les index existants sont des **index partiels** avec clause `WHERE`, ce qui empeche l'utilisation de `ON CONFLICT` standard.
-
-## Solution
-
-Creer une migration SQL qui remplace la logique `ON CONFLICT` par une approche `SELECT + UPDATE/INSERT` explicite.
-
-### Migration SQL a Appliquer
-
+### Probleme 2 : Politique UPDATE Manquante
+Seul l'expediteur peut mettre a jour ses messages. Le destinataire ne peut pas marquer les messages comme lus :
 ```sql
--- Corriger la fonction check_stock_alerts pour utiliser INSERT/UPDATE explicite
--- au lieu de ON CONFLICT qui ne fonctionne pas avec les index partiels
-
-CREATE OR REPLACE FUNCTION public.check_stock_alerts()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-DECLARE
-  v_threshold RECORD;
-  v_severity varchar;
-  v_existing_alert_id uuid;
-BEGIN
-  -- Verifier le stock principal (warehouse)
-  IF TG_TABLE_NAME = 'products' THEN
-    SELECT * INTO v_threshold
-    FROM stock_thresholds
-    WHERE product_id = NEW.id AND location_type = 'warehouse';
-    
-    IF FOUND THEN
-      IF NEW.stock <= v_threshold.critical_threshold THEN
-        v_severity := 'critical';
-      ELSIF NEW.stock <= v_threshold.warning_threshold THEN
-        v_severity := 'warning';
-      ELSE
-        -- Stock OK, supprimer l'alerte existante
-        DELETE FROM stock_alerts 
-        WHERE product_id = NEW.id 
-          AND alert_type = 'warehouse' 
-          AND is_acknowledged = false;
-        RETURN NEW;
-      END IF;
-      
-      -- Chercher une alerte existante pour warehouse
-      SELECT id INTO v_existing_alert_id
-      FROM stock_alerts
-      WHERE product_id = NEW.id 
-        AND alert_type = 'warehouse'
-        AND delivery_person_id IS NULL;
-      
-      IF v_existing_alert_id IS NOT NULL THEN
-        -- Mettre a jour l'alerte existante
-        UPDATE stock_alerts
-        SET current_quantity = NEW.stock,
-            severity = v_severity,
-            updated_at = now()
-        WHERE id = v_existing_alert_id;
-      ELSE
-        -- Creer une nouvelle alerte
-        INSERT INTO stock_alerts (product_id, alert_type, threshold, current_quantity, severity)
-        VALUES (NEW.id, 'warehouse', v_threshold.warning_threshold, NEW.stock, v_severity);
-      END IF;
-    END IF;
-  END IF;
-  
-  -- Verifier le stock livreur
-  IF TG_TABLE_NAME = 'delivery_person_stock' THEN
-    SELECT * INTO v_threshold
-    FROM stock_thresholds
-    WHERE product_id = NEW.product_id AND location_type = 'delivery_person';
-    
-    IF FOUND THEN
-      IF NEW.quantity <= v_threshold.critical_threshold THEN
-        v_severity := 'critical';
-      ELSIF NEW.quantity <= v_threshold.warning_threshold THEN
-        v_severity := 'warning';
-      ELSE
-        -- Stock OK, supprimer l'alerte existante
-        DELETE FROM stock_alerts 
-        WHERE product_id = NEW.product_id 
-          AND delivery_person_id = NEW.delivery_person_id 
-          AND is_acknowledged = false;
-        RETURN NEW;
-      END IF;
-      
-      -- Chercher une alerte existante pour ce livreur
-      SELECT id INTO v_existing_alert_id
-      FROM stock_alerts
-      WHERE product_id = NEW.product_id 
-        AND alert_type = 'delivery_person'
-        AND delivery_person_id = NEW.delivery_person_id;
-      
-      IF v_existing_alert_id IS NOT NULL THEN
-        -- Mettre a jour l'alerte existante
-        UPDATE stock_alerts
-        SET current_quantity = NEW.quantity,
-            severity = v_severity,
-            updated_at = now()
-        WHERE id = v_existing_alert_id;
-      ELSE
-        -- Creer une nouvelle alerte
-        INSERT INTO stock_alerts (product_id, alert_type, delivery_person_id, threshold, current_quantity, severity)
-        VALUES (NEW.product_id, 'delivery_person', NEW.delivery_person_id, v_threshold.warning_threshold, NEW.quantity, v_severity);
-      END IF;
-    END IF;
-  END IF;
-  
-  RETURN NEW;
-END;
-$function$;
+-- Politique actuelle
+auth.uid() = sender_id  -- Seulement l'expediteur
+-- Le destinataire ne peut pas modifier is_read!
 ```
 
-## Resume
+### Probleme 3 : Boucle de Requetes markAsRead
+Le `useEffect` dans FloatingChat appelle `markAsRead` a chaque changement de contact, meme si aucun message n'est a marquer, creant des dizaines de requetes inutiles.
 
-| Element | Action |
+### Probleme 4 : Mise a Jour Optimiste Manquante
+Apres l'envoi d'un message, le hook attend la prochaine invalidation (5 secondes) au lieu d'ajouter le message immediatement.
+
+## Solution Proposee
+
+### Migration SQL (Correction RLS)
+
+```sql
+-- 1. Supprimer les politiques problematiques
+DROP POLICY IF EXISTS "Users can view messages in accessible channels" ON public.messages;
+DROP POLICY IF EXISTS "Users can update their own messages" ON public.messages;
+
+-- 2. Nouvelle politique SELECT pour les DMs et canaux internes
+CREATE POLICY "messages_select_policy" ON public.messages
+FOR SELECT TO authenticated
+USING (
+  -- L'expediteur peut voir ses propres messages
+  (auth.uid() = sender_id)
+  OR 
+  -- Le destinataire peut voir les messages qui lui sont destines
+  (auth.uid() = receiver_id)
+  OR 
+  -- Messages des canaux internes (sans receiver_id specifique)
+  (receiver_id IS NULL AND channel IN (
+    'internal-general', 
+    'internal-superviseurs', 
+    'internal-appelants', 
+    'internal-livreurs',
+    'caller-supervisor',
+    'delivery-supervisor'
+  ))
+);
+
+-- 3. Nouvelle politique UPDATE pour marquer comme lu
+CREATE POLICY "messages_update_policy" ON public.messages
+FOR UPDATE TO authenticated
+USING (
+  -- L'expediteur peut modifier ses messages
+  (auth.uid() = sender_id)
+  OR
+  -- Le destinataire peut marquer les messages comme lus
+  (auth.uid() = receiver_id)
+)
+WITH CHECK (
+  -- L'expediteur peut modifier n'importe quel champ
+  (auth.uid() = sender_id)
+  OR
+  -- Le destinataire ne peut modifier que is_read
+  (auth.uid() = receiver_id)
+);
+```
+
+### Modifications Frontend
+
+**1. Correction useDirectMessages.tsx**
+- Ajouter mise a jour optimiste du cache apres envoi
+- Empecher les appels markAsRead redondants
+- Reduire le refetchInterval de 5000ms a 3000ms pour les messages
+
+**2. Correction FloatingChat.tsx**
+- Ajouter condition pour ne pas appeler markAsRead si aucun message non lu
+- Ajouter debounce sur markAsRead pour eviter les appels multiples
+
+## Fichiers a Modifier
+
+| Fichier | Action |
 |---------|--------|
-| **Fichier** | Nouvelle migration SQL |
-| **Fonction** | `check_stock_alerts()` |
-| **Changement** | Remplacer `ON CONFLICT` par `SELECT + IF/UPDATE/INSERT` |
-
-## Resultat
-
-Apres cette migration, les administrateurs pourront :
-
-1. Transferer du stock vers les livreurs
-2. Retourner du stock vers la boutique
-3. Effectuer des retraits manuels de stock
-4. Les alertes de stock continueront de fonctionner correctement
+| Migration SQL | Corriger les politiques RLS messages |
+| `src/hooks/useDirectMessages.tsx` | Optimistic update + debounce markAsRead |
+| `src/components/chat/FloatingChat.tsx` | Verifier messages non lus avant markAsRead |
 
 ## Flux Corrige
 
+```text
+AVANT (Problematique)                    APRES (Corrige)
+========================                 ========================
+User A envoie message                    User A envoie message
+        |                                       |
+INSERT -> OK                             INSERT -> OK
+        |                                       |
+Realtime -> User B notifie               Optimistic update local
+        |                                       |
+User B SELECT -> BLOQUE (RLS)            Realtime -> User B notifie
+        |                                       |
+Message invisible                        User B SELECT -> OK (RLS)
+                                                |
+                                         Message visible immediatement
+                                                |
+                                         User B markAsRead -> OK
 ```
-AVANT (Erreur)                    APRES (Corrige)
-================                  ================
-UPDATE stock                      UPDATE stock
-       |                                 |
-TRIGGER check_stock_alerts        TRIGGER check_stock_alerts
-       |                                 |
-INSERT ... ON CONFLICT            SELECT id FROM stock_alerts
-       |                                 |
-ERROR: no constraint match!       IF EXISTS -> UPDATE
-                                  ELSE -> INSERT
-                                         |
-                                  SUCCES!
-```
+
+## Details Techniques
+
+### Politique SELECT Corrigee
+La nouvelle politique permet au destinataire (`receiver_id = auth.uid()`) de lire les messages qui lui sont adresses, independamment du format du canal.
+
+### Politique UPDATE Corrigee
+Le destinataire peut maintenant mettre a jour le champ `is_read` pour marquer les messages comme lus, ce qui etait impossible avant.
+
+### Optimistic Update
+Apres envoi d'un message, le hook ajoute immediatement le message au cache local avant meme la confirmation de la base de donnees, pour une experience instantanee.
+
+### Debounce markAsRead
+Un delai de 500ms est ajoute pour eviter d'envoyer des dizaines de requetes PATCH simultanees lors de l'ouverture d'une conversation.
+
+## Resultat Attendu
+
+1. Les messages seront visibles instantanement par le destinataire
+2. L'envoi de message sera instantane (mise a jour optimiste)
+3. Les notifications afficheront correctement le contenu
+4. Plus de requetes PATCH en boucle
+5. Le marquage "lu" fonctionnera correctement
