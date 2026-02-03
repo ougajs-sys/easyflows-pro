@@ -82,6 +82,7 @@ export function usePresence() {
       const { data: userRolesData, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role")
+         .eq("confirmed", true)
         .in("role", allowedRoles as any[]);
 
       if (rolesError) {
