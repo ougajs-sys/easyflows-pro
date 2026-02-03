@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -123,7 +123,7 @@ export function useDirectMessages(contactUserId?: string) {
     refetchInterval: 10000, // Refetch every 10 seconds
   });
 
-  // Send DM message mutation
+  // Send DM message mutation with optimistic update
   const sendMessageMutation = useMutation({
     mutationFn: async ({ receiverId, content }: { receiverId: string; content: string }) => {
       if (!user?.id) throw new Error("Not authenticated");
@@ -139,24 +139,66 @@ export function useDirectMessages(contactUserId?: string) {
         is_read: false,
       };
 
-      const { error } = await supabase.from("messages").insert(insertData);
+      const { data, error } = await supabase.from("messages").insert(insertData).select().single();
 
       if (error) {
         console.error("Error sending DM:", error);
         throw error;
       }
+      
+      return data;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["direct-messages", variables.receiverId] });
-      queryClient.invalidateQueries({ queryKey: ["direct-messages-unread"] });
+    onMutate: async ({ receiverId, content }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["direct-messages", receiverId] });
+
+      // Snapshot previous value
+      const previousMessages = queryClient.getQueryData<DirectMessage[]>(["direct-messages", receiverId]);
+
+      // Optimistically add the new message
+      const optimisticMessage: DirectMessage = {
+        id: `temp-${Date.now()}`,
+        sender_id: user!.id,
+        receiver_id: receiverId,
+        channel: getChannelName(user!.id, receiverId),
+        content,
+        message_type: "text",
+        order_id: null,
+        is_read: false,
+        created_at: new Date().toISOString(),
+        sender: {
+          id: user!.id,
+          full_name: "Moi",
+          avatar_url: null,
+        },
+      };
+
+      queryClient.setQueryData<DirectMessage[]>(
+        ["direct-messages", receiverId],
+        (old) => [...(old || []), optimisticMessage]
+      );
+
+      return { previousMessages };
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // Rollback on error
+      if (context?.previousMessages) {
+        queryClient.setQueryData(["direct-messages", variables.receiverId], context.previousMessages);
+      }
       console.error("Error sending DM:", error);
       toast.error("Erreur lors de l'envoi du message");
     },
+    onSettled: (_, __, variables) => {
+      // Always refetch after mutation settles
+      queryClient.invalidateQueries({ queryKey: ["direct-messages", variables.receiverId] });
+      queryClient.invalidateQueries({ queryKey: ["direct-messages-unread"] });
+    },
   });
 
-  // Mark messages as read mutation
+  // Track last marked contact to prevent duplicate calls
+  const [lastMarkedContact, setLastMarkedContact] = useState<string | null>(null);
+
+  // Mark messages as read mutation with debounce protection
   const markAsReadMutation = useMutation({
     mutationFn: async (senderId: string) => {
       if (!user?.id) return;
@@ -181,6 +223,16 @@ export function useDirectMessages(contactUserId?: string) {
       queryClient.invalidateQueries({ queryKey: ["direct-messages-unread"] });
     },
   });
+
+  // Debounced markAsRead function to prevent multiple rapid calls
+  const markAsRead = useCallback((senderId: string) => {
+    // Skip if already marked or no unread messages from this sender
+    if (lastMarkedContact === senderId) return;
+    if (!unreadCounts[senderId] || unreadCounts[senderId] === 0) return;
+    
+    setLastMarkedContact(senderId);
+    markAsReadMutation.mutate(senderId);
+  }, [lastMarkedContact, unreadCounts, markAsReadMutation]);
 
   // Real-time subscription for DM messages
   useEffect(() => {
@@ -233,13 +285,20 @@ export function useDirectMessages(contactUserId?: string) {
     };
   }, [user?.id, contactUserId, getChannelName, queryClient]);
 
+  // Reset lastMarkedContact when contact changes
+  useEffect(() => {
+    if (contactUserId) {
+      setLastMarkedContact(null);
+    }
+  }, [contactUserId]);
+
   return {
     messages,
     messagesLoading,
     sendMessage: (receiverId: string, content: string) => 
       sendMessageMutation.mutate({ receiverId, content }),
     sendingMessage: sendMessageMutation.isPending,
-    markAsRead: (senderId: string) => markAsReadMutation.mutate(senderId),
+    markAsRead,
     refetchMessages,
     unreadCounts,
     totalUnread: Object.values(unreadCounts).reduce((a, b) => a + b, 0),

@@ -72,12 +72,19 @@ export function FloatingChat() {
     }
   }, [messages]);
 
-  // Mark as read when viewing contact
+  // Mark as read when viewing contact - only if there are unread messages
   useEffect(() => {
     if (selectedContact?.user_id) {
-      markAsRead(selectedContact.user_id);
+      const unreadCount = unreadCounts[selectedContact.user_id] || 0;
+      if (unreadCount > 0) {
+        // Small delay to debounce rapid contact switches
+        const timeoutId = setTimeout(() => {
+          markAsRead(selectedContact.user_id);
+        }, 300);
+        return () => clearTimeout(timeoutId);
+      }
     }
-  }, [selectedContact?.user_id, markAsRead]);
+  }, [selectedContact?.user_id, unreadCounts, markAsRead]);
 
   // Don't show on auth page or embed pages
   if (!user || location.pathname === '/auth' || location.pathname.startsWith('/embed')) {
