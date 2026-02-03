@@ -5,11 +5,12 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // The time (in milliseconds) after data is considered stale
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      // Reduced to 30 seconds for more responsive updates
+      staleTime: 1000 * 30, // 30 seconds
       // The time (in milliseconds) after unused/inactive data is garbage collected
-      gcTime: 1000 * 60 * 60, // 1 hour
-      // Avoid refetching on navigation to keep transitions fast
-      refetchOnMount: false,
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      // IMPORTANT: Always refetch stale data on mount for fresh dashboard data
+      refetchOnMount: 'always',
       // Keep data fresh on tab focus or network recovery
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
