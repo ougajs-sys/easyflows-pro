@@ -233,15 +233,20 @@ export function usePresence() {
   };
 }
 
-// Helper function to determine allowed role pairs
+// Helper function to determine allowed role pairs based on hierarchy
 function getAllowedRoles(currentRole: string): string[] {
-  // Only superviseurs can chat with everyone
-  // Others can only chat with superviseurs
+  // Administrateur can communicate with EVERYONE
+  if (currentRole === "administrateur") {
+    return ["superviseur", "appelant", "livreur"];
+  }
+  
+  // Superviseur can communicate with their team AND administrateurs
   if (currentRole === "superviseur") {
     return ["appelant", "livreur", "administrateur"];
   }
   
-  if (currentRole === "appelant" || currentRole === "livreur" || currentRole === "administrateur") {
+  // Appelant and Livreur can only communicate with superviseurs
+  if (currentRole === "appelant" || currentRole === "livreur") {
     return ["superviseur"];
   }
   
