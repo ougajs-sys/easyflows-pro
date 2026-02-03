@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +90,12 @@ export function CallerOrders() {
   const [showPaymentInput, setShowPaymentInput] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+
+  // Activer la synchronisation en temps réel
+  useRealtimeSync({
+    tables: ['orders', 'payments', 'clients'],
+    debug: false,
+  });
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["caller-orders", user?.id],

@@ -15,44 +15,16 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { CallerRevenueSummary } from "./CallerRevenueSummary";
-import { useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export function CallerDashboard() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
-  // Set up real-time subscriptions for orders and payments
-  useEffect(() => {
-    if (!user?.id) return;
-
-    console.log('Setting up Realtime subscriptions for caller dashboard...');
-
-    // Subscribe to orders created by this caller
-    const ordersChannel = supabase
-      .channel('caller-orders-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: `created_by=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Order change for caller:', payload);
-          queryClient.invalidateQueries({ queryKey: ['caller-stats', user.id] });
-        }
-      )
-      .subscribe((status) => {
-        console.log('Caller orders channel status:', status);
-      });
-
-    return () => {
-      console.log('Cleaning up caller dashboard Realtime subscriptions...');
-      supabase.removeChannel(ordersChannel);
-    };
-  }, [user?.id, queryClient]);
+  // Utiliser le hook centralisé pour la synchronisation en temps réel
+  useRealtimeSync({
+    tables: ['orders', 'payments'],
+    debug: false,
+  });
 
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ["caller-stats", user?.id],

@@ -137,12 +137,12 @@ export function useDeliveryPerson() {
     enabled: !!deliveryProfile?.id,
   });
 
-  // Subscribe to real-time updates for orders
+  // Subscribe to real-time updates for orders - using precise query keys
   useEffect(() => {
     if (!deliveryProfile?.id) return;
 
     const channel = supabase
-      .channel('delivery-orders-realtime')
+      .channel(`delivery-orders-realtime-${deliveryProfile.id}`)
       .on(
         'postgres_changes',
         {
@@ -152,10 +152,26 @@ export function useDeliveryPerson() {
           filter: `delivery_person_id=eq.${deliveryProfile.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['delivery-orders'] });
-          queryClient.invalidateQueries({ queryKey: ['delivery-today'] });
-          queryClient.invalidateQueries({ queryKey: ['delivery-reported'] });
-          queryClient.invalidateQueries({ queryKey: ['delivery-cancelled'] });
+          // Use precise query keys with delivery person ID
+          queryClient.invalidateQueries({ queryKey: ['delivery-orders', deliveryProfile.id] });
+          queryClient.invalidateQueries({ queryKey: ['delivery-today', deliveryProfile.id] });
+          queryClient.invalidateQueries({ queryKey: ['delivery-reported', deliveryProfile.id] });
+          queryClient.invalidateQueries({ queryKey: ['delivery-cancelled', deliveryProfile.id] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+        },
+        (payload) => {
+          // Also listen for orders being assigned to this delivery person
+          const newData = payload.new as { delivery_person_id?: string } | null;
+          if (newData?.delivery_person_id === deliveryProfile.id) {
+            queryClient.invalidateQueries({ queryKey: ['delivery-orders', deliveryProfile.id] });
+          }
         }
       )
       .subscribe();

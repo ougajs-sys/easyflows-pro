@@ -8,6 +8,7 @@ import { DeliverySupplyRequest } from "@/components/delivery/DeliverySupplyReque
 import { InternalChat } from "@/components/chat/InternalChat";
 import { UserProfile } from "@/components/profile/UserProfile";
 import { useDeliveryPerson } from "@/hooks/useDeliveryPerson";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Loader2, AlertCircle, Truck } from "lucide-react";
@@ -35,6 +36,13 @@ export default function Delivery() {
     todayRevenue,
     amountToReturn,
   } = useDeliveryPerson();
+
+  // Activer la synchronisation en temps réel pour le livreur
+  useRealtimeSync({
+    tables: ['orders', 'payments', 'delivery_persons'],
+    deliveryPersonId: deliveryProfile?.id,
+    debug: false,
+  });
 
   const handleStatusChange = async (status: DeliveryStatus) => {
     try {
