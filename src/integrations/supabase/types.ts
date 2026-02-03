@@ -365,6 +365,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "collected_revenues_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collected_revenues_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer_par_zone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collected_revenues_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_recentes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "collected_revenues_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
@@ -516,6 +537,27 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "follow_ups_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_ups_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer_par_zone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_ups_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_recentes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       messages: {
@@ -561,6 +603,27 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer_par_zone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_recentes"
             referencedColumns: ["id"]
           },
         ]
@@ -746,6 +809,27 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer_par_zone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_recentes"
             referencedColumns: ["id"]
           },
         ]
@@ -982,6 +1066,27 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_followups_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_followups_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_a_distribuer_par_zone"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_followups_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "v_orders_recentes"
             referencedColumns: ["id"]
           },
         ]
@@ -1495,6 +1600,180 @@ export type Database = {
         }
         Relationships: []
       }
+      v_orders_a_distribuer: {
+        Row: {
+          amount_due: number | null
+          amount_paid: number | null
+          assigned_to: string | null
+          cancellation_reason: string | null
+          client_id: string | null
+          client_phone: string | null
+          client_phone_secondary: string | null
+          created_at: string | null
+          created_by: string | null
+          delivered_at: string | null
+          delivery_address: string | null
+          delivery_notes: string | null
+          delivery_person_id: string | null
+          id: string | null
+          order_number: string | null
+          product_id: string | null
+          quantity: number | null
+          report_reason: string | null
+          scheduled_at: string | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          total_amount: number | null
+          unit_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount_due?: number | null
+          amount_paid?: number | null
+          assigned_to?: string | null
+          cancellation_reason?: string | null
+          client_id?: string | null
+          client_phone?: string | null
+          client_phone_secondary?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_address?: string | null
+          delivery_notes?: string | null
+          delivery_person_id?: string | null
+          id?: string | null
+          order_number?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          report_reason?: string | null
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"] | null
+          total_amount?: number | null
+          unit_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount_due?: number | null
+          amount_paid?: number | null
+          assigned_to?: string | null
+          cancellation_reason?: string | null
+          client_id?: string | null
+          client_phone?: string | null
+          client_phone_secondary?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_address?: string | null
+          delivery_notes?: string | null
+          delivery_person_id?: string | null
+          id?: string | null
+          order_number?: string | null
+          product_id?: string | null
+          quantity?: number | null
+          report_reason?: string | null
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["order_status"] | null
+          total_amount?: number | null
+          unit_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_delivery_person_id_fkey"
+            columns: ["delivery_person_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_orders_a_distribuer_par_zone: {
+        Row: {
+          amount_due: number | null
+          city: string | null
+          client_id: string | null
+          created_at: string | null
+          delivery_address: string | null
+          id: string | null
+          order_number: string | null
+          scheduled_at: string | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          total_amount: number | null
+          zone: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_orders_recentes: {
+        Row: {
+          amount_due: number | null
+          amount_paid: number | null
+          assigned_to: string | null
+          cancellation_reason: string | null
+          client_id: string | null
+          client_phone: string | null
+          client_phone_secondary: string | null
+          created_at: string | null
+          created_by: string | null
+          delivered_at: string | null
+          delivery_address: string | null
+          delivery_notes: string | null
+          delivery_person_id: string | null
+          id: string | null
+          order_number: string | null
+          product_id: string | null
+          quantity: number | null
+          report_reason: string | null
+          scheduled_at: string | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          total_amount: number | null
+          unit_price: number | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_delivery_person_id_fkey"
+            columns: ["delivery_person_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_persons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_set_user_role: {
@@ -1546,6 +1825,15 @@ export type Database = {
           }
       is_admin: { Args: never; Returns: boolean }
       is_admin_user: { Args: { p_user_id: string }; Returns: boolean }
+      manual_withdrawal_from_delivery: {
+        Args: {
+          p_delivery_person_id: string
+          p_product_id: string
+          p_quantity: number
+          p_reason: string
+        }
+        Returns: Json
+      }
       process_revenue_deposit: {
         Args: { p_notes?: string; p_user_id: string }
         Returns: string

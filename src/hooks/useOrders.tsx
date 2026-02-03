@@ -25,18 +25,48 @@ export function useOrders() {
   const { data: ordersData = [], isLoading, error } = useQuery({
     queryKey: ['orders'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Étape 1: Récupérer les commandes avec delivery_persons (sans profiles)
+      const { data: rawOrders, error } = await supabase
         .from('orders')
         .select(`
           *,
           client:clients(id, full_name, phone),
           product:products(id, name, price),
-          delivery_person:delivery_persons(id, user_id, status, profile:profiles(full_name))
+          delivery_person:delivery_persons(id, user_id, status)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as OrderWithRelations[];
+      if (!rawOrders) return [];
+
+      // Étape 2: Récupérer les profils des livreurs séparément
+      const deliveryUserIds = rawOrders
+        .filter(o => o.delivery_person?.user_id)
+        .map(o => o.delivery_person!.user_id);
+
+      let profilesMap: Record<string, string> = {};
+      if (deliveryUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', [...new Set(deliveryUserIds)]);
+
+        profilesMap = (profiles || []).reduce((acc, p) => {
+          acc[p.id] = p.full_name || 'Inconnu';
+          return acc;
+        }, {} as Record<string, string>);
+      }
+
+      // Étape 3: Fusionner les données
+      return rawOrders.map(order => ({
+        ...order,
+        delivery_person: order.delivery_person ? {
+          ...order.delivery_person,
+          profile: order.delivery_person.user_id 
+            ? { full_name: profilesMap[order.delivery_person.user_id] || null }
+            : null
+        } : null
+      })) as OrderWithRelations[];
     },
   });
 
