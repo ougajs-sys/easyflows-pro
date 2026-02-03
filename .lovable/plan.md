@@ -1,138 +1,153 @@
 
-# Plan : Correction Definitive du Chat Direct
+# Plan : Correction Definitive de l'Erreur React Hooks dans FloatingChat
 
-## Analyse du Probleme
+## Probleme Identifie
 
-J'ai identifie 4 problemes majeurs causant les dysfonctionnements du chat :
+L'erreur "Should have a queue" est une violation de la regle fondamentale des hooks React :
 
-### Probleme 1 : Politique SELECT Incorrecte
-La politique `Users can view messages in accessible channels` bloque les destinataires de messages directs :
-```sql
--- Condition actuelle (INCORRECTE)
-(receiver_id IS NULL) AND (channel LIKE 'direct-%')
--- Le destinataire a un receiver_id non-NULL, donc il ne peut pas voir le message!
+**Les hooks doivent etre appeles dans le meme ordre a chaque rendu.**
+
+Dans `FloatingChat.tsx`, le early return conditionnel (lignes 89-92) se produit APRES l'appel aux hooks, mais le probleme est plus subtil :
+
+```tsx
+// Ligne 52 - usePresence appelle useMutation/useQuery en interne
+const { onlineUsers, isLoading: presenceLoading } = usePresence();
+
+// Ligne 55-63 - useDirectMessages appelle useMutation/useQuery en interne
+const { messages, ... } = useDirectMessages(selectedContact?.user_id);
+
+// ... autres hooks useState/useEffect ...
+
+// Ligne 89-92 - Early return
+if (!user || ...) {
+  return null;
+}
 ```
 
-### Probleme 2 : Politique UPDATE Manquante
-Seul l'expediteur peut mettre a jour ses messages. Le destinataire ne peut pas marquer les messages comme lus :
-```sql
--- Politique actuelle
-auth.uid() = sender_id  -- Seulement l'expediteur
--- Le destinataire ne peut pas modifier is_read!
-```
-
-### Probleme 3 : Boucle de Requetes markAsRead
-Le `useEffect` dans FloatingChat appelle `markAsRead` a chaque changement de contact, meme si aucun message n'est a marquer, creant des dizaines de requetes inutiles.
-
-### Probleme 4 : Mise a Jour Optimiste Manquante
-Apres l'envoi d'un message, le hook attend la prochaine invalidation (5 secondes) au lieu d'ajouter le message immediatement.
+Le probleme reel est que `useDirectMessages` et `usePresence` appellent des hooks React Query en interne, et lorsque le composant se rerender avec des conditions differentes, l'ordre des hooks internes peut devenir incoherent.
 
 ## Solution Proposee
 
-### Migration SQL (Correction RLS)
+### 1. Deplacer les conditions AVANT tous les hooks dependants
 
-```sql
--- 1. Supprimer les politiques problematiques
-DROP POLICY IF EXISTS "Users can view messages in accessible channels" ON public.messages;
-DROP POLICY IF EXISTS "Users can update their own messages" ON public.messages;
+La solution est de restructurer le composant pour que :
+- Les hooks de base (`useAuth`, `useLocation`) soient appeles en premier
+- Le rendu conditionnel soit gere APRES tous les hooks
+- Le composant ne retourne jamais null avant d'avoir execute tous ses hooks
 
--- 2. Nouvelle politique SELECT pour les DMs et canaux internes
-CREATE POLICY "messages_select_policy" ON public.messages
-FOR SELECT TO authenticated
-USING (
-  -- L'expediteur peut voir ses propres messages
-  (auth.uid() = sender_id)
-  OR 
-  -- Le destinataire peut voir les messages qui lui sont destines
-  (auth.uid() = receiver_id)
-  OR 
-  -- Messages des canaux internes (sans receiver_id specifique)
-  (receiver_id IS NULL AND channel IN (
-    'internal-general', 
-    'internal-superviseurs', 
-    'internal-appelants', 
-    'internal-livreurs',
-    'caller-supervisor',
-    'delivery-supervisor'
-  ))
-);
+### 2. Modifier FloatingChat.tsx
 
--- 3. Nouvelle politique UPDATE pour marquer comme lu
-CREATE POLICY "messages_update_policy" ON public.messages
-FOR UPDATE TO authenticated
-USING (
-  -- L'expediteur peut modifier ses messages
-  (auth.uid() = sender_id)
-  OR
-  -- Le destinataire peut marquer les messages comme lus
-  (auth.uid() = receiver_id)
-)
-WITH CHECK (
-  -- L'expediteur peut modifier n'importe quel champ
-  (auth.uid() = sender_id)
-  OR
-  -- Le destinataire ne peut modifier que is_read
-  (auth.uid() = receiver_id)
-);
+```tsx
+export function FloatingChat() {
+  const { user, role } = useAuth();
+  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<UserPresence | null>(null);
+  const [newMessage, setNewMessage] = useState("");
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Determiner si le chat doit etre affiche AVANT d'appeler les hooks dependants
+  const shouldShow = !!user && 
+    location.pathname !== '/auth' && 
+    !location.pathname.startsWith('/embed');
+
+  // TOUJOURS appeler ces hooks, meme si shouldShow est false
+  // Ils sont configures avec enabled: false quand l'utilisateur n'est pas connecte
+  const { onlineUsers, isLoading: presenceLoading } = usePresence();
+  
+  // Passer undefined si pas de contact selectionne OU si on ne doit pas afficher
+  const contactId = shouldShow ? selectedContact?.user_id : undefined;
+  const {
+    messages,
+    messagesLoading,
+    sendMessage,
+    sendingMessage,
+    markAsRead,
+    unreadCounts,
+    totalUnread,
+  } = useDirectMessages(contactId);
+
+  // useEffect pour auto-scroll - TOUJOURS appele
+  useEffect(() => {
+    if (!shouldShow) return;
+    if (scrollAreaRef.current) {
+      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
+    }
+  }, [messages, shouldShow]);
+
+  // useEffect pour markAsRead - TOUJOURS appele
+  useEffect(() => {
+    if (!shouldShow) return;
+    if (selectedContact?.user_id) {
+      const unreadCount = unreadCounts[selectedContact.user_id] || 0;
+      if (unreadCount > 0) {
+        const timeoutId = setTimeout(() => {
+          markAsRead(selectedContact.user_id);
+        }, 300);
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [selectedContact?.user_id, unreadCounts, markAsRead, shouldShow]);
+
+  // MAINTENANT on peut faire le rendu conditionnel
+  // Cela ne viole pas la regle des hooks car tous les hooks ont ete appeles
+  if (!shouldShow) {
+    return null;
+  }
+
+  // ... reste du composant ...
+}
 ```
 
-### Modifications Frontend
+### 3. Verifier que usePresence et useDirectMessages gerent le cas user=null
 
-**1. Correction useDirectMessages.tsx**
-- Ajouter mise a jour optimiste du cache apres envoi
-- Empecher les appels markAsRead redondants
-- Reduire le refetchInterval de 5000ms a 3000ms pour les messages
-
-**2. Correction FloatingChat.tsx**
-- Ajouter condition pour ne pas appeler markAsRead si aucun message non lu
-- Ajouter debounce sur markAsRead pour eviter les appels multiples
+Les deux hooks doivent avoir `enabled: !!user?.id` pour eviter les requetes inutiles.
 
 ## Fichiers a Modifier
 
-| Fichier | Action |
-|---------|--------|
-| Migration SQL | Corriger les politiques RLS messages |
-| `src/hooks/useDirectMessages.tsx` | Optimistic update + debounce markAsRead |
-| `src/components/chat/FloatingChat.tsx` | Verifier messages non lus avant markAsRead |
+| Fichier | Modification |
+|---------|-------------|
+| `src/components/chat/FloatingChat.tsx` | Restructurer pour appeler tous les hooks avant le rendu conditionnel |
 
 ## Flux Corrige
 
 ```text
-AVANT (Problematique)                    APRES (Corrige)
-========================                 ========================
-User A envoie message                    User A envoie message
-        |                                       |
-INSERT -> OK                             INSERT -> OK
-        |                                       |
-Realtime -> User B notifie               Optimistic update local
-        |                                       |
-User B SELECT -> BLOQUE (RLS)            Realtime -> User B notifie
-        |                                       |
-Message invisible                        User B SELECT -> OK (RLS)
-                                                |
-                                         Message visible immediatement
-                                                |
-                                         User B markAsRead -> OK
+AVANT (Crash)                           APRES (Stable)
+=============                           ==============
+User connecte                           User connecte
+  |                                       |
+useAuth() -> user                       useAuth() -> user
+usePresence() -> hooks internes         shouldShow = true
+useDirectMessages() -> hooks internes   usePresence() -> execute
+  |                                     useDirectMessages() -> execute
+User se deconnecte                        |
+  |                                     User se deconnecte
+useAuth() -> null                         |
+if (!user) return null  <-- SKIP        useAuth() -> null
+                             hooks      shouldShow = false
+  |                                     usePresence() -> enabled: false
+React reconciliation ERROR              useDirectMessages() -> enabled: false
+  |                                       |
+CRASH "Should have a queue"             if (!shouldShow) return null
+                                          |
+                                        OK - Tous les hooks ont ete appeles
 ```
 
-## Details Techniques
+## Points Cles de la Solution
 
-### Politique SELECT Corrigee
-La nouvelle politique permet au destinataire (`receiver_id = auth.uid()`) de lire les messages qui lui sont adresses, independamment du format du canal.
-
-### Politique UPDATE Corrigee
-Le destinataire peut maintenant mettre a jour le champ `is_read` pour marquer les messages comme lus, ce qui etait impossible avant.
-
-### Optimistic Update
-Apres envoi d'un message, le hook ajoute immediatement le message au cache local avant meme la confirmation de la base de donnees, pour une experience instantanee.
-
-### Debounce markAsRead
-Un delai de 500ms est ajoute pour eviter d'envoyer des dizaines de requetes PATCH simultanees lors de l'ouverture d'une conversation.
+1. **Tous les hooks sont toujours appeles** : meme quand le composant ne s'affiche pas
+2. **Les hooks sont desactives** via `enabled: false` quand non necessaires
+3. **Le early return** ne viole plus la regle des hooks car il se fait APRES
+4. **Les useEffect** incluent `shouldShow` dans leurs conditions internes
+5. **Pas d'impact sur les performances** : les hooks avec `enabled: false` ne font pas de requetes
 
 ## Resultat Attendu
 
-1. Les messages seront visibles instantanement par le destinataire
-2. L'envoi de message sera instantane (mise a jour optimiste)
-3. Les notifications afficheront correctement le contenu
-4. Plus de requetes PATCH en boucle
-5. Le marquage "lu" fonctionnera correctement
+- Plus d'erreur "Should have a queue"
+- Le chat flottant apparait/disparait sans crash
+- Navigation vers /auth sans erreur
+- Deconnexion sans erreur
+- Le composant est stable dans toutes les conditions
