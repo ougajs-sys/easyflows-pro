@@ -5,7 +5,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Home, 
   Package, 
-  MessageSquare, 
   GraduationCap, 
   Menu, 
   X,
@@ -30,7 +29,6 @@ interface CallerLayoutProps {
 const menuItems = [
   { id: "dashboard", label: "Mon espace", icon: Home },
   { id: "orders", label: "Mes Commandes", icon: Package },
-  { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "clients", label: "Suivi Clients", icon: Users },
   { id: "followups", label: "Relances", icon: RefreshCw },
   { id: "training", label: "Formation", icon: GraduationCap },

@@ -5,7 +5,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Home, 
   Package, 
-  MessageSquare, 
   GraduationCap, 
   Menu, 
   X,
@@ -38,7 +37,6 @@ const menuItems = [
   { id: "orders", label: "Commandes", icon: Package },
   { id: "stock", label: "Mon Stock", icon: Boxes },
   { id: "supply", label: "Approvisionnement", icon: Send },
-  { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "training", label: "Formation", icon: GraduationCap },
   { id: "profile", label: "Mon Profil", icon: User },
 ];

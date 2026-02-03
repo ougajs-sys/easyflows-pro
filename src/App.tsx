@@ -11,6 +11,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { NotificationsProvider } from "@/hooks/useNotifications";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { FloatingChat } from "@/components/chat/FloatingChat";
 import queryClient from "@/config/react-query";
 
 const Index = lazy(() => import("./pages/Index"));
@@ -438,6 +439,8 @@ const App = () => (
                       <Route path="/embed/order" element={<EmbedOrderForm />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
+                    {/* Floating Chat - visible on all pages */}
+                    <FloatingChat />
                   </Suspense>
                 </RouteErrorBoundary>
               </BrowserRouter>

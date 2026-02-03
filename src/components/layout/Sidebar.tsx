@@ -77,10 +77,9 @@ const menuItems: MenuItem[] = [
   { id: 14, label: "Rôles & Accès", icon: ShieldCheck, path: "/roles", color: "text-red-400", allowedRoles: ["administrateur"] },
   { id: 15, label: "Tableau Admin", icon: Users, path: "/admin", color: "text-fuchsia-400", allowedRoles: ["administrateur"] },
   
-  // Commun à tous
-  { id: 16, label: "Chat", icon: MessageSquare, path: "/chat", color: "text-emerald-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 17, label: "Notifications", icon: Bell, path: "/notifications", color: "text-yellow-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
-  { id: 18, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
+  // Commun à tous (Chat retiré - maintenant en bouton flottant)
+  { id: 16, label: "Notifications", icon: Bell, path: "/notifications", color: "text-yellow-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
+  { id: 17, label: "Formation", icon: GraduationCap, path: "/training", color: "text-amber-400", allowedRoles: ["appelant", "livreur", "superviseur", "administrateur"] },
 ];
 
 function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: { 
