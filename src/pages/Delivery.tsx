@@ -39,7 +39,7 @@ export default function Delivery() {
 
   // Activer la synchronisation en temps réel pour le livreur
   useRealtimeSync({
-    tables: ['orders', 'payments', 'delivery_persons'],
+    tables: ['orders', 'payments', 'delivery_persons', 'products'],
     deliveryPersonId: deliveryProfile?.id,
     debug: false,
   });

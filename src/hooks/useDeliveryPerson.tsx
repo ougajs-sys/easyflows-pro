@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { useAuth } from './useAuth';
-import { useEffect } from 'react';
 
 type DeliveryPerson = Database['public']['Tables']['delivery_persons']['Row'];
 type DeliveryStatus = Database['public']['Enums']['delivery_status'];
@@ -137,49 +136,8 @@ export function useDeliveryPerson() {
     enabled: !!deliveryProfile?.id,
   });
 
-  // Subscribe to real-time updates for orders - using precise query keys
-  useEffect(() => {
-    if (!deliveryProfile?.id) return;
-
-    const channel = supabase
-      .channel(`delivery-orders-realtime-${deliveryProfile.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: `delivery_person_id=eq.${deliveryProfile.id}`,
-        },
-        () => {
-          // Use precise query keys with delivery person ID
-          queryClient.invalidateQueries({ queryKey: ['delivery-orders', deliveryProfile.id] });
-          queryClient.invalidateQueries({ queryKey: ['delivery-today', deliveryProfile.id] });
-          queryClient.invalidateQueries({ queryKey: ['delivery-reported', deliveryProfile.id] });
-          queryClient.invalidateQueries({ queryKey: ['delivery-cancelled', deliveryProfile.id] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-        },
-        (payload) => {
-          // Also listen for orders being assigned to this delivery person
-          const newData = payload.new as { delivery_person_id?: string } | null;
-          if (newData?.delivery_person_id === deliveryProfile.id) {
-            queryClient.invalidateQueries({ queryKey: ['delivery-orders', deliveryProfile.id] });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [deliveryProfile?.id, queryClient]);
+  // NOTE: La souscription Realtime est gérée par useRealtimeSync dans Delivery.tsx
+  // Cela évite les doubles souscriptions et centralise la gestion Realtime
 
   // Update delivery status
   const updateDeliveryStatus = useMutation({
