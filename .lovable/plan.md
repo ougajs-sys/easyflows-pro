@@ -1,68 +1,46 @@
 
 
-# Configuration Messenger360 - Plan d'implémentation
+# Ajouter le Panneau de Test SMS/WhatsApp à la page Campagnes
 
-## Ce que j'ai trouvé
+## Le Problème
 
-La clé API `MESSENGER360_API_KEY` est déjà enregistrée dans les secrets Supabase. 
+Le composant `SmsTestPanel` existe dans le code mais **n'est pas affiché** sur la page Campagnes. Il manque l'import et l'intégration dans l'interface.
 
-Le problème : **l'URL et le format de l'API sont incorrects** dans le code actuel.
+## Ce que je vais faire
 
-## Ce que je vais corriger
+### Étape 1 : Importer le composant
 
-### Fichier 1 : `supabase/functions/send-sms/index.ts`
-
-| Avant (incorrect) | Après (correct) |
-|-------------------|-----------------|
-| URL : `api.messenger360.com/v1/messages` | URL : `api.360messenger.com/v2/sendMessage` |
-| Body : `{ to, message, channel }` | Body : `{ phonenumber, text }` |
-| Numéro : `+212612345678` | Numéro : `212612345678` (sans le +) |
-
-### Fichier 2 : `supabase/functions/send-notification-sms/index.ts`
-
-Mêmes corrections que ci-dessus.
-
-## Résumé des changements
-
-1. **Nouvelle URL API** : `https://api.360messenger.com/v2/sendMessage`
-2. **Nouveau format body** : 
-   - `phonenumber` au lieu de `to`
-   - `text` au lieu de `message`
-3. **Nettoyage numéro** : Retirer le `+` du numéro
-4. **Header** : Garder `Authorization: Bearer {API_KEY}`
-
-## Après l'implémentation
-
-Tu pourras tester depuis :
-- **Campagnes → Test SMS/WhatsApp** (panneau existant)
-- Entrer ton numéro et envoyer un message WhatsApp
-
-## Section technique
-
-### Nouvelle fonction de nettoyage du numéro
-
+Ajouter l'import du `SmsTestPanel` dans `src/pages/Campaigns.tsx` :
 ```typescript
-// Nettoyer le numéro pour 360Messenger (sans le +)
-const cleanPhone = phone
-  .replace(/\s+/g, "")      // Retirer espaces
-  .replace(/-/g, "")        // Retirer tirets
-  .replace(/^\+/, "")       // Retirer le + au début
-  .replace(/^0/, "212");    // Remplacer 0 par 212 (Maroc)
+import { SmsTestPanel } from "@/components/sms/SmsTestPanel";
 ```
 
-### Nouvel appel API
+### Étape 2 : Ajouter un nouvel onglet "Test"
 
-```typescript
-const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
-  method: "POST",
-  headers: {
-    "Authorization": `Bearer ${MESSENGER360_API_KEY}`,
-    "Content-Type": "application/x-www-form-urlencoded",
-  },
-  body: new URLSearchParams({
-    phonenumber: cleanPhone,
-    text: message,
-  }),
-});
-```
+Modifier les onglets existants pour ajouter un troisième onglet :
+
+| Actuel | Nouveau |
+|--------|---------|
+| Campagnes, Templates | Campagnes, Templates, **Test** |
+
+### Étape 3 : Afficher le panneau de test
+
+Dans l'onglet "Test", afficher le composant `SmsTestPanel` qui permet de :
+- Entrer un numéro de téléphone
+- Choisir le canal (SMS ou WhatsApp)
+- Sélectionner un type de notification
+- Envoyer un message test
+
+## Résultat attendu
+
+Après cette modification, tu verras :
+1. Un nouvel onglet **"Test"** à côté de "Campagnes" et "Templates"
+2. En cliquant sur "Test", le panneau de test SMS/WhatsApp apparaîtra
+3. Tu pourras tester l'envoi WhatsApp avec ton numéro
+
+## Fichier à modifier
+
+| Fichier | Modification |
+|---------|-------------|
+| `src/pages/Campaigns.tsx` | Import + nouvel onglet + affichage du composant |
 
