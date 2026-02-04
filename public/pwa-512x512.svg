@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradient512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1e2e"/>
+      <stop offset="100%" style="stop-color:#2d2d44"/>
+    </linearGradient>
+    <linearGradient id="accentGradient512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="85" fill="url(#bgGradient512)"/>
+  
+  <!-- Flow arrows representing workflow -->
+  <g transform="translate(256, 256)" filter="url(#glow)">
+    <!-- Central hub -->
+    <circle cx="0" cy="0" r="55" fill="url(#accentGradient512)"/>
+    
+    <!-- Flow lines -->
+    <path d="M-130,-80 Q-80,-80 -65,-25" stroke="#6366f1" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <path d="M130,-80 Q80,-80 65,-25" stroke="#8b5cf6" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <path d="M-130,80 Q-80,80 -65,25" stroke="#8b5cf6" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <path d="M130,80 Q80,80 65,25" stroke="#6366f1" stroke-width="10" fill="none" stroke-linecap="round"/>
+    
+    <!-- Connection dots -->
+    <circle cx="-130" cy="-80" r="22" fill="#6366f1"/>
+    <circle cx="130" cy="-80" r="22" fill="#8b5cf6"/>
+    <circle cx="-130" cy="80" r="22" fill="#8b5cf6"/>
+    <circle cx="130" cy="80" r="22" fill="#6366f1"/>
+    
+    <!-- E letter stylized -->
+    <text x="0" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="65" fill="white">E</text>
+  </g>
+  
+  <!-- Subtle ring -->
+  <circle cx="256" cy="256" r="180" stroke="#6366f1" stroke-width="2" fill="none" opacity="0.3"/>
+</svg>
