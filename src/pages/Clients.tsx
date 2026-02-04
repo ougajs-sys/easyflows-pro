@@ -6,13 +6,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ClientsTable } from '@/components/clients/ClientsTable';
 import { ClientForm } from '@/components/clients/ClientForm';
 import { ClientStats } from '@/components/clients/ClientStats';
-import { Plus, Search } from 'lucide-react';
+import { ClientImportDialog } from '@/components/clients/ClientImportDialog';
+import { Plus, Search, Upload } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
 type ClientSegment = Database['public']['Enums']['client_segment'];
 
 export default function Clients() {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [segmentFilter, setSegmentFilter] = useState<ClientSegment | 'all'>('all');
 
@@ -26,10 +28,16 @@ export default function Clients() {
               Gérez vos clients et suivez leur historique
             </p>
           </div>
-          <Button onClick={() => setIsFormOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau client
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Importer CSV
+            </Button>
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau client
+            </Button>
+          </div>
         </div>
 
         <ClientStats />
@@ -61,6 +69,7 @@ export default function Clients() {
         <ClientsTable searchQuery={searchQuery} segmentFilter={segmentFilter} />
 
         <ClientForm open={isFormOpen} onOpenChange={setIsFormOpen} />
+        <ClientImportDialog open={isImportOpen} onOpenChange={setIsImportOpen} />
       </div>
     </DashboardLayout>
   );
