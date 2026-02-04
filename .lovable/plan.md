@@ -1,153 +1,144 @@
 
-# Plan : Correction Definitive de l'Erreur React Hooks dans FloatingChat
+# Plan : Formation Interactive pour Appelants
 
-## Probleme Identifie
+## Vue d'ensemble
 
-L'erreur "Should have a queue" est une violation de la regle fondamentale des hooks React :
+Je vais transformer le module de formation actuel (avec des placeholders) en une experience interactive complete avec :
+- Contenu textuel pratique etape par etape
+- Quiz interactif avec questions/reponses
+- Navigation par sections dans les modules longs
+- Feedback immediat sur les reponses
 
-**Les hooks doivent etre appeles dans le meme ordre a chaque rendu.**
+## Modifications Techniques
 
-Dans `FloatingChat.tsx`, le early return conditionnel (lignes 89-92) se produit APRES l'appel aux hooks, mais le probleme est plus subtil :
+### Fichier a modifier
+`src/components/caller/CallerTraining.tsx`
 
-```tsx
-// Ligne 52 - usePresence appelle useMutation/useQuery en interne
-const { onlineUsers, isLoading: presenceLoading } = usePresence();
-
-// Ligne 55-63 - useDirectMessages appelle useMutation/useQuery en interne
-const { messages, ... } = useDirectMessages(selectedContact?.user_id);
-
-// ... autres hooks useState/useEffect ...
-
-// Ligne 89-92 - Early return
-if (!user || ...) {
-  return null;
-}
-```
-
-Le probleme reel est que `useDirectMessages` et `usePresence` appellent des hooks React Query en interne, et lorsque le composant se rerender avec des conditions differentes, l'ordre des hooks internes peut devenir incoherent.
-
-## Solution Proposee
-
-### 1. Deplacer les conditions AVANT tous les hooks dependants
-
-La solution est de restructurer le composant pour que :
-- Les hooks de base (`useAuth`, `useLocation`) soient appeles en premier
-- Le rendu conditionnel soit gere APRES tous les hooks
-- Le composant ne retourne jamais null avant d'avoir execute tous ses hooks
-
-### 2. Modifier FloatingChat.tsx
-
-```tsx
-export function FloatingChat() {
-  const { user, role } = useAuth();
-  const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedContact, setSelectedContact] = useState<UserPresence | null>(null);
-  const [newMessage, setNewMessage] = useState("");
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  // Determiner si le chat doit etre affiche AVANT d'appeler les hooks dependants
-  const shouldShow = !!user && 
-    location.pathname !== '/auth' && 
-    !location.pathname.startsWith('/embed');
-
-  // TOUJOURS appeler ces hooks, meme si shouldShow est false
-  // Ils sont configures avec enabled: false quand l'utilisateur n'est pas connecte
-  const { onlineUsers, isLoading: presenceLoading } = usePresence();
-  
-  // Passer undefined si pas de contact selectionne OU si on ne doit pas afficher
-  const contactId = shouldShow ? selectedContact?.user_id : undefined;
-  const {
-    messages,
-    messagesLoading,
-    sendMessage,
-    sendingMessage,
-    markAsRead,
-    unreadCounts,
-    totalUnread,
-  } = useDirectMessages(contactId);
-
-  // useEffect pour auto-scroll - TOUJOURS appele
-  useEffect(() => {
-    if (!shouldShow) return;
-    if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
-    }
-  }, [messages, shouldShow]);
-
-  // useEffect pour markAsRead - TOUJOURS appele
-  useEffect(() => {
-    if (!shouldShow) return;
-    if (selectedContact?.user_id) {
-      const unreadCount = unreadCounts[selectedContact.user_id] || 0;
-      if (unreadCount > 0) {
-        const timeoutId = setTimeout(() => {
-          markAsRead(selectedContact.user_id);
-        }, 300);
-        return () => clearTimeout(timeoutId);
-      }
-    }
-  }, [selectedContact?.user_id, unreadCounts, markAsRead, shouldShow]);
-
-  // MAINTENANT on peut faire le rendu conditionnel
-  // Cela ne viole pas la regle des hooks car tous les hooks ont ete appeles
-  if (!shouldShow) {
-    return null;
-  }
-
-  // ... reste du composant ...
-}
-```
-
-### 3. Verifier que usePresence et useDirectMessages gerent le cas user=null
-
-Les deux hooks doivent avoir `enabled: !!user?.id` pour eviter les requetes inutiles.
-
-## Fichiers a Modifier
-
-| Fichier | Modification |
-|---------|-------------|
-| `src/components/chat/FloatingChat.tsx` | Restructurer pour appeler tous les hooks avant le rendu conditionnel |
-
-## Flux Corrige
+### Structure du nouveau composant
 
 ```text
-AVANT (Crash)                           APRES (Stable)
-=============                           ==============
-User connecte                           User connecte
-  |                                       |
-useAuth() -> user                       useAuth() -> user
-usePresence() -> hooks internes         shouldShow = true
-useDirectMessages() -> hooks internes   usePresence() -> execute
-  |                                     useDirectMessages() -> execute
-User se deconnecte                        |
-  |                                     User se deconnecte
-useAuth() -> null                         |
-if (!user) return null  <-- SKIP        useAuth() -> null
-                             hooks      shouldShow = false
-  |                                     usePresence() -> enabled: false
-React reconciliation ERROR              useDirectMessages() -> enabled: false
-  |                                       |
-CRASH "Should have a queue"             if (!shouldShow) return null
-                                          |
-                                        OK - Tous les hooks ont ete appeles
+CallerTraining
+    |
+    +-- TrainingContent (nouveau)
+    |       |-- Contenu par etapes avec navigation
+    |       |-- Boutons Precedent/Suivant
+    |       |-- Indicateur de progression
+    |
+    +-- QuizContent (nouveau)
+            |-- Questions avec options cliquables
+            |-- Feedback correct/incorrect
+            |-- Score final
 ```
 
-## Points Cles de la Solution
+### Contenu Interactif par Module
 
-1. **Tous les hooks sont toujours appeles** : meme quand le composant ne s'affiche pas
-2. **Les hooks sont desactives** via `enabled: false` quand non necessaires
-3. **Le early return** ne viole plus la regle des hooks car il se fait APRES
-4. **Les useEffect** incluent `shouldShow` dans leurs conditions internes
-5. **Pas d'impact sur les performances** : les hooks avec `enabled: false` ne font pas de requetes
+#### Module 1 : Techniques d'appel (3 etapes)
+**Etape 1 - Avant l'appel**
+- Ouvrir la fiche client
+- Lire l'historique des commandes
+- Preparer 2-3 produits a proposer
+
+**Etape 2 - Pendant l'appel**
+- Saluer avec energie
+- Verifier la disponibilite (30 secondes)
+- Ecouter 60%, parler 40%
+
+**Etape 3 - Apres l'appel**
+- Enregistrer immediatement
+- Noter les infos importantes
+- Programmer un suivi si besoin
+
+#### Module 2 : Scripts de vente (3 scripts)
+- Script nouveau client
+- Script client existant  
+- Script relance abandon
+
+#### Module 3 : Gestion des objections (4 objections)
+- "C'est trop cher" - Reponse valeur
+- "Je vais reflechir" - Creer l'urgence
+- "Pas le temps" - Pitch 30 secondes
+- "Pas interesse" - Question ouverte
+
+#### Module 4 : Utilisation plateforme (5 actions)
+- Creer une commande
+- Ajouter un client
+- Voir les stats
+- Programmer un suivi
+- Discuter avec superviseur
+
+#### Module 5 : Processus confirmation (Checklist interactive)
+- 6 verifications obligatoires avec cases a cocher
+- Section "Si probleme"
+- Section "Apres confirmation"
+
+#### Module 6 : Quiz (4 questions)
+- Question 1 : Ratio ecoute/parole (reponse: 60%)
+- Question 2 : Objection "trop cher" (reponse: Expliquer la valeur)
+- Question 3 : Premiere chose avant d'appeler (reponse: Fiche client)
+- Question 4 : Client agressif (reponse: Rester calme, escalader)
+
+### Fonctionnalites Interactives
+
+| Fonctionnalite | Description |
+|----------------|-------------|
+| Navigation par etapes | Boutons Precedent/Suivant dans chaque module |
+| Progression visuelle | Indicateur "Etape 2/5" avec barre de progression |
+| Quiz cliquable | Cliquer sur une reponse = feedback immediat |
+| Checklist cochable | Cases a cocher pour le processus de confirmation |
+| Score quiz | Affichage du score a la fin (ex: 3/4 bonnes reponses) |
+| Animation feedback | Vert pour correct, rouge pour incorrect |
+
+### Experience Utilisateur
+
+```text
+Utilisateur clique sur "Scripts de vente"
+        |
+        v
+Dialog s'ouvre avec Script 1
+        |
+[Precedent] [1] [2] [3] [Suivant]
+        |
+        v
+Utilisateur lit le script
+        |
+        v
+Clique "Suivant" -> Script 2
+        |
+        v
+Termine les 3 scripts
+        |
+        v
+Bouton "Marquer comme termine" apparait
+```
+
+### Pour le Quiz
+
+```text
+Question affichee
+        |
+        v
+4 options cliquables (A, B, C, D)
+        |
+        v
+Utilisateur clique une option
+        |
+        v
+Feedback immediat (vert/rouge + explication)
+        |
+        v
+Bouton "Question suivante"
+        |
+        v
+Apres 4 questions -> Score final
+        |
+        v
+Si score >= 3/4 -> Module complete automatiquement
+```
 
 ## Resultat Attendu
 
-- Plus d'erreur "Should have a queue"
-- Le chat flottant apparait/disparait sans crash
-- Navigation vers /auth sans erreur
-- Deconnexion sans erreur
-- Le composant est stable dans toutes les conditions
+- Les appelants peuvent naviguer dans le contenu a leur rythme
+- Le quiz teste vraiment leurs connaissances
+- Le contenu est pratique et directement applicable
+- La progression est sauvegardee localement
+- Experience fluide sur mobile et desktop
