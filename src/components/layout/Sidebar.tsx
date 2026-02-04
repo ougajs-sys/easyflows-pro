@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NavLink, Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +31,7 @@ import {
   LogOut,
   Code,
   Bot,
+  Download,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -91,6 +92,14 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
   const { role, profile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { unreadCount } = useNotifications();
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+
+  useEffect(() => {
+    // Check if already installed as PWA
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+    const isIOSStandalone = (navigator as { standalone?: boolean }).standalone === true;
+    setIsAppInstalled(isStandalone || isIOSStandalone);
+  }, []);
 
   const filteredMenuItems = menuItems.filter((item) =>
     role ? item.allowedRoles.includes(role as AppRole) : false
@@ -196,6 +205,27 @@ function SidebarContent({ collapsed, onToggleCollapse, onItemClick }: {
 
       {/* Bottom Section */}
       <div className="p-3 border-t border-border space-y-1">
+        {/* Install App Button - Only show if not installed */}
+        {!isAppInstalled && (
+          <Link
+            to="/install"
+            onClick={onItemClick}
+            className={cn(
+              "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-primary/10 border border-primary/30 bg-primary/5",
+              location.pathname === "/install" && "bg-primary/15"
+            )}
+          >
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/20">
+              <Download className="w-4 h-4 text-primary" />
+            </div>
+            {!collapsed && (
+              <span className="text-sm font-medium text-primary">
+                Installer l'app
+              </span>
+            )}
+          </Link>
+        )}
+
         {/* Profile Link */}
         <Link
           to="/profile"
