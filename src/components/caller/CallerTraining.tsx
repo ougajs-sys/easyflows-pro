@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,14 +15,24 @@ import {
   FileText, 
   CheckCircle2, 
   Clock, 
-  BookOpen,
-  Target,
   Phone,
   MessageSquare,
   Headphones,
-  Award
+  Award,
+  Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TrainingStepContent } from "./training/TrainingStepContent";
+import { QuizContent } from "./training/QuizContent";
+import { ChecklistContent } from "./training/ChecklistContent";
+import {
+  techniquesAppelSteps,
+  scriptsVenteSteps,
+  gestionObjectionsSteps,
+  plateformeSteps,
+  confirmationChecklist,
+  quizQuestions,
+} from "./training/trainingData";
 
 interface TrainingModule {
   id: string;
@@ -32,7 +41,6 @@ interface TrainingModule {
   duration: string;
   type: "video" | "document" | "quiz";
   category: string;
-  completed: boolean;
   icon: typeof PlayCircle;
 }
 
@@ -44,7 +52,6 @@ const trainingModules: TrainingModule[] = [
     duration: "15 min",
     type: "video",
     category: "Appels",
-    completed: true,
     icon: Phone,
   },
   {
@@ -54,7 +61,6 @@ const trainingModules: TrainingModule[] = [
     duration: "10 min",
     type: "document",
     category: "Appels",
-    completed: true,
     icon: MessageSquare,
   },
   {
@@ -64,7 +70,6 @@ const trainingModules: TrainingModule[] = [
     duration: "20 min",
     type: "video",
     category: "Appels",
-    completed: false,
     icon: Headphones,
   },
   {
@@ -74,7 +79,6 @@ const trainingModules: TrainingModule[] = [
     duration: "25 min",
     type: "video",
     category: "Plateforme",
-    completed: false,
     icon: Target,
   },
   {
@@ -84,7 +88,6 @@ const trainingModules: TrainingModule[] = [
     duration: "8 min",
     type: "document",
     category: "Processus",
-    completed: false,
     icon: CheckCircle2,
   },
   {
@@ -94,49 +97,95 @@ const trainingModules: TrainingModule[] = [
     duration: "10 min",
     type: "quiz",
     category: "Évaluation",
-    completed: false,
     icon: Award,
   },
 ];
 
 export function CallerTraining() {
   const [selectedModule, setSelectedModule] = useState<TrainingModule | null>(null);
-  const [completedModules, setCompletedModules] = useState<Set<string>>(
-    new Set(trainingModules.filter((m) => m.completed).map((m) => m.id))
-  );
+  const [completedModules, setCompletedModules] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem("caller-training-progress");
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
   const progress = Math.round((completedModules.size / trainingModules.length) * 100);
 
   const handleCompleteModule = (moduleId: string) => {
-    setCompletedModules((prev) => new Set([...prev, moduleId]));
-    setSelectedModule(null);
+    const newCompleted = new Set([...completedModules, moduleId]);
+    setCompletedModules(newCompleted);
+    localStorage.setItem("caller-training-progress", JSON.stringify([...newCompleted]));
   };
 
   const categories = [...new Set(trainingModules.map((m) => m.category))];
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "video":
-        return <PlayCircle className="w-4 h-4" />;
-      case "document":
-        return <FileText className="w-4 h-4" />;
-      case "quiz":
-        return <Award className="w-4 h-4" />;
-      default:
-        return <BookOpen className="w-4 h-4" />;
-    }
-  };
 
   const getTypeBadge = (type: string) => {
     switch (type) {
       case "video":
         return <Badge className="bg-primary/15 text-primary">Vidéo</Badge>;
       case "document":
-        return <Badge className="bg-blue-500/15 text-blue-500">Document</Badge>;
+        return <Badge className="bg-accent/50 text-accent-foreground">Document</Badge>;
       case "quiz":
         return <Badge className="bg-warning/15 text-warning">Quiz</Badge>;
       default:
         return <Badge variant="outline">{type}</Badge>;
+    }
+  };
+
+  const renderModuleContent = (module: TrainingModule) => {
+    const isCompleted = completedModules.has(module.id);
+
+    switch (module.id) {
+      case "1":
+        return (
+          <TrainingStepContent
+            steps={techniquesAppelSteps}
+            onComplete={() => handleCompleteModule(module.id)}
+            isCompleted={isCompleted}
+          />
+        );
+      case "2":
+        return (
+          <TrainingStepContent
+            steps={scriptsVenteSteps}
+            onComplete={() => handleCompleteModule(module.id)}
+            isCompleted={isCompleted}
+          />
+        );
+      case "3":
+        return (
+          <TrainingStepContent
+            steps={gestionObjectionsSteps}
+            onComplete={() => handleCompleteModule(module.id)}
+            isCompleted={isCompleted}
+          />
+        );
+      case "4":
+        return (
+          <TrainingStepContent
+            steps={plateformeSteps}
+            onComplete={() => handleCompleteModule(module.id)}
+            isCompleted={isCompleted}
+          />
+        );
+      case "5":
+        return (
+          <ChecklistContent
+            sections={confirmationChecklist}
+            onComplete={() => handleCompleteModule(module.id)}
+            isCompleted={isCompleted}
+          />
+        );
+      case "6":
+        return (
+          <QuizContent
+            questions={quizQuestions}
+            onComplete={() => handleCompleteModule(module.id)}
+            isCompleted={isCompleted}
+            passingScore={75}
+          />
+        );
+      default:
+        return null;
     }
   };
 
@@ -239,62 +288,17 @@ export function CallerTraining() {
 
       {/* Module Detail Dialog */}
       <Dialog open={!!selectedModule} onOpenChange={() => setSelectedModule(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {selectedModule && getTypeIcon(selectedModule.type)}
+              {selectedModule?.type === "video" && <PlayCircle className="w-5 h-5" />}
+              {selectedModule?.type === "document" && <FileText className="w-5 h-5" />}
+              {selectedModule?.type === "quiz" && <Award className="w-5 h-5" />}
               {selectedModule?.title}
             </DialogTitle>
           </DialogHeader>
 
-          {selectedModule && (
-            <div className="space-y-4">
-              <p className="text-muted-foreground">{selectedModule.description}</p>
-
-              <div className="flex items-center gap-4 text-sm">
-                {getTypeBadge(selectedModule.type)}
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {selectedModule.duration}
-                </span>
-              </div>
-
-              {/* Content Placeholder */}
-              <div className="aspect-video bg-secondary/30 rounded-lg flex items-center justify-center">
-                {selectedModule.type === "video" ? (
-                  <div className="text-center">
-                    <PlayCircle className="w-16 h-16 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Contenu vidéo</p>
-                  </div>
-                ) : selectedModule.type === "document" ? (
-                  <div className="text-center">
-                    <FileText className="w-16 h-16 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Document PDF</p>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <Award className="w-16 h-16 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Quiz interactif</p>
-                  </div>
-                )}
-              </div>
-
-              {completedModules.has(selectedModule.id) ? (
-                <div className="flex items-center justify-center gap-2 p-4 rounded-lg bg-success/10 text-success">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="font-medium">Module complété</span>
-                </div>
-              ) : (
-                <Button 
-                  className="w-full" 
-                  onClick={() => handleCompleteModule(selectedModule.id)}
-                >
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Marquer comme terminé
-                </Button>
-              )}
-            </div>
-          )}
+          {selectedModule && renderModuleContent(selectedModule)}
         </DialogContent>
       </Dialog>
     </div>
