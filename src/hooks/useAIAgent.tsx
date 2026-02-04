@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ActionCategory, QuickAction } from "@/components/ai-agent/AIQuickActions";
 
 interface AIInstruction {
   id: string;
@@ -62,7 +63,6 @@ export function useAIAgent() {
       console.log("AI Agent response:", { data, error });
 
       if (error) {
-        // Check for specific error messages
         const errorMessage = error.message || "Erreur lors de l'exécution";
         if (errorMessage.includes("429") || errorMessage.includes("rate limit")) {
           throw new Error("Limite de requêtes atteinte. Réessayez dans quelques minutes.");
@@ -86,16 +86,16 @@ export function useAIAgent() {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       
       toast({
-        title: "Instruction exécutée",
+        title: "C'est fait !",
         description: data.affected_count > 0 
-          ? `${data.affected_count} éléments affectés`
-          : "Traitement terminé",
+          ? `${data.affected_count} éléments traités`
+          : "Action terminée",
       });
     },
     onError: (error) => {
       toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur inconnue",
+        title: "Oups !",
+        description: error instanceof Error ? error.message : "Quelque chose s'est mal passé",
         variant: "destructive",
       });
     },
@@ -104,44 +104,134 @@ export function useAIAgent() {
     },
   });
 
-  // Quick actions
-  const quickActions = [
+  // Action categories organized for the new UI
+  const actionCategories: ActionCategory[] = [
     {
-      id: "distribute-pending",
-      label: "Distribuer commandes en attente",
-      instruction: "Distribue équitablement toutes les commandes en attente (pending) entre les appelants actifs",
+      id: "operations",
+      label: "Opérations",
+      icon: "Package",
+      color: "primary",
+      actions: [
+        {
+          id: "distribute-pending",
+          label: "Distribuer aux appelants",
+          description: "Répartir les commandes en attente entre les appelants actifs",
+          instruction: "Distribue équitablement toutes les commandes en attente (pending) entre les appelants actifs",
+          icon: "Users",
+        },
+        {
+          id: "distribute-confirmed-delivery",
+          label: "Distribuer aux livreurs",
+          description: "Envoyer les commandes confirmées aux livreurs disponibles",
+          instruction: "Distribue équitablement toutes les commandes confirmées aux livreurs disponibles en équilibrant selon leur charge de travail actuelle",
+          icon: "Truck",
+        },
+        {
+          id: "stock-alerts",
+          label: "Alertes stock",
+          description: "Voir les produits en rupture ou stock bas",
+          instruction: "Liste tous les produits avec un stock inférieur ou égal à 10 unités et crée des alertes",
+          icon: "AlertTriangle",
+        },
+      ],
+    },
+    {
+      id: "clients",
+      label: "Clients & Relances",
       icon: "Users",
+      color: "blue",
+      actions: [
+        {
+          id: "create-payment-followups",
+          label: "Relances paiements",
+          description: "Créer des relances pour les paiements partiels",
+          instruction: "Crée des relances de type paiement pour toutes les commandes avec statut 'partial' de plus de 3 jours",
+          icon: "CreditCard",
+        },
+        {
+          id: "vip-followups",
+          label: "Suivi clients VIP",
+          description: "Voir l'activité des meilleurs clients",
+          instruction: "Identifie les clients VIP et affiche un résumé de leur activité récente",
+          icon: "Star",
+        },
+        {
+          id: "inactive-clients",
+          label: "Clients inactifs",
+          description: "Trouver les clients qui n'ont pas commandé récemment",
+          instruction: "Liste les clients qui n'ont pas commandé depuis plus de 30 jours avec leur historique",
+          icon: "Users",
+        },
+      ],
     },
     {
-      id: "distribute-confirmed-callers",
-      label: "Distribuer confirmées aux appelants",
-      instruction: "Distribue équitablement toutes les commandes confirmées non assignées entre les appelants actifs",
-      icon: "Phone",
+      id: "marketing",
+      label: "Marketing",
+      icon: "Sparkles",
+      color: "accent",
+      actions: [
+        {
+          id: "analyze-opportunities",
+          label: "Analyser opportunités",
+          description: "Trouver des opportunités de vente",
+          instruction: "Analyse les opportunités marketing: clients inactifs à relancer, paniers abandonnés, clients fidèles sans achat récent",
+          icon: "Target",
+        },
+        {
+          id: "propose-campaign",
+          label: "Proposer campagne",
+          description: "Générer une idée de campagne SMS",
+          instruction: "Propose une campagne SMS personnalisée basée sur les données clients actuelles avec message et cible",
+          icon: "Send",
+        },
+        {
+          id: "reactivate-inactive",
+          label: "Relancer inactifs",
+          description: "Préparer une campagne de réactivation",
+          instruction: "Prépare une campagne de réactivation pour les clients inactifs depuis plus d'un mois avec un message personnalisé",
+          icon: "TrendingUp",
+        },
+      ],
     },
     {
-      id: "distribute-confirmed-delivery",
-      label: "Distribuer confirmées aux livreurs",
-      instruction: "Distribue équitablement toutes les commandes confirmées aux livreurs disponibles en équilibrant selon leur charge de travail actuelle",
-      icon: "Truck",
+      id: "performance",
+      label: "Performance",
+      icon: "TrendingUp",
+      color: "success",
+      actions: [
+        {
+          id: "global-diagnostic",
+          label: "Diagnostic complet",
+          description: "Analyse complète de la boutique",
+          instruction: "Fais un diagnostic complet de la boutique: commandes, stock, équipe, et donne des recommandations concrètes",
+          icon: "BarChart3",
+        },
+        {
+          id: "daily-plan",
+          label: "Plan du jour",
+          description: "Ce qu'il faut faire aujourd'hui",
+          instruction: "Génère un plan d'action pour aujourd'hui basé sur les priorités: commandes en attente, stocks bas, relances à faire",
+          icon: "Calendar",
+        },
+        {
+          id: "team-coaching",
+          label: "Coaching équipe",
+          description: "Conseils pour améliorer l'équipe",
+          instruction: "Analyse les performances de l'équipe (appelants et livreurs) et donne des conseils personnalisés pour chacun",
+          icon: "UserCheck",
+        },
+      ],
     },
-    {
-      id: "create-payment-followups",
-      label: "Relances paiements partiels",
-      instruction: "Crée des relances de type paiement pour toutes les commandes avec statut 'partial' de plus de 3 jours",
-      icon: "CreditCard",
-    },
-    {
-      id: "stock-alerts",
-      label: "Alertes stock critique",
-      instruction: "Liste tous les produits avec un stock inférieur ou égal à 10 unités et crée des alertes",
-      icon: "AlertTriangle",
-    },
-    {
-      id: "vip-followups",
-      label: "Suivi clients VIP",
-      instruction: "Identifie les clients VIP et affiche un résumé de leur activité récente",
-      icon: "Star",
-    },
+  ];
+
+  // Flat list of quick actions for backward compatibility
+  const quickActions: QuickAction[] = actionCategories.flatMap(cat => cat.actions);
+
+  // Configurable actions that need the dialog
+  const configurableActionIds = [
+    "distribute-pending",
+    "distribute-confirmed-callers",
+    "distribute-confirmed-delivery",
   ];
 
   return {
@@ -150,5 +240,7 @@ export function useAIAgent() {
     isProcessing,
     sendInstruction,
     quickActions,
+    actionCategories,
+    configurableActionIds,
   };
 }

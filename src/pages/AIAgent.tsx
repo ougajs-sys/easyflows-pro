@@ -1,110 +1,113 @@
 import React, { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAIAgent } from "@/hooks/useAIAgent";
 import { QuickActionConfigDialog } from "@/components/ai-agent/QuickActionConfigDialog";
-import { 
-  Bot, 
-  Send, 
-  Loader2, 
-  Users, 
-  Package, 
-  CreditCard, 
-  AlertTriangle, 
-  Star,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Zap,
+import { AIConversation } from "@/components/ai-agent/AIConversation";
+import { AIQuickActions, QuickAction } from "@/components/ai-agent/AIQuickActions";
+import { AIPerformanceDashboard } from "@/components/ai-agent/AIPerformanceDashboard";
+import { Recommendation } from "@/components/ai-agent/AIRecommendationCard";
+import {
+  Bot,
   MessageSquare,
+  Zap,
+  Lightbulb,
   Truck,
   Phone,
-  Settings2
-} from "lucide-react";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-
-interface QuickAction {
-  id: string;
-  label: string;
-  instruction: string;
-  icon: string;
-}
-
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Users,
   Package,
-  CreditCard,
-  AlertTriangle,
-  Star,
-  Truck,
-  Phone,
-};
+} from "lucide-react";
 
 export default function AIAgent() {
-  const [instruction, setInstruction] = useState("");
-  const [lastResponse, setLastResponse] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("conseils");
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<QuickAction | null>(null);
-  const { instructions, isLoadingHistory, isProcessing, sendInstruction, quickActions } = useAIAgent();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!instruction.trim() || isProcessing) return;
+  const {
+    instructions,
+    isLoadingHistory,
+    isProcessing,
+    sendInstruction,
+    actionCategories,
+    configurableActionIds,
+  } = useAIAgent();
 
-    try {
-      const result = await sendInstruction.mutateAsync(instruction);
-      setLastResponse(result.message);
-      setInstruction("");
-    } catch (error) {
-      // Error handled by mutation
-    }
+  // Handle sending instruction from conversation
+  const handleSendInstruction = async (instruction: string) => {
+    await sendInstruction.mutateAsync(instruction);
   };
 
+  // Handle quick action click
   const handleQuickActionClick = (action: QuickAction) => {
-    // Actions that need configuration (distribution)
-    const configurableActions = [
-      "distribute-pending",
-      "distribute-confirmed-callers",
-      "distribute-confirmed-delivery",
-    ];
-
-    if (configurableActions.includes(action.id)) {
+    if (configurableActionIds.includes(action.id)) {
       setSelectedAction(action);
       setConfigDialogOpen(true);
     } else {
-      // Execute directly for non-configurable actions
       handleExecuteAction(action.instruction);
     }
   };
 
+  // Execute action
   const handleExecuteAction = async (actionInstruction: string) => {
     try {
-      const result = await sendInstruction.mutateAsync(actionInstruction);
-      setLastResponse(result.message);
+      await sendInstruction.mutateAsync(actionInstruction);
       setConfigDialogOpen(false);
       setSelectedAction(null);
-    } catch (error) {
+    } catch {
       // Error handled by mutation
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <Badge variant="default" className="bg-success/20 text-success border-success/30"><CheckCircle2 className="w-3 h-3 mr-1" /> Terminé</Badge>;
-      case "processing":
-        return <Badge variant="default" className="bg-primary/20 text-primary border-primary/30"><Loader2 className="w-3 h-3 mr-1 animate-spin" /> En cours</Badge>;
-      case "failed":
-        return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Échoué</Badge>;
-      default:
-        return <Badge variant="default" className="bg-warning/20 text-warning border-warning/30"><Clock className="w-3 h-3 mr-1" /> En attente</Badge>;
+  // Handle performance quick action
+  const handlePerformanceQuickAction = (actionId: string) => {
+    const actionMap: Record<string, string> = {
+      "global-diagnostic": "Fais un diagnostic complet de la boutique: commandes, stock, équipe, et donne des recommandations concrètes",
+      "daily-plan": "Génère un plan d'action pour aujourd'hui basé sur les priorités: commandes en attente, stocks bas, relances à faire",
+      "team-coaching": "Analyse les performances de l'équipe (appelants et livreurs) et donne des conseils personnalisés pour chacun",
+    };
+    
+    const instruction = actionMap[actionId];
+    if (instruction) {
+      handleExecuteAction(instruction);
     }
   };
+
+  // Mock data for performance dashboard
+  // TODO: Replace with real data from AI analysis
+  const mockScore = 72;
+  const mockScoreDelta = 3;
+  const mockMetrics = [
+    { label: "Livraisons", value: "85%", trend: "up" as const, icon: Truck },
+    { label: "Conversion", value: "7/10", trend: "neutral" as const, icon: Phone },
+    { label: "Stock", value: "OK", trend: "up" as const, icon: Package },
+  ];
+
+  const mockRecommendations: Recommendation[] = [
+    {
+      id: "1",
+      type: "urgent",
+      title: "8 commandes en attente",
+      description: "Ces commandes n'ont pas encore été assignées à un appelant",
+      actionLabel: "Distribuer",
+      instruction: "Distribue équitablement toutes les commandes en attente entre les appelants actifs",
+    },
+    {
+      id: "2",
+      type: "warning",
+      title: "Zone Nord surchargée",
+      description: "Un seul livreur pour 12 commandes - rééquilibrer la charge",
+      actionLabel: "Répartir",
+      instruction: "Rééquilibre les commandes de la zone Nord entre tous les livreurs disponibles",
+    },
+    {
+      id: "3",
+      type: "info",
+      title: "3 produits en stock bas",
+      description: "Huile d'argan, Savon noir, Ghassoul - pensez à réapprovisionner",
+      actionLabel: "Voir",
+      instruction: "Liste les produits avec un stock inférieur à 10 unités",
+    },
+  ];
 
   return (
     <DashboardLayout>
@@ -117,184 +120,64 @@ export default function AIAgent() {
           <div>
             <h1 className="text-2xl font-bold">Agent IA</h1>
             <p className="text-muted-foreground">
-              Donnez des instructions en langage naturel pour automatiser vos tâches
+              Ton assistant pour gérer la boutique simplement
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Input Section */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Instruction Input */}
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="conseils" className="gap-2">
+              <Lightbulb className="w-4 h-4" />
+              <span className="hidden sm:inline">Conseils</span>
+            </TabsTrigger>
+            <TabsTrigger value="actions" className="gap-2">
+              <Zap className="w-4 h-4" />
+              <span className="hidden sm:inline">Actions</span>
+            </TabsTrigger>
+            <TabsTrigger value="parler" className="gap-2">
+              <MessageSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">Parler</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Conseils Tab - Performance Dashboard */}
+          <TabsContent value="conseils" className="mt-0">
+            <AIPerformanceDashboard
+              score={mockScore}
+              scoreDelta={mockScoreDelta}
+              metrics={mockMetrics}
+              recommendations={mockRecommendations}
+              onActionClick={handleExecuteAction}
+              onQuickAction={handlePerformanceQuickAction}
+              isProcessing={isProcessing}
+            />
+          </TabsContent>
+
+          {/* Actions Tab - Quick Actions Grid */}
+          <TabsContent value="actions" className="mt-0">
+            <AIQuickActions
+              categories={actionCategories}
+              onActionClick={handleQuickActionClick}
+              isProcessing={isProcessing}
+              configurableActionIds={configurableActionIds}
+            />
+          </TabsContent>
+
+          {/* Parler Tab - Conversation */}
+          <TabsContent value="parler" className="mt-0">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-primary" />
-                  Nouvelle instruction
-                </CardTitle>
-                <CardDescription>
-                  Décrivez ce que vous voulez faire. L'IA comprendra et exécutera l'action appropriée.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <Textarea
-                    value={instruction}
-                    onChange={(e) => setInstruction(e.target.value)}
-                    placeholder="Ex: Distribue équitablement les commandes confirmées d'aujourd'hui entre tous les appelants actifs"
-                    className="min-h-[100px] resize-none"
-                    disabled={isProcessing}
-                  />
-                  <div className="flex justify-between items-center">
-                    <p className="text-xs text-muted-foreground">
-                      Appuyez sur Entrée ou cliquez sur Envoyer
-                    </p>
-                    <Button type="submit" disabled={!instruction.trim() || isProcessing}>
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Traitement...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4 mr-2" />
-                          Envoyer
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-
-            {/* Last Response */}
-            {lastResponse && (
-              <Card className="border-primary/30 bg-primary/5">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-primary">
-                    <Bot className="w-5 h-5" />
-                    Réponse de l'Agent IA
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="whitespace-pre-wrap text-sm font-mono bg-background/50 p-4 rounded-lg">
-                    {lastResponse}
-                  </pre>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-accent" />
-                  Actions rapides
-                </CardTitle>
-                <CardDescription>
-                  Cliquez sur une action pour la configurer et l'exécuter
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {quickActions.map((action) => {
-                    const Icon = iconMap[action.icon] || Package;
-                    const isConfigurable = [
-                      "distribute-pending",
-                      "distribute-confirmed-callers",
-                      "distribute-confirmed-delivery",
-                    ].includes(action.id);
-
-                    return (
-                      <Card
-                        key={action.id}
-                        className="cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group"
-                        onClick={() => !isProcessing && handleQuickActionClick(action)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
-                              <Icon className="w-5 h-5 text-primary" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="font-medium text-sm truncate">{action.label}</p>
-                                {isConfigurable && (
-                                  <Settings2 className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                                {action.instruction}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* History Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="h-fit">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Historique
-                </CardTitle>
-                <CardDescription>
-                  Vos dernières instructions
-                </CardDescription>
-              </CardHeader>
               <CardContent className="p-0">
-                <ScrollArea className="h-[500px]">
-                  {isLoadingHistory ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : instructions.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Bot className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>Aucune instruction pour le moment</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-border">
-                      {instructions.map((instr) => (
-                        <div key={instr.id} className="p-4 hover:bg-muted/50 transition-colors">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            {getStatusBadge(instr.status)}
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(instr.created_at), "dd/MM HH:mm", { locale: fr })}
-                            </span>
-                          </div>
-                          <p className="text-sm line-clamp-2 mb-2">{instr.instruction}</p>
-                          {instr.affected_count > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              {instr.affected_count} élément(s) affecté(s)
-                            </p>
-                          )}
-                          {instr.result?.message && (
-                            <p className="text-xs text-primary mt-1 line-clamp-2">
-                              {instr.result.message.substring(0, 100)}...
-                            </p>
-                          )}
-                          {instr.error_message && (
-                            <p className="text-xs text-destructive mt-1">
-                              {instr.error_message}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
+                <AIConversation
+                  instructions={instructions}
+                  isProcessing={isProcessing}
+                  onSendInstruction={handleSendInstruction}
+                />
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Configuration Dialog */}
         <QuickActionConfigDialog
