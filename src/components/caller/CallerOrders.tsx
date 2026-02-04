@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatCurrency";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { CancelledOrdersSidebar } from "./CancelledOrdersSidebar";
+import { ReportOrderDialog } from "@/components/delivery/ReportOrderDialog";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 
@@ -90,6 +91,8 @@ export function CallerOrders() {
   const [showPaymentInput, setShowPaymentInput] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [orderToReport, setOrderToReport] = useState<Order | null>(null);
 
   // Activer la synchronisation en temps réel
   useRealtimeSync({
@@ -132,14 +135,18 @@ export function CallerOrders() {
   });
 
   const updateOrderMutation = useMutation({
-    mutationFn: async ({ id, status, amount_paid }: { 
+    mutationFn: async ({ id, status, amount_paid, scheduled_at, report_reason }: { 
       id: string; 
       status: OrderStatus;
       amount_paid?: number;
+      scheduled_at?: string;
+      report_reason?: string;
     }) => {
       const updateData: Record<string, unknown> = { status };
       if (amount_paid !== undefined) updateData.amount_paid = amount_paid;
       if (status === "delivered") updateData.delivered_at = new Date().toISOString();
+      if (scheduled_at) updateData.scheduled_at = scheduled_at;
+      if (report_reason) updateData.report_reason = report_reason;
 
       const { error } = await supabase
         .from("orders")
@@ -154,10 +161,19 @@ export function CallerOrders() {
       queryClient.invalidateQueries({ queryKey: ["caller-cancelled-orders"] });
       queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
       setSelectedOrder(null);
+      setShowReportDialog(false);
+      setOrderToReport(null);
     },
   });
 
-  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus, order?: Order) => {
+    // If status is "reported", open the report dialog instead
+    if (newStatus === "reported" && order) {
+      setOrderToReport(order);
+      setShowReportDialog(true);
+      return;
+    }
+
     try {
       await updateOrderMutation.mutateAsync({ id: orderId, status: newStatus });
       toast({
@@ -168,6 +184,29 @@ export function CallerOrders() {
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour le statut",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReportConfirm = async (scheduledAt: Date, reason: string) => {
+    if (!orderToReport) return;
+
+    try {
+      await updateOrderMutation.mutateAsync({
+        id: orderToReport.id,
+        status: "reported",
+        scheduled_at: scheduledAt.toISOString(),
+        report_reason: reason || undefined,
+      });
+      toast({
+        title: "Commande reportée",
+        description: `Nouvelle livraison prévue le ${format(scheduledAt, "d MMMM yyyy 'à' HH:mm", { locale: fr })}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de reporter la commande",
         variant: "destructive",
       });
     }
@@ -435,7 +474,7 @@ export function CallerOrders() {
                 <h4 className="font-semibold text-primary">Changer le statut</h4>
                 <Select
                   value={selectedOrder.status}
-                  onValueChange={(value) => handleStatusChange(selectedOrder.id, value as OrderStatus)}
+                  onValueChange={(value) => handleStatusChange(selectedOrder.id, value as OrderStatus, selectedOrder)}
                   disabled={updateOrderMutation.isPending}
                 >
                   <SelectTrigger className="bg-background">
@@ -600,6 +639,18 @@ export function CallerOrders() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Report Order Dialog */}
+      <ReportOrderDialog
+        open={showReportDialog}
+        onOpenChange={(open) => {
+          setShowReportDialog(open);
+          if (!open) setOrderToReport(null);
+        }}
+        onConfirm={handleReportConfirm}
+        isLoading={updateOrderMutation.isPending}
+        orderNumber={orderToReport?.order_number || undefined}
+      />
     </div>
   );
 }
