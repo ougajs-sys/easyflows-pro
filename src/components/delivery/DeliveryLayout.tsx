@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,11 +13,12 @@ import {
   Sun,
   Boxes,
   Send,
-  User
+  User,
+  Download
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { DeliveryStatusToggle } from "./DeliveryStatusToggle";
 import { Database } from "@/integrations/supabase/types";
 
@@ -50,9 +51,16 @@ export function DeliveryLayout({
   isUpdatingStatus
 }: DeliveryLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
   const { theme, setTheme } = useTheme();
   const { signOut } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+    const isIOSStandalone = (navigator as { standalone?: boolean }).standalone === true;
+    setIsAppInstalled(isStandalone || isIOSStandalone);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -76,7 +84,7 @@ export function DeliveryLayout({
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 z-50 w-72 bg-sidebar-background border-r border-sidebar-border transform transition-transform duration-300 lg:transform-none",
+        "fixed lg:static inset-y-0 left-0 z-50 w-72 bg-card border-r border-sidebar-border transform transition-transform duration-300 lg:transform-none",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="flex flex-col h-full">
@@ -134,6 +142,17 @@ export function DeliveryLayout({
                   </button>
                 );
               })}
+              
+              {/* Install App Button */}
+              {!isAppInstalled && (
+                <Link
+                  to="/install"
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-primary hover:bg-primary/10 border border-primary/20 bg-primary/5 mt-2"
+                >
+                  <Download className="w-5 h-5" />
+                  <span>Installer l'app</span>
+                </Link>
+              )}
             </nav>
           </ScrollArea>
 
@@ -166,7 +185,7 @@ export function DeliveryLayout({
       {/* Main Content */}
       <main className="flex-1 min-h-screen">
         {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border p-4 flex items-center justify-between">
+        <header className="lg:hidden sticky top-0 z-30 bg-card border-b border-border p-4 flex items-center justify-between">
           <Button
             variant="ghost"
             size="icon"
