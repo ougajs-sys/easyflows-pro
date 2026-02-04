@@ -70,30 +70,25 @@ serve(async (req) => {
     const message = templateFn(data);
     console.log(`Message: ${message}`);
 
-    // Clean phone number - ensure it has country code
-    let cleanPhone = phone.replace(/\s+/g, "").replace(/-/g, "");
-    
-    // Handle different country codes
-    if (cleanPhone.startsWith("0")) {
-      // Assume Morocco by default, change to your country
-      cleanPhone = "+212" + cleanPhone.substring(1);
-    } else if (!cleanPhone.startsWith("+")) {
-      cleanPhone = "+" + cleanPhone;
-    }
+    // Clean phone number for 360Messenger (without +)
+    const cleanPhone = phone
+      .replace(/\s+/g, "")      // Remove spaces
+      .replace(/-/g, "")        // Remove dashes
+      .replace(/^\+/, "")       // Remove leading +
+      .replace(/^0/, "212");    // Replace leading 0 with 212 (Morocco)
 
-    console.log(`Cleaned phone: ${cleanPhone}`);
+    console.log(`Cleaned phone for 360Messenger: ${cleanPhone}`);
 
-    // MESSENGER360 API call
-    const response = await fetch("https://api.messenger360.com/v1/messages", {
+    // 360Messenger API call
+    const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${MESSENGER360_API_KEY}`,
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify({
-        to: cleanPhone,
-        message: message,
-        channel: channel,
+      body: new URLSearchParams({
+        phonenumber: cleanPhone,
+        text: message,
       }),
     });
 

@@ -42,20 +42,25 @@ serve(async (req) => {
     // Send messages to each phone
     for (const phone of phones) {
       try {
-        // Clean phone number - ensure it has country code
-        const cleanPhone = phone.replace(/\s+/g, "").replace(/^0/, "+212");
+        // Clean phone number for 360Messenger (without +)
+        const cleanPhone = phone
+          .replace(/\s+/g, "")      // Remove spaces
+          .replace(/-/g, "")        // Remove dashes
+          .replace(/^\+/, "")       // Remove leading +
+          .replace(/^0/, "212");    // Replace leading 0 with 212 (Morocco)
         
-        // MESSENGER360 API call
-        const response = await fetch("https://api.messenger360.com/v1/messages", {
+        console.log(`Sending ${type} to ${cleanPhone}`);
+        
+        // 360Messenger API call
+        const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${MESSENGER360_API_KEY}`,
-            "Content-Type": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
           },
-          body: JSON.stringify({
-            to: cleanPhone,
-            message: message,
-            channel: type === 'whatsapp' ? 'whatsapp' : 'sms',
+          body: new URLSearchParams({
+            phonenumber: cleanPhone,
+            text: message,
           }),
         });
 
