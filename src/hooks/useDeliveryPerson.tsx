@@ -287,6 +287,29 @@ export function useDeliveryPerson() {
     },
   });
 
+  // Cancel order with reason (keeps delivery_person_id for stats)
+  const cancelOrder = useMutation({
+    mutationFn: async ({ orderId, reason }: { orderId: string; reason: string }) => {
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          status: 'cancelled' as OrderStatus,
+          cancellation_reason: reason,
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['delivery-cancelled'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+
   // Calculate stats
   const todayRevenue = todayDeliveries.reduce((sum, o) => sum + (o.amount_paid || 0), 0);
   const delivererRevenue = todayDeliveries.length * DELIVERY_FEE;
@@ -302,6 +325,7 @@ export function useDeliveryPerson() {
     updateDeliveryStatus,
     updateOrderStatus,
     returnToRedistribution,
+    cancelOrder,
     // Stats
     deliveryFee: DELIVERY_FEE,
     todayRevenue,

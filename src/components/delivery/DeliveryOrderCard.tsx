@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -13,16 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -30,6 +22,15 @@ import { Database } from "@/integrations/supabase/types";
 import { ReportOrderDialog } from "./ReportOrderDialog";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
+
+const CANCELLATION_REASONS = [
+  { value: "client_injoignable", label: "Client injoignable" },
+  { value: "adresse_incorrecte", label: "Adresse incorrecte" },
+  { value: "client_refuse", label: "Client refuse la livraison" },
+  { value: "hors_zone", label: "Hors zone de livraison" },
+  { value: "commande_double", label: "Commande en double" },
+  { value: "autre", label: "Autre" },
+];
 
 interface DeliveryOrderCardProps {
   order: {
@@ -58,6 +59,7 @@ interface DeliveryOrderCardProps {
   };
   onUpdateStatus: (orderId: string, status: OrderStatus, amountPaid?: number, scheduledAt?: Date, reason?: string) => void;
   onReturnToRedistribution?: (orderId: string, reason?: string) => void;
+  onCancelOrder?: (orderId: string, reason: string) => void;
   isUpdating: boolean;
 }
 
@@ -71,12 +73,14 @@ const statusConfig: Record<OrderStatus, { label: string; color: string }> = {
   reported: { label: "Reportée", color: "bg-muted text-muted-foreground" },
 };
 
-export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribution, isUpdating }: DeliveryOrderCardProps) {
+export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribution, onCancelOrder, isUpdating }: DeliveryOrderCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [showDeliveryDialog, setShowDeliveryDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [amountCollected, setAmountCollected] = useState(order.amount_due?.toString() || order.total_amount.toString());
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelReasonOther, setCancelReasonOther] = useState("");
 
   // Use client_phone from orders table with fallback to client.phone
   const clientPhone = order.client_phone || order.client?.phone;
@@ -103,12 +107,19 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
     setShowReportDialog(false);
   };
 
-  const handleReturnToRedistribution = () => {
-    if (onReturnToRedistribution) {
-      onReturnToRedistribution(order.id, "Commande renvoyée à la redistribution par le livreur");
+  const handleCancelOrder = () => {
+    const reasonLabel = CANCELLATION_REASONS.find(r => r.value === cancelReason)?.label || cancelReason;
+    const finalReason = cancelReason === "autre" ? cancelReasonOther : reasonLabel;
+    
+    if (onCancelOrder && finalReason) {
+      onCancelOrder(order.id, finalReason);
     }
     setShowCancelDialog(false);
+    setCancelReason("");
+    setCancelReasonOther("");
   };
+
+  const isCancelValid = cancelReason && (cancelReason !== "autre" || cancelReasonOther.trim());
 
   const amountDue = order.amount_due ?? (order.total_amount - order.amount_paid);
 
@@ -227,7 +238,7 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
                 >
                   Démarrer la livraison
                 </Button>
-                {onReturnToRedistribution && (
+                {onCancelOrder && (
                   <Button
                     variant="destructive"
                     size="icon"
@@ -256,13 +267,13 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
                 >
                   Reporter
                 </Button>
-                {onReturnToRedistribution && (
+                {onCancelOrder && (
                   <Button
                     variant="destructive"
                     size="icon"
                     onClick={() => setShowCancelDialog(true)}
                     disabled={isUpdating}
-                    title="Annuler et redistribuer"
+                    title="Annuler la commande"
                   >
                     <XCircle className="h-4 w-4" />
                   </Button>
@@ -326,27 +337,49 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
         orderNumber={order.order_number || undefined}
       />
 
-      {/* Cancel and Redistribute Dialog */}
-      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Annuler cette commande ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              La commande {order.order_number} sera renvoyée dans la file d'attente 
-              pour être redistribuée à un autre livreur par le système.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Non, garder</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleReturnToRedistribution}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      {/* Cancel Order Dialog with Reason Selection */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Annuler la commande {order.order_number}</DialogTitle>
+            <DialogDescription>
+              Sélectionnez le motif d'annulation. Cette commande sera marquée comme annulée dans le système.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <RadioGroup value={cancelReason} onValueChange={setCancelReason}>
+              {CANCELLATION_REASONS.map((reason) => (
+                <div key={reason.value} className="flex items-center space-x-2">
+                  <RadioGroupItem value={reason.value} id={reason.value} />
+                  <Label htmlFor={reason.value} className="cursor-pointer">
+                    {reason.label}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+            {cancelReason === "autre" && (
+              <Textarea
+                placeholder="Précisez le motif d'annulation..."
+                value={cancelReasonOther}
+                onChange={(e) => setCancelReasonOther(e.target.value)}
+                className="mt-2"
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
+              Non, garder
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelOrder}
+              disabled={!isCancelValid || isUpdating}
             >
-              Oui, annuler et redistribuer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              Oui, annuler
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
