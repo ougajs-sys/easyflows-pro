@@ -13,6 +13,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { 
   RefreshCw, 
   Phone, 
@@ -25,7 +34,8 @@ import {
   ChevronDown,
   XCircle,
   Truck,
-  ShoppingCart
+  ShoppingCart,
+  FileText
 } from "lucide-react";
 import { formatDistanceToNow, format, isToday, isPast } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -61,6 +71,9 @@ export function CallerFollowUps() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("pending");
+  const [selectedFollowUp, setSelectedFollowUp] = useState<FollowUp | null>(null);
+  const [followUpNotes, setFollowUpNotes] = useState("");
+  const [showNotesDialog, setShowNotesDialog] = useState(false);
 
   const { data: followUps, isLoading } = useQuery({
     queryKey: ["caller-followups", user?.id],
@@ -129,6 +142,50 @@ export function CallerFollowUps() {
       });
     },
   });
+
+  // Mutation pour mettre à jour les notes d'une relance
+  const updateFollowUpNotesMutation = useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+      const { error } = await supabase
+        .from("follow_ups")
+        .update({ notes })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["caller-followups"] });
+      setShowNotesDialog(false);
+      setFollowUpNotes("");
+      setSelectedFollowUp(null);
+      toast({
+        title: "Notes enregistrées",
+        description: "Les notes de la relance ont été mises à jour",
+      });
+    },
+    onError: (error) => {
+      console.error("Error updating follow-up notes:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour les notes",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleAddNotes = (followUp: FollowUp) => {
+    setSelectedFollowUp(followUp);
+    setFollowUpNotes(followUp.notes || "");
+    setShowNotesDialog(true);
+  };
+
+  const handleSaveNotes = () => {
+    if (!selectedFollowUp) return;
+    updateFollowUpNotesMutation.mutate({
+      id: selectedFollowUp.id,
+      notes: followUpNotes
+    });
+  };
 
   // Mutation pour mettre à jour le statut de la commande
   const updateOrderStatusMutation = useMutation({
@@ -374,6 +431,17 @@ export function CallerFollowUps() {
                               </a>
                             )}
 
+                            {/* Bouton pour ajouter/modifier des notes */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => handleAddNotes(followUp)}
+                            >
+                              <FileText className="w-4 h-4 mr-1" />
+                              {followUp.notes ? "Modifier notes" : "Ajouter notes"}
+                            </Button>
+
                             {/* Actions sur la commande */}
                             {followUp.order && (
                               <div className="flex gap-2">
@@ -499,6 +567,54 @@ export function CallerFollowUps() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Notes Dialog */}
+      <Dialog open={showNotesDialog} onOpenChange={setShowNotesDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              {selectedFollowUp?.notes ? "Modifier les notes" : "Ajouter des notes"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="followup-notes">Notes / Observations</Label>
+              <Textarea
+                id="followup-notes"
+                placeholder="Ex: Client préfère être contacté après 18h, demande un report..."
+                value={followUpNotes}
+                onChange={(e) => setFollowUpNotes(e.target.value)}
+                className="min-h-[120px]"
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground">{followUpNotes.length}/500 caractères</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowNotesDialog(false);
+                setFollowUpNotes("");
+                setSelectedFollowUp(null);
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSaveNotes}
+              disabled={updateFollowUpNotesMutation.isPending}
+            >
+              {updateFollowUpNotesMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Enregistrer"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
