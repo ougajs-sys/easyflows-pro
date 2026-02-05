@@ -209,7 +209,11 @@ export function CallerOrdersAll() {
     
     try {
       // If changing to confirmed, include notes if provided
-      const updateData: any = { id: orderId, status: newStatus };
+      const updateData: {
+        id: string;
+        status: OrderStatus;
+        delivery_notes?: string;
+      } = { id: orderId, status: newStatus };
       if (newStatus === "confirmed" && orderNotes) {
         updateData.delivery_notes = orderNotes;
       }
