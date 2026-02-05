@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +33,8 @@ import {
   CreditCard,
   Loader2,
   ExternalLink,
-  User
+  User,
+  FileText
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -90,6 +92,8 @@ export function CallerOrders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showPaymentInput, setShowPaymentInput] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [orderNotes, setOrderNotes] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [orderToReport, setOrderToReport] = useState<Order | null>(null);
@@ -135,18 +139,20 @@ export function CallerOrders() {
   });
 
   const updateOrderMutation = useMutation({
-    mutationFn: async ({ id, status, amount_paid, scheduled_at, report_reason }: { 
+    mutationFn: async ({ id, status, amount_paid, scheduled_at, report_reason, delivery_notes }: { 
       id: string; 
       status: OrderStatus;
       amount_paid?: number;
       scheduled_at?: string;
       report_reason?: string;
+      delivery_notes?: string;
     }) => {
       const updateData: Record<string, unknown> = { status };
       if (amount_paid !== undefined) updateData.amount_paid = amount_paid;
       if (status === "delivered") updateData.delivered_at = new Date().toISOString();
       if (scheduled_at) updateData.scheduled_at = scheduled_at;
       if (report_reason) updateData.report_reason = report_reason;
+      if (delivery_notes !== undefined) updateData.delivery_notes = delivery_notes;
 
       const { error } = await supabase
         .from("orders")
@@ -163,6 +169,8 @@ export function CallerOrders() {
       setSelectedOrder(null);
       setShowReportDialog(false);
       setOrderToReport(null);
+      setOrderNotes("");
+      setPaymentNotes("");
     },
   });
 
@@ -175,7 +183,12 @@ export function CallerOrders() {
     }
 
     try {
-      await updateOrderMutation.mutateAsync({ id: orderId, status: newStatus });
+      // If changing to confirmed, include notes if provided
+      const updateData: any = { id: orderId, status: newStatus };
+      if (newStatus === "confirmed" && orderNotes) {
+        updateData.delivery_notes = orderNotes;
+      }
+      await updateOrderMutation.mutateAsync(updateData);
       toast({
         title: "Statut mis à jour",
         description: `Commande marquée comme "${statusConfig[newStatus]?.label}"`,
@@ -257,7 +270,7 @@ export function CallerOrders() {
         method: "cash",
         status: "completed",
         reference: paymentRef,
-        notes: `Paiement enregistré le ${paymentDate} - Référence: ${paymentRef} - Montant: ${formatCurrency(amount)} FCFA - Commande: ${selectedOrder.order_number}`,
+        notes: paymentNotes || `Paiement enregistré le ${paymentDate} - Référence: ${paymentRef} - Montant: ${formatCurrency(amount)} FCFA - Commande: ${selectedOrder.order_number}`,
       });
 
       if (paymentError) {
@@ -277,6 +290,7 @@ export function CallerOrders() {
       });
 
       setPaymentAmount("");
+      setPaymentNotes("");
       setShowPaymentInput(false);
     } catch (error) {
       console.error("Error recording payment:", error);
@@ -455,12 +469,12 @@ export function CallerOrders() {
 
       {/* Order Detail Dialog */}
       <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span className="font-mono">{selectedOrder?.order_number}</span>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-3 border-b sticky top-0 bg-background z-10">
+            <DialogTitle className="flex items-center justify-between gap-2 text-sm sm:text-base">
+              <span className="font-mono truncate">{selectedOrder?.order_number}</span>
               {selectedOrder && (
-                <Badge className={cn("border", statusConfig[selectedOrder.status]?.class)}>
+                <Badge className={cn("border text-xs", statusConfig[selectedOrder.status]?.class)}>
                   {statusConfig[selectedOrder.status]?.label}
                 </Badge>
               )}
@@ -468,16 +482,17 @@ export function CallerOrders() {
           </DialogHeader>
 
           {selectedOrder && (
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="space-y-3 sm:space-y-4">
               {/* Status Change */}
-              <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
-                <h4 className="font-semibold text-primary">Changer le statut</h4>
+              <div className="p-3 sm:p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
+                <h4 className="font-semibold text-primary text-sm sm:text-base">Changer le statut</h4>
                 <Select
                   value={selectedOrder.status}
                   onValueChange={(value) => handleStatusChange(selectedOrder.id, value as OrderStatus, selectedOrder)}
                   disabled={updateOrderMutation.isPending}
                 >
-                  <SelectTrigger className="bg-background">
+                  <SelectTrigger className="bg-background text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -488,12 +503,31 @@ export function CallerOrders() {
                     <SelectItem value="cancelled">Annulé</SelectItem>
                   </SelectContent>
                 </Select>
+                
+                {/* Notes field for confirmation */}
+                {selectedOrder.status === "pending" && (
+                  <div className="space-y-2 pt-2">
+                    <Label htmlFor="order-notes" className="text-xs sm:text-sm flex items-center gap-2">
+                      <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                      Notes / Observations (optionnel)
+                    </Label>
+                    <Textarea
+                      id="order-notes"
+                      placeholder="Ex: Client préfère livraison après 18h, sonnette cassée..."
+                      value={orderNotes}
+                      onChange={(e) => setOrderNotes(e.target.value)}
+                      className="bg-background min-h-[60px] text-sm"
+                      maxLength={500}
+                    />
+                    <p className="text-xs text-muted-foreground">{orderNotes.length}/500 caractères</p>
+                  </div>
+                )}
               </div>
 
               {/* Payment Section */}
               {(selectedOrder.status === "pending" || selectedOrder.status === "partial") && Number(selectedOrder.amount_due) > 0 && (
-                <div className="p-4 rounded-lg border border-success/20 bg-success/5 space-y-3">
-                  <h4 className="font-semibold text-success flex items-center gap-2">
+                <div className="p-3 sm:p-4 rounded-lg border border-success/20 bg-success/5 space-y-3">
+                  <h4 className="font-semibold text-success flex items-center gap-2 text-sm sm:text-base">
                     <CreditCard className="w-4 h-4" />
                     Enregistrer un paiement
                   </h4>
@@ -505,32 +539,45 @@ export function CallerOrders() {
                   </div>
                   
                   {showPaymentInput ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       <div className="space-y-2">
-                        <Label>Montant reçu (FCFA)</Label>
+                        <Label className="text-xs sm:text-sm">Montant reçu (FCFA)</Label>
                         <Input
                           type="number"
                           placeholder="Ex: 5000"
                           value={paymentAmount}
                           onChange={(e) => setPaymentAmount(e.target.value)}
-                          className="bg-background"
+                          className="bg-background text-sm"
                         />
                       </div>
-                      <div className="flex gap-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-notes" className="text-xs sm:text-sm">Notes / Observations (optionnel)</Label>
+                        <Textarea
+                          id="payment-notes"
+                          placeholder="Ex: Client préfère livraison après 18h, sonnette cassée..."
+                          value={paymentNotes}
+                          onChange={(e) => setPaymentNotes(e.target.value)}
+                          className="bg-background min-h-[60px] text-sm"
+                          maxLength={500}
+                        />
+                        <p className="text-xs text-muted-foreground">{paymentNotes.length}/500 caractères</p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="flex-1"
+                          className="w-full sm:flex-1"
                           onClick={() => {
                             setShowPaymentInput(false);
                             setPaymentAmount("");
+                            setPaymentNotes("");
                           }}
                         >
                           Annuler
                         </Button>
                         <Button 
                           size="sm" 
-                          className="flex-1"
+                          className="w-full sm:flex-1"
                           onClick={handleRecordPayment}
                           disabled={updateOrderMutation.isPending || !paymentAmount}
                         >
@@ -556,51 +603,51 @@ export function CallerOrders() {
               )}
 
               {/* Order Info */}
-              <div className="p-4 rounded-lg bg-secondary/30 space-y-3">
-                <div className="flex items-center justify-between">
+              <div className="p-3 sm:p-4 rounded-lg bg-secondary/30 space-y-2 sm:space-y-3">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Produit</span>
                   <span className="font-medium">{selectedOrder.product?.name}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Quantité</span>
                   <span className="font-medium">{selectedOrder.quantity}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Total</span>
                   <span className="font-bold text-primary">
                     {formatCurrency(Number(selectedOrder.total_amount))} FCFA
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Payé</span>
                   <span className="text-success">
                     {formatCurrency(Number(selectedOrder.amount_paid))} FCFA
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Date</span>
-                  <span className="text-sm">
+                  <span className="text-xs sm:text-sm">
                     {format(new Date(selectedOrder.created_at), "dd MMM yyyy HH:mm", { locale: fr })}
                   </span>
                 </div>
               </div>
 
               {/* Client Section */}
-              <div className="p-4 rounded-lg border space-y-3">
-                <h4 className="font-semibold flex items-center gap-2">
+              <div className="p-3 sm:p-4 rounded-lg border space-y-2 sm:space-y-3">
+                <h4 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
                   <User className="w-4 h-4 text-primary" />
                   Client
                 </h4>
-                <p className="font-medium">{selectedOrder.client?.full_name}</p>
+                <p className="font-medium text-sm sm:text-base">{selectedOrder.client?.full_name}</p>
                 
                 {selectedOrder.client?.phone && (
                   <a 
                     href={`tel:${selectedOrder.client.phone}`}
                     className="flex items-center gap-2 p-3 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
                   >
-                    <Phone className="w-5 h-5" />
-                    <span className="font-medium">{selectedOrder.client.phone}</span>
-                    <ExternalLink className="w-4 h-4 ml-auto" />
+                    <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="font-medium text-sm sm:text-base">{selectedOrder.client.phone}</span>
+                    <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4 ml-auto" />
                   </a>
                 )}
 
@@ -609,8 +656,8 @@ export function CallerOrders() {
                     href={`tel:${selectedOrder.client.phone_secondary}`}
                     className="flex items-center gap-2 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
                   >
-                    <Phone className="w-5 h-5" />
-                    <span>{selectedOrder.client.phone_secondary}</span>
+                    <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="text-sm sm:text-base">{selectedOrder.client.phone_secondary}</span>
                     <span className="text-xs text-muted-foreground">(secondaire)</span>
                   </a>
                 )}
@@ -618,12 +665,12 @@ export function CallerOrders() {
 
               {/* Address */}
               {(selectedOrder.delivery_address || selectedOrder.client?.address) && (
-                <div className="p-4 rounded-lg border space-y-3">
-                  <h4 className="font-semibold flex items-center gap-2">
+                <div className="p-3 sm:p-4 rounded-lg border space-y-2 sm:space-y-3">
+                  <h4 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
                     <MapPin className="w-4 h-4 text-primary" />
                     Adresse
                   </h4>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     {selectedOrder.delivery_address || selectedOrder.client?.address}
                   </p>
                   {selectedOrder.client?.zone && (
@@ -632,10 +679,26 @@ export function CallerOrders() {
                 </div>
               )}
 
-              <Button variant="outline" className="w-full" onClick={() => setSelectedOrder(null)}>
-                Fermer
-              </Button>
+              {/* Existing Notes */}
+              {selectedOrder.delivery_notes && (
+                <div className="p-4 rounded-lg border border-blue-500/20 bg-blue-500/5 space-y-2">
+                  <h4 className="font-semibold flex items-center gap-2 text-blue-400 text-sm sm:text-base">
+                    <FileText className="w-4 h-4" />
+                    Notes / Observations
+                  </h4>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {selectedOrder.delivery_notes}
+                  </p>
+                </div>
+              )}
             </div>
+          </div>
+
+          <div className="flex-shrink-0 px-6 pb-6 pt-3 border-t bg-background sticky bottom-0">
+            <Button variant="outline" className="w-full" onClick={() => setSelectedOrder(null)}>
+              Fermer
+            </Button>
+          </div>
           )}
         </DialogContent>
       </Dialog>
