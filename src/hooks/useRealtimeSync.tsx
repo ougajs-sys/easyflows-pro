@@ -57,6 +57,11 @@ export function useRealtimeSync(options: RealtimeSyncOptions = {}) {
     queryClient.invalidateQueries({ queryKey: ['confirmed-orders-to-dispatch'] });
     queryClient.invalidateQueries({ queryKey: ['recent-orders'] });
     queryClient.invalidateQueries({ queryKey: ['supervisor-stats'] });
+    
+    // Queries de performance
+    queryClient.invalidateQueries({ queryKey: ['caller-performance'] });
+    queryClient.invalidateQueries({ queryKey: ['delivery-performance'] });
+    queryClient.invalidateQueries({ queryKey: ['delivery-status'] });
   }, [queryClient, user?.id, deliveryPersonId, log]);
 
   // Fonction pour invalider les queries liées aux paiements
@@ -83,10 +88,14 @@ export function useRealtimeSync(options: RealtimeSyncOptions = {}) {
     log('Invalidating delivery person queries...');
     queryClient.invalidateQueries({ queryKey: ['delivery-persons'] });
     queryClient.invalidateQueries({ queryKey: ['active-delivery-persons'] });
+    queryClient.invalidateQueries({ queryKey: ['connected-workers'] });
     
     if (deliveryPersonId) {
       queryClient.invalidateQueries({ queryKey: ['delivery-person', deliveryPersonId] });
     }
+    
+    // Invalider aussi les stats de performance
+    queryClient.invalidateQueries({ queryKey: ['delivery-performance'] });
   }, [queryClient, deliveryPersonId, log]);
 
   // Fonction pour invalider les queries liées aux produits
@@ -94,6 +103,8 @@ export function useRealtimeSync(options: RealtimeSyncOptions = {}) {
     log('Invalidating product queries...');
     queryClient.invalidateQueries({ queryKey: ['products'] });
     queryClient.invalidateQueries({ queryKey: ['stock'] });
+    queryClient.invalidateQueries({ queryKey: ['stock-overview'] });
+    queryClient.invalidateQueries({ queryKey: ['supervisor-stock-overview'] });
   }, [queryClient, log]);
 
   // Fonction pour invalider les queries liées aux follow-ups

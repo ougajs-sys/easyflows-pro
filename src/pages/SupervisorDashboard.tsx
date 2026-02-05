@@ -7,8 +7,15 @@ import { SupervisorStats } from "@/components/supervisor/SupervisorStats";
 import { DeliveryStatus } from "@/components/dashboard/DeliveryStatus";
 import { StockOverviewPanel } from "@/components/supervisor/StockOverviewPanel";
 import { ConnectedWorkers } from "@/components/supervisor/ConnectedWorkers";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function SupervisorDashboard() {
+  // Enable realtime synchronization for supervisor dashboard
+  useRealtimeSync({
+    tables: ['orders', 'payments', 'delivery_persons', 'products'],
+    debug: false,
+  });
+
   return (
     <DashboardLayout>
       {/* En-tête */}
