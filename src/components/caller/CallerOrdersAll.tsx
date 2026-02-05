@@ -786,6 +786,7 @@ export function CallerOrdersAll() {
               )}
             </div>
           </div>
+          )}
           
           <div className="flex-shrink-0 px-6 pb-6 pt-3 border-t bg-background sticky bottom-0">
             <Button variant="outline" className="w-full" onClick={() => setSelectedOrder(null)}>
