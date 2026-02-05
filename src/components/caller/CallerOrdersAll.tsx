@@ -36,7 +36,8 @@ import {
   ExternalLink,
   User,
   AlertTriangle,
-  Calendar
+  Calendar,
+  FileText
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -104,6 +105,8 @@ export function CallerOrdersAll() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showPaymentInput, setShowPaymentInput] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [orderNotes, setOrderNotes] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
   
   // Report dialog state
@@ -156,7 +159,8 @@ export function CallerOrdersAll() {
       amount_paid, 
       scheduled_at,
       report_reason,
-      cancellation_reason
+      cancellation_reason,
+      delivery_notes
     }: { 
       id: string; 
       status: OrderStatus;
@@ -164,12 +168,14 @@ export function CallerOrdersAll() {
       scheduled_at?: string;
       report_reason?: string;
       cancellation_reason?: string;
+      delivery_notes?: string;
     }) => {
       const updateData: Record<string, unknown> = { status };
       if (amount_paid !== undefined) updateData.amount_paid = amount_paid;
       if (scheduled_at !== undefined) updateData.scheduled_at = scheduled_at;
       if (report_reason !== undefined) updateData.report_reason = report_reason;
       if (cancellation_reason !== undefined) updateData.cancellation_reason = cancellation_reason;
+      if (delivery_notes !== undefined) updateData.delivery_notes = delivery_notes;
       if (status === "delivered") updateData.delivered_at = new Date().toISOString();
 
       const { error } = await supabase
@@ -186,6 +192,8 @@ export function CallerOrdersAll() {
       queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       setSelectedOrder(null);
+      setOrderNotes("");
+      setPaymentNotes("");
     },
   });
 
@@ -200,7 +208,16 @@ export function CallerOrdersAll() {
     }
     
     try {
-      await updateOrderMutation.mutateAsync({ id: orderId, status: newStatus });
+      // If changing to confirmed, include notes if provided
+      const updateData: {
+        id: string;
+        status: OrderStatus;
+        delivery_notes?: string;
+      } = { id: orderId, status: newStatus };
+      if (newStatus === "confirmed" && orderNotes) {
+        updateData.delivery_notes = orderNotes;
+      }
+      await updateOrderMutation.mutateAsync(updateData);
       toast({
         title: "Statut mis à jour",
         description: `Commande marquée comme "${statusConfig[newStatus]?.label}"`,
@@ -329,7 +346,7 @@ export function CallerOrdersAll() {
         method: "cash",
         status: "completed",
         reference: paymentRef,
-        notes: `Paiement enregistré le ${paymentDate} - Référence: ${paymentRef} - Montant: ${formatCurrency(amount)} FCFA - Commande: ${selectedOrder.order_number}`,
+        notes: paymentNotes || `Paiement enregistré le ${paymentDate} - Référence: ${paymentRef} - Montant: ${formatCurrency(amount)} FCFA - Commande: ${selectedOrder.order_number}`,
       });
 
       if (paymentError) {
@@ -349,6 +366,7 @@ export function CallerOrdersAll() {
       });
 
       setPaymentAmount("");
+      setPaymentNotes("");
       setShowPaymentInput(false);
     } catch (error) {
       console.error("Error recording payment:", error);
@@ -535,12 +553,12 @@ export function CallerOrdersAll() {
 
       {/* Order Detail Dialog */}
       <Dialog open={!!selectedOrder && !showReportDialog && !showCancelDialog} onOpenChange={() => setSelectedOrder(null)}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span className="font-mono">{selectedOrder?.order_number}</span>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-3 border-b sticky top-0 bg-background z-10">
+            <DialogTitle className="flex items-center justify-between gap-2 text-sm sm:text-base">
+              <span className="font-mono truncate">{selectedOrder?.order_number}</span>
               {selectedOrder && (
-                <Badge className={cn("border", statusConfig[selectedOrder.status]?.class)}>
+                <Badge className={cn("border text-xs", statusConfig[selectedOrder.status]?.class)}>
                   {statusConfig[selectedOrder.status]?.label}
                 </Badge>
               )}
@@ -548,16 +566,17 @@ export function CallerOrdersAll() {
           </DialogHeader>
 
           {selectedOrder && (
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="space-y-3 sm:space-y-4">
               {/* Status Change */}
-              <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
-                <h4 className="font-semibold text-primary">Changer le statut</h4>
+              <div className="p-3 sm:p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
+                <h4 className="font-semibold text-primary text-sm sm:text-base">Changer le statut</h4>
                 <Select
                   value={selectedOrder.status}
                   onValueChange={(value) => handleStatusChange(selectedOrder.id, value as OrderStatus)}
                   disabled={updateOrderMutation.isPending}
                 >
-                  <SelectTrigger className="bg-background">
+                  <SelectTrigger className="bg-background text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -568,12 +587,31 @@ export function CallerOrdersAll() {
                     <SelectItem value="cancelled">Annulé</SelectItem>
                   </SelectContent>
                 </Select>
+                
+                {/* Notes field for confirmation */}
+                {selectedOrder.status === "pending" && (
+                  <div className="space-y-2 pt-2">
+                    <Label htmlFor="order-notes" className="text-xs sm:text-sm flex items-center gap-2">
+                      <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                      Notes / Observations (optionnel)
+                    </Label>
+                    <Textarea
+                      id="order-notes"
+                      placeholder="Ex: Client préfère livraison après 18h, sonnette cassée..."
+                      value={orderNotes}
+                      onChange={(e) => setOrderNotes(e.target.value)}
+                      className="bg-background min-h-[60px] text-sm"
+                      maxLength={500}
+                    />
+                    <p className="text-xs text-muted-foreground">{orderNotes.length}/500 caractères</p>
+                  </div>
+                )}
               </div>
 
               {/* Payment Section */}
               {(selectedOrder.status === "pending" || selectedOrder.status === "partial") && Number(selectedOrder.amount_due) > 0 && (
-                <div className="p-4 rounded-lg border border-success/20 bg-success/5 space-y-3">
-                  <h4 className="font-semibold text-success flex items-center gap-2">
+                <div className="p-3 sm:p-4 rounded-lg border border-success/20 bg-success/5 space-y-3">
+                  <h4 className="font-semibold text-success flex items-center gap-2 text-sm sm:text-base">
                     <CreditCard className="w-4 h-4" />
                     Enregistrer un paiement
                   </h4>
@@ -585,32 +623,45 @@ export function CallerOrdersAll() {
                   </div>
                   
                   {showPaymentInput ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       <div className="space-y-2">
-                        <Label>Montant reçu (FCFA)</Label>
+                        <Label className="text-xs sm:text-sm">Montant reçu (FCFA)</Label>
                         <Input
                           type="number"
                           placeholder="Ex: 5000"
                           value={paymentAmount}
                           onChange={(e) => setPaymentAmount(e.target.value)}
-                          className="bg-background"
+                          className="bg-background text-sm"
                         />
                       </div>
-                      <div className="flex gap-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-notes" className="text-xs sm:text-sm">Notes / Observations (optionnel)</Label>
+                        <Textarea
+                          id="payment-notes"
+                          placeholder="Ex: Client préfère livraison après 18h, sonnette cassée..."
+                          value={paymentNotes}
+                          onChange={(e) => setPaymentNotes(e.target.value)}
+                          className="bg-background min-h-[60px] text-sm"
+                          maxLength={500}
+                        />
+                        <p className="text-xs text-muted-foreground">{paymentNotes.length}/500 caractères</p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          className="flex-1"
+                          className="w-full sm:flex-1"
                           onClick={() => {
                             setShowPaymentInput(false);
                             setPaymentAmount("");
+                            setPaymentNotes("");
                           }}
                         >
                           Annuler
                         </Button>
                         <Button 
                           size="sm" 
-                          className="flex-1"
+                          className="w-full sm:flex-1"
                           onClick={handleRecordPayment}
                           disabled={updateOrderMutation.isPending || !paymentAmount}
                         >
@@ -636,28 +687,28 @@ export function CallerOrdersAll() {
               )}
 
               {/* Order Info */}
-              <div className="p-4 rounded-lg bg-secondary/30 space-y-3">
-                <div className="flex items-center justify-between">
+              <div className="p-3 sm:p-4 rounded-lg bg-secondary/30 space-y-2 sm:space-y-3">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Produit</span>
                   <span className="font-medium">{selectedOrder.product?.name}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Quantité</span>
                   <span className="font-medium">{selectedOrder.quantity}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Total</span>
                   <span className="font-bold text-primary">
                     {formatCurrency(Number(selectedOrder.total_amount))} FCFA
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Payé</span>
                   <span className="text-success">
                     {formatCurrency(Number(selectedOrder.amount_paid))} FCFA
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Reste à payer</span>
                   <span className={Number(selectedOrder.amount_due) > 0 ? "text-destructive font-bold" : "text-success"}>
                     {formatCurrency(Number(selectedOrder.amount_due || 0))} FCFA
@@ -666,17 +717,17 @@ export function CallerOrdersAll() {
               </div>
 
               {/* Client Info */}
-              <div className="p-4 rounded-lg bg-muted/50 space-y-3">
-                <h4 className="font-semibold flex items-center gap-2">
+              <div className="p-3 sm:p-4 rounded-lg bg-muted/50 space-y-2 sm:space-y-3">
+                <h4 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
                   <User className="w-4 h-4" />
                   Informations client
                 </h4>
                 <div className="space-y-2 text-sm">
                   <p className="font-medium">{selectedOrder.client?.full_name}</p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <a
                       href={`tel:${selectedOrder.client?.phone}`}
-                      className="flex items-center gap-1 text-primary hover:underline"
+                      className="flex items-center gap-1 text-primary hover:underline text-xs sm:text-sm"
                     >
                       <Phone className="w-3 h-3" />
                       {selectedOrder.client?.phone}
@@ -684,7 +735,7 @@ export function CallerOrdersAll() {
                     {selectedOrder.client?.phone_secondary && (
                       <a
                         href={`tel:${selectedOrder.client?.phone_secondary}`}
-                        className="flex items-center gap-1 text-primary hover:underline"
+                        className="flex items-center gap-1 text-primary hover:underline text-xs sm:text-sm"
                       >
                         <Phone className="w-3 h-3" />
                         {selectedOrder.client?.phone_secondary}
@@ -692,32 +743,45 @@ export function CallerOrdersAll() {
                     )}
                   </div>
                   {(selectedOrder.delivery_address || selectedOrder.client?.address) && (
-                    <div className="flex items-start gap-1 text-muted-foreground">
-                      <MapPin className="w-3 h-3 mt-0.5" />
+                    <div className="flex items-start gap-1 text-muted-foreground text-xs sm:text-sm">
+                      <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
                       {selectedOrder.delivery_address || selectedOrder.client?.address}
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* Existing Notes */}
+              {selectedOrder.delivery_notes && (
+                <div className="p-3 sm:p-4 rounded-lg border border-blue-500/20 bg-blue-500/5 space-y-2">
+                  <h4 className="font-semibold flex items-center gap-2 text-blue-400 text-sm sm:text-base">
+                    <FileText className="w-4 h-4" />
+                    Notes / Observations
+                  </h4>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {selectedOrder.delivery_notes}
+                  </p>
+                </div>
+              )}
+
               {/* Report/Cancel Reason Display */}
               {selectedOrder.report_reason && (
-                <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-2">
-                  <h4 className="font-semibold text-blue-500 flex items-center gap-2">
+                <div className="p-3 sm:p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-2">
+                  <h4 className="font-semibold text-blue-500 flex items-center gap-2 text-sm sm:text-base">
                     <Clock className="w-4 h-4" />
                     Raison du report
                   </h4>
                   <p className="text-sm">{selectedOrder.report_reason}</p>
                   {selectedOrder.scheduled_at && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Prévu le: {format(new Date(selectedOrder.scheduled_at), "d MMMM yyyy à HH:mm", { locale: fr })}
                     </p>
                   )}
                 </div>
               )}
               {selectedOrder.cancellation_reason && (
-                <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 space-y-2">
-                  <h4 className="font-semibold text-destructive flex items-center gap-2">
+                <div className="p-3 sm:p-4 rounded-lg bg-destructive/10 border border-destructive/20 space-y-2">
+                  <h4 className="font-semibold text-destructive flex items-center gap-2 text-sm sm:text-base">
                     <XCircle className="w-4 h-4" />
                     Raison de l'annulation
                   </h4>
@@ -725,7 +789,14 @@ export function CallerOrdersAll() {
                 </div>
               )}
             </div>
+          </div>
           )}
+          
+          <div className="flex-shrink-0 px-6 pb-6 pt-3 border-t bg-background sticky bottom-0">
+            <Button variant="outline" className="w-full" onClick={() => setSelectedOrder(null)}>
+              Fermer
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
