@@ -333,13 +333,8 @@ export function CallerOrders() {
       case "confirmed":
         return orders.filter((o) => o.status === "confirmed" || o.status === "in_transit");
       case "partial":
-        // Filter by amount_due > 0, excluding pending (no payment yet), cancelled, and delivered orders
-        return orders.filter((o) => 
-          Number(o.amount_due || 0) > 0 && 
-          o.status !== "pending" && 
-          o.status !== "cancelled" && 
-          o.status !== "delivered"
-        );
+        // Afficher uniquement les commandes avec statut "partial" (paiement partiel)
+        return orders.filter((o) => o.status === "partial");
       case "reported":
         return orders.filter((o) => o.status === "reported");
       case "cancelled":
