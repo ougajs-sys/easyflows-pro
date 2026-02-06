@@ -275,7 +275,7 @@ export function ConnectedWorkers() {
               )}
               {counts.offline > 0 && (
                 <Badge variant="outline" className="gap-1 text-xs">
-                  <Circle className="w-2 h-2 fill-red-500 text-red-500" />
+                  <Circle className="w-2 h-2 fill-gray-400 text-gray-400" />
                   {counts.offline}
                 </Badge>
               )}
