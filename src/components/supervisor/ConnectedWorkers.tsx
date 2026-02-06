@@ -5,7 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, Search, Circle } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Users, Search, Circle, Crown, Shield, Phone, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface WorkerInfo {
@@ -37,6 +43,37 @@ const STATUS_CONFIG = {
   busy: { label: "Occupé", color: "text-orange-500", bgColor: "bg-orange-500" },
   offline: { label: "Hors ligne", color: "text-gray-400", bgColor: "bg-gray-400" },
 };
+
+const ROLE_CONFIG = {
+  administrateur: {
+    label: "Administrateurs",
+    icon: Crown,
+    color: "text-red-500",
+    bgColor: "bg-red-500/10",
+    borderColor: "border-red-500/30",
+  },
+  superviseur: {
+    label: "Superviseurs",
+    icon: Shield,
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/30",
+  },
+  appelant: {
+    label: "Appelants",
+    icon: Phone,
+    color: "text-green-500",
+    bgColor: "bg-green-500/10",
+    borderColor: "border-green-500/30",
+  },
+  livreur: {
+    label: "Livreurs",
+    icon: Truck,
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/10",
+    borderColor: "border-orange-500/30",
+  },
+} as const;
 
 export function ConnectedWorkers() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -125,6 +162,20 @@ export function ConnectedWorkers() {
     livreur: filteredWorkers.filter(w => w.role === "livreur"),
   };
 
+  // Calculate status counts for each role
+  const getStatusCounts = (workers: WorkerInfo[]) => {
+    const online = workers.filter(w => w.status === "online").length;
+    const offline = workers.length - online;
+    return { online, offline };
+  };
+
+  const statusCounts = {
+    administrateur: getStatusCounts(workersByRole.administrateur || []),
+    superviseur: getStatusCounts(workersByRole.superviseur || []),
+    appelant: getStatusCounts(workersByRole.appelant || []),
+    livreur: getStatusCounts(workersByRole.livreur || []),
+  };
+
   // Get initials for avatar fallback
   const getInitials = (name: string) => {
     return name
@@ -194,6 +245,52 @@ export function ConnectedWorkers() {
     );
   };
 
+  const renderRoleAccordion = (
+    roleKey: keyof typeof workersByRole,
+    workers: WorkerInfo[]
+  ) => {
+    if (workers.length === 0) return null;
+
+    const config = ROLE_CONFIG[roleKey];
+    const RoleIcon = config.icon;
+    const counts = statusCounts[roleKey];
+
+    return (
+      <AccordionItem value={roleKey} className="border-0">
+        <AccordionTrigger className="py-4 hover:no-underline hover:bg-accent/50 rounded-lg px-2 transition-colors">
+          <div className="flex items-center justify-between w-full pr-4">
+            <div className="flex items-center gap-2">
+              <RoleIcon className={cn("w-4 h-4", config.color)} />
+              <span className="font-medium text-sm">{config.label}</span>
+              <Badge variant="secondary" className="text-xs">
+                {workers.length}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-1">
+              {counts.online > 0 && (
+                <Badge variant="outline" className="gap-1 text-xs">
+                  <Circle className="w-2 h-2 fill-green-500 text-green-500" />
+                  {counts.online}
+                </Badge>
+              )}
+              {counts.offline > 0 && (
+                <Badge variant="outline" className="gap-1 text-xs">
+                  <Circle className="w-2 h-2 fill-red-500 text-red-500" />
+                  {counts.offline}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="space-y-2 pl-2 pt-2">
+            {workers.map(renderWorkerCard)}
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  };
+
   return (
     <Card className="glass">
       <CardHeader className="pb-3">
@@ -225,78 +322,19 @@ export function ConnectedWorkers() {
           </div>
         ) : filteredWorkers.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            Aucun utilisateur trouvé
+            <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            <p>Aucun utilisateur trouvé</p>
+            {searchQuery && (
+              <p className="text-sm mt-1">pour "{searchQuery}"</p>
+            )}
           </div>
         ) : (
-          <>
-            {/* Administrateurs */}
-            {workersByRole.administrateur.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-muted-foreground">
-                    Administrateurs
-                  </h3>
-                  <Badge variant="secondary" className="text-xs">
-                    {workersByRole.administrateur.length}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  {workersByRole.administrateur.map(renderWorkerCard)}
-                </div>
-              </div>
-            )}
-
-            {/* Superviseurs */}
-            {workersByRole.superviseur.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-muted-foreground">
-                    Superviseurs
-                  </h3>
-                  <Badge variant="secondary" className="text-xs">
-                    {workersByRole.superviseur.length}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  {workersByRole.superviseur.map(renderWorkerCard)}
-                </div>
-              </div>
-            )}
-
-            {/* Appelants */}
-            {workersByRole.appelant.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-muted-foreground">
-                    Appelants
-                  </h3>
-                  <Badge variant="secondary" className="text-xs">
-                    {workersByRole.appelant.length}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  {workersByRole.appelant.map(renderWorkerCard)}
-                </div>
-              </div>
-            )}
-
-            {/* Livreurs */}
-            {workersByRole.livreur.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-muted-foreground">
-                    Livreurs
-                  </h3>
-                  <Badge variant="secondary" className="text-xs">
-                    {workersByRole.livreur.length}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  {workersByRole.livreur.map(renderWorkerCard)}
-                </div>
-              </div>
-            )}
-          </>
+          <Accordion type="multiple" defaultValue={["appelant"]} className="w-full space-y-1">
+            {renderRoleAccordion("administrateur", workersByRole.administrateur)}
+            {renderRoleAccordion("superviseur", workersByRole.superviseur)}
+            {renderRoleAccordion("appelant", workersByRole.appelant)}
+            {renderRoleAccordion("livreur", workersByRole.livreur)}
+          </Accordion>
         )}
       </CardContent>
     </Card>
