@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote, XCircle } from "lucide-react";
+import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote, XCircle, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -130,13 +130,18 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-mono text-sm text-muted-foreground">
                   {order.order_number || order.id.slice(0, 8)}
                 </span>
                 <Badge className={cn("text-xs", statusConfig[order.status].color)}>
                   {statusConfig[order.status].label}
                 </Badge>
+                {order.delivery_notes && (
+                  <Badge variant="outline" className="text-xs border-warning text-warning">
+                    📝 Notes
+                  </Badge>
+                )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 <Clock className="w-3 h-3 inline mr-1" />
@@ -157,7 +162,7 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
           <div className="space-y-2 mb-3">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-muted-foreground" />
-              <span className="font-medium text-foreground">{order.client?.full_name}</span>
+              <span className="text-lg font-semibold text-foreground">{order.client?.full_name}</span>
             </div>
             <div className="flex items-center gap-2">
               <Phone className="w-4 h-4 text-muted-foreground" />
@@ -205,15 +210,22 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
             </div>
           </div>
 
+          {/* Delivery Notes - Always Visible */}
+          {order.delivery_notes && (
+            <div className="mt-3 p-3 rounded-lg bg-warning/10 border border-warning/30">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <span className="text-xs font-medium text-warning uppercase">Remarques importantes</span>
+                  <p className="text-sm text-foreground mt-1">{order.delivery_notes}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Expanded Details */}
           {expanded && (
             <div className="mt-4 pt-4 border-t border-border space-y-2">
-              {order.delivery_notes && (
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Notes:</span>
-                  <p className="text-foreground mt-1">{order.delivery_notes}</p>
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-muted-foreground">Montant payé:</span>
