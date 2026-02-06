@@ -84,6 +84,8 @@ export function CallerPerformance() {
 
       return stats.sort((a, b) => b.totalRevenue - a.totalRevenue);
     },
+    refetchInterval: 30000, // 30 seconds
+    refetchOnWindowFocus: true,
   });
 
   const getPerformanceBadge = (rate: number) => {

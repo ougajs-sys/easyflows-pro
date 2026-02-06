@@ -60,6 +60,8 @@ export function SupervisorStats() {
         deliveryRate,
       };
     },
+    refetchInterval: 30000, // 30 seconds
+    refetchOnWindowFocus: true,
   });
 
   return (

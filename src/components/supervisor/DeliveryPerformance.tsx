@@ -82,6 +82,8 @@ export function DeliveryPerformance() {
 
       return stats.sort((a, b) => b.deliveredOrders - a.deliveredOrders);
     },
+    refetchInterval: 30000, // 30 seconds
+    refetchOnWindowFocus: true,
   });
 
   const getStatusBadge = (status: string) => {
