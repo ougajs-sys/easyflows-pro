@@ -1,99 +1,78 @@
 
-# Corrections : Sidebar Opaque + Bouton Installation dans la Navigation
+# Correction : Filtrage de l'Onglet "Paiement en attente"
 
-## Problemes a corriger
+## Probleme identifie
 
-### 1. Sidebar transparente (Livreur)
-- Ligne 79 : `bg-sidebar-background` peut etre semi-transparent selon le theme
-- Ligne 169 : `bg-background/95 backdrop-blur-sm` ajoute une transparence au header mobile
+L'onglet "Paiement en attente" dans l'espace appelant affiche des commandes confirmees qui ne devraient pas y figurer.
 
-### 2. Bouton "Installer l'application" dans le menu de navigation
-- Tu veux le bouton visible dans la barre laterale (menu de navigation), pas dans le footer
-- Il sera ajoute comme un element de menu apres "Mon Profil"
+### Cause racine
 
-## Modifications
-
-### DeliveryLayout.tsx
-
-| Ligne | Avant | Apres |
-|-------|-------|-------|
-| 79 | `bg-sidebar-background` | `bg-card` |
-| 169 | `bg-background/95 backdrop-blur-sm` | `bg-card` |
-
-**Ajouts :**
-- Import `useEffect` de React
-- Import `Download` de lucide-react  
-- Import `Link` de react-router-dom
-- State `isAppInstalled` pour detecter si PWA installee
-- Bouton "Installer l'app" dans la navigation (apres les menuItems)
-
-### CallerLayout.tsx
-
-| Ligne | Avant | Apres |
-|-------|-------|-------|
-| 70 | `bg-background` | `bg-card` |
-
-**Ajouts :**
-- Import `useEffect` de React
-- Import `Download` de lucide-react
-- Import `Link` de react-router-dom
-- State `isAppInstalled` pour detecter si PWA installee
-- Bouton "Installer l'app" dans la navigation (apres les menuItems)
-
-## Interface apres correction
-
-```text
-Sidebar Livreur/Appelant (fond opaque)
-+---------------------------+
-|  [Logo] Livreur/Appelant  |
-+---------------------------+
-|  [Toggle Statut]          |  <- Livreur uniquement
-+---------------------------+
-|  - Mon espace             |
-|  - Commandes              |
-|  - Mon Stock              |
-|  - Approvisionnement      |
-|  - Formation              |
-|  - Mon Profil             |
-|  -------------------------+
-|  [Download] Installer app | <- DANS LE MENU
-+---------------------------+
-|  [Wallet] Verser recettes |  <- Appelant uniquement
-+---------------------------+
-|  [Sun/Moon] Mode clair    |
-|  [Logout] Deconnexion     |
-+---------------------------+
-```
-
-## Code du bouton installation (dans la nav)
+Dans le fichier `src/components/caller/CallerOrders.tsx`, la fonction `filterOrders` (lignes 328-350) utilise une logique incorrecte pour l'onglet "partial" :
 
 ```typescript
-{!isAppInstalled && (
-  <Link
-    to="/install"
-    className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-primary hover:bg-primary/10 border border-primary/20 bg-primary/5"
-  >
-    <Download className="w-5 h-5" />
-    <span>Installer l'app</span>
-  </Link>
-)}
+case "partial":
+  // PROBLEME : Filtre par amount_due > 0 au lieu du statut
+  return orders.filter((o) => 
+    Number(o.amount_due || 0) > 0 && 
+    o.status !== "pending" && 
+    o.status !== "cancelled" && 
+    o.status !== "delivered"
+  );
 ```
 
-## Detection PWA
+Cette logique inclut toutes les commandes avec un solde du (confirmees, en transit, reportees, etc.) au lieu de filtrer uniquement les commandes avec le statut `partial`.
+
+### Donnees en base
+
+| Statut | Commandes sans paiement | Paiement partiel |
+|--------|------------------------|------------------|
+| pending | 11 | 0 |
+| confirmed | 2 | 0 |
+| partial | 11 | 2 |
+| reported | 12 | 1 |
+
+Les commandes confirmees avec `amount_due > 0` apparaissent dans l'onglet "Paiement en attente" alors qu'elles ne devraient pas.
+
+## Solution
+
+Modifier la logique de filtrage pour utiliser le statut `partial` directement :
 
 ```typescript
-const [isAppInstalled, setIsAppInstalled] = useState(false);
-
-useEffect(() => {
-  const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-  const isIOSStandalone = (navigator as { standalone?: boolean }).standalone === true;
-  setIsAppInstalled(isStandalone || isIOSStandalone);
-}, []);
+case "partial":
+  // CORRECTION : Filtrer uniquement par statut partial
+  return orders.filter((o) => o.status === "partial");
 ```
 
-## Resultat
+## Fichier a modifier
 
-- Sidebars avec fond completement opaque (`bg-card`)
-- Header mobile opaque (plus de transparence)
-- Bouton "Installer l'app" visible dans le menu de navigation
-- Le bouton disparait automatiquement si l'app est deja installee
+| Fichier | Ligne | Modification |
+|---------|-------|--------------|
+| `src/components/caller/CallerOrders.tsx` | 335-342 | Simplifier le filtre pour utiliser uniquement `o.status === "partial"` |
+
+## Code avant/apres
+
+### Avant (incorrect)
+```typescript
+case "partial":
+  // Filter by amount_due > 0, excluding pending, cancelled, and delivered orders
+  return orders.filter((o) => 
+    Number(o.amount_due || 0) > 0 && 
+    o.status !== "pending" && 
+    o.status !== "cancelled" && 
+    o.status !== "delivered"
+  );
+```
+
+### Apres (correct)
+```typescript
+case "partial":
+  // Afficher uniquement les commandes avec statut "partial" (paiement partiel)
+  return orders.filter((o) => o.status === "partial");
+```
+
+## Resultat attendu
+
+- L'onglet "Paiement en attente" affichera uniquement les commandes avec le statut `partial`
+- Les commandes confirmees resteront dans l'onglet "Confirmee"
+- Les statistiques seront correctes
+- Reduction de 11+ commandes a environ 14 commandes reellement en paiement partiel
