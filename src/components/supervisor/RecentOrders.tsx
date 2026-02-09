@@ -149,6 +149,7 @@ export function RecentOrders() {
         .in("status", ["available", "busy"]);
 
       if (dpError) throw dpError;
+      if (!dps || dps.length === 0) return [];
 
       // Get profiles
       const userIds = dps?.map(dp => dp.user_id) || [];
