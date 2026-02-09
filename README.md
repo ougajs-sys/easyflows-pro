@@ -63,6 +63,20 @@ This project is built with:
 
 ## Features
 
+### Push Notifications (PWA)
+
+EasyFlows Pro supports real-time push notifications via Firebase Cloud Messaging:
+
+- **Order Notifications**: Admins and supervisors receive notifications for new orders
+- **Assignment Alerts**: Callers and delivery persons are notified when orders are assigned to them
+- **Chat Messages**: Users receive notifications for 1-to-1 messages
+- **User Control**: Toggle push notifications on/off from profile settings
+- **Enriched Context**: Notifications include order details, client names, and amounts
+
+For setup instructions, see:
+- [Push Notifications Setup Guide](docs/PUSH_NOTIFICATIONS_SETUP.md)
+- [Firebase Service Worker Configuration](docs/FIREBASE_SERVICE_WORKER_CONFIG.md)
+
 ### Revenue Tracking & Deposit System
 
 EasyFlows Pro includes a comprehensive revenue tracking and deposit management system:

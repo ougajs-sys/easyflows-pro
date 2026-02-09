@@ -2,6 +2,21 @@
 -- PUSH NOTIFICATIONS TRIGGERS
 -- Send enriched push notifications via Edge Function
 -- =============================================
+-- 
+-- PREREQUISITES:
+-- 1. Run migration 20260209000000_push_notifications_tables.sql first
+-- 2. Deploy the send-push-notification Edge Function
+-- 3. Set database configuration:
+--    ALTER DATABASE postgres SET app.settings.supabase_url TO 'https://your-project-ref.supabase.co';
+-- 4. Configure Firebase secrets in Edge Function:
+--    - FCM_SERVICE_ACCOUNT_JSON
+--    - FCM_PROJECT_ID
+--
+-- These triggers will automatically send push notifications for:
+-- - New orders (to admins and supervisors)
+-- - Order assignments (to callers and delivery persons)
+-- - 1-to-1 chat messages (to receivers)
+--
 
 -- Helper function to get user push tokens
 CREATE OR REPLACE FUNCTION get_user_push_tokens(target_user_id UUID)

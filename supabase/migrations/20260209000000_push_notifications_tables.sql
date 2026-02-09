@@ -1,6 +1,15 @@
 -- =============================================
 -- PUSH NOTIFICATIONS INFRASTRUCTURE
 -- =============================================
+-- 
+-- IMPORTANT: Before running this migration, ensure:
+-- 1. pg_net extension will be enabled in your database
+-- 2. You have configured the Firebase Edge Function secrets
+-- 3. You have set the Supabase URL in database settings:
+--    ALTER DATABASE postgres SET app.settings.supabase_url TO 'https://your-project-ref.supabase.co';
+-- 
+-- See docs/PUSH_NOTIFICATIONS_SETUP.md for complete setup instructions
+--
 
 -- Enable pg_net extension for HTTP requests
 CREATE EXTENSION IF NOT EXISTS pg_net;
