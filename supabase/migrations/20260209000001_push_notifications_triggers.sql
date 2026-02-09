@@ -37,7 +37,7 @@ DECLARE
   client_name TEXT;
   product_name TEXT;
   push_payload JSONB;
-  edge_function_url TEXT;
+  request_id BIGINT;
 BEGIN
   -- Get enriched data
   SELECT c.full_name INTO client_name
@@ -48,9 +48,6 @@ BEGIN
   FROM public.products p
   WHERE p.id = NEW.product_id;
 
-  -- Build push notification URL (replace PROJECT_REF with actual value or use env var)
-  edge_function_url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification';
-  
   -- For each admin/supervisor, send push notification
   FOR admin_user_id IN
     SELECT * FROM get_admin_supervisor_ids()
@@ -72,18 +69,17 @@ BEGIN
         'client_name', client_name,
         'product_name', product_name,
         'total_amount', NEW.total_amount,
-        'delivery_address', NEW.delivery_address
+        'delivery_address', NEW.delivery_address,
+        'link', '/orders'
       )
     );
 
-    -- Send HTTP POST to Edge Function
-    PERFORM net.http_post(
-      url := edge_function_url,
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json'
-      ),
+    -- Send HTTP POST to Edge Function using pg_net
+    SELECT net.http_post(
+      url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification',
+      headers := '{"Content-Type": "application/json"}'::jsonb,
       body := push_payload
-    );
+    ) INTO request_id;
   END LOOP;
 
   RETURN NEW;
@@ -105,7 +101,7 @@ DECLARE
   client_name TEXT;
   product_name TEXT;
   push_payload JSONB;
-  edge_function_url TEXT;
+  request_id BIGINT;
 BEGIN
   -- Only trigger if assigned_to changed and is not null
   IF NEW.assigned_to IS NOT NULL AND (OLD.assigned_to IS NULL OR OLD.assigned_to != NEW.assigned_to) THEN
@@ -117,8 +113,6 @@ BEGIN
     SELECT p.name INTO product_name
     FROM public.products p
     WHERE p.id = NEW.product_id;
-
-    edge_function_url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification';
 
     -- Build payload
     push_payload := jsonb_build_object(
@@ -137,18 +131,17 @@ BEGIN
         'client_name', client_name,
         'product_name', product_name,
         'total_amount', NEW.total_amount,
-        'delivery_address', NEW.delivery_address
+        'delivery_address', NEW.delivery_address,
+        'link', '/orders'
       )
     );
 
     -- Send notification
-    PERFORM net.http_post(
-      url := edge_function_url,
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json'
-      ),
+    SELECT net.http_post(
+      url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification',
+      headers := '{"Content-Type": "application/json"}'::jsonb,
       body := push_payload
-    );
+    ) INTO request_id;
   END IF;
 
   RETURN NEW;
@@ -171,7 +164,7 @@ DECLARE
   client_name TEXT;
   product_name TEXT;
   push_payload JSONB;
-  edge_function_url TEXT;
+  request_id BIGINT;
 BEGIN
   -- Only trigger if delivery_person_id changed and is not null
   IF NEW.delivery_person_id IS NOT NULL AND (OLD.delivery_person_id IS NULL OR OLD.delivery_person_id != NEW.delivery_person_id) THEN
@@ -190,8 +183,6 @@ BEGIN
       FROM public.products p
       WHERE p.id = NEW.product_id;
 
-      edge_function_url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification';
-
       -- Build payload
       push_payload := jsonb_build_object(
         'user_id', delivery_user_id,
@@ -209,18 +200,17 @@ BEGIN
           'client_name', client_name,
           'product_name', product_name,
           'total_amount', NEW.total_amount,
-          'delivery_address', NEW.delivery_address
+          'delivery_address', NEW.delivery_address,
+          'link', '/delivery'
         )
       );
 
       -- Send notification
-      PERFORM net.http_post(
-        url := edge_function_url,
-        headers := jsonb_build_object(
-          'Content-Type', 'application/json'
-        ),
+      SELECT net.http_post(
+        url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification',
+        headers := '{"Content-Type": "application/json"}'::jsonb,
         body := push_payload
-      );
+      ) INTO request_id;
     END IF;
   END IF;
 
@@ -242,7 +232,7 @@ RETURNS TRIGGER AS $$
 DECLARE
   sender_name TEXT;
   push_payload JSONB;
-  edge_function_url TEXT;
+  request_id BIGINT;
 BEGIN
   -- Only send push for 1-to-1 messages (receiver_id is not null)
   IF NEW.receiver_id IS NOT NULL THEN
@@ -250,8 +240,6 @@ BEGIN
     SELECT p.full_name INTO sender_name
     FROM public.profiles p
     WHERE p.id = NEW.sender_id;
-
-    edge_function_url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification';
 
     -- Build payload
     push_payload := jsonb_build_object(
@@ -264,18 +252,17 @@ BEGIN
         'sender_id', NEW.sender_id,
         'sender_name', sender_name,
         'channel', NEW.channel,
-        'order_id', NEW.order_id
+        'order_id', NEW.order_id,
+        'link', '/chat'
       )
     );
 
     -- Send notification
-    PERFORM net.http_post(
-      url := edge_function_url,
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json'
-      ),
+    SELECT net.http_post(
+      url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification',
+      headers := '{"Content-Type": "application/json"}'::jsonb,
       body := push_payload
-    );
+    ) INTO request_id;
   END IF;
 
   RETURN NEW;
