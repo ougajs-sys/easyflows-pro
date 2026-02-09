@@ -10,10 +10,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useRoleRequests } from '@/hooks/useRoleRequests';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { 
   Camera, 
   Save, 
@@ -26,7 +28,8 @@ import {
   Truck, 
   Clock,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Bell
 } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
@@ -50,6 +53,7 @@ export function UserProfile() {
   const { user, role } = useAuth();
   const { profile, isLoading, updateProfile, uploadAvatar } = useProfile();
   const { myRequests, hasPendingRequest, createRequest } = useRoleRequests();
+  const { isEnabled, isLoading: pushLoading, permissionState, togglePushNotifications } = usePushNotifications();
   const { toast } = useToast();
   
   const [selectedRole, setSelectedRole] = useState<AppRole | ''>('');
@@ -244,6 +248,67 @@ export function UserProfile() {
               Enregistrer les modifications
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Push Notifications Card */}
+      <Card className="glass">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            Notifications Push
+          </CardTitle>
+          <CardDescription>
+            Recevez des notifications en temps réel sur vos commandes et messages
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="push-notifications" className="text-base">
+                Activer les notifications push
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {permissionState === "granted" 
+                  ? "Les notifications sont autorisées dans votre navigateur"
+                  : permissionState === "denied"
+                  ? "Les notifications sont bloquées. Veuillez les autoriser dans les paramètres de votre navigateur."
+                  : "Cliquez pour autoriser les notifications"}
+              </p>
+            </div>
+            <Switch
+              id="push-notifications"
+              checked={isEnabled}
+              onCheckedChange={togglePushNotifications}
+              disabled={pushLoading || permissionState === "denied"}
+            />
+          </div>
+          
+          {permissionState === "denied" && (
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/30">
+              <XCircle className="h-5 w-5 text-destructive mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-sm">Notifications bloquées</p>
+                <p className="text-sm text-muted-foreground">
+                  Pour activer les notifications, accédez aux paramètres de votre navigateur 
+                  et autorisez les notifications pour ce site.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {isEnabled && permissionState === "granted" && (
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-success/10 border border-success/30">
+              <CheckCircle2 className="h-5 w-5 text-success mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-sm">Notifications activées</p>
+                <p className="text-sm text-muted-foreground">
+                  Vous recevrez des notifications pour les nouvelles commandes, 
+                  les affectations et les messages.
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
