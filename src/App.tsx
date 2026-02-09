@@ -12,6 +12,7 @@ import { ThemeProvider } from "@/hooks/useTheme";
 import { NotificationsProvider } from "@/hooks/useNotifications";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FloatingChat } from "@/components/chat/FloatingChat";
+import { useInitializePushNotifications } from "@/hooks/useInitializePushNotifications";
 import queryClient from "@/config/react-query";
 
 const Index = lazy(() => import("./pages/Index"));
@@ -238,28 +239,23 @@ const suspenseFallback = (
   </div>
 );
 
-const App = () => (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <NotificationsProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <RouteErrorBoundary>
-                  <Suspense fallback={suspenseFallback}>
-                    <Routes>
-                      <Route path="/" element={<Index />} />
-                      <Route path="/auth" element={<Auth />} />
-                      <Route
-                        path="/dashboard"
-                        element={
-                          <ProtectedRoute allowedRoles={['appelant', 'superviseur', 'administrateur']}>
-                            <Dashboard />
-                          </ProtectedRoute>
-                        }
-                      />
+function AppContent() {
+  // Initialize push notifications
+  useInitializePushNotifications();
+  
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['appelant', 'superviseur', 'administrateur']}>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
                       <Route
                         path="/orders"
                         element={
@@ -444,6 +440,22 @@ const App = () => (
                     </Routes>
                     {/* Floating Chat - visible on all pages */}
                     <FloatingChat />
+                  </>
+  );
+}
+
+const App = () => (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <NotificationsProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <RouteErrorBoundary>
+                  <Suspense fallback={suspenseFallback}>
+                    <AppContent />
                   </Suspense>
                 </RouteErrorBoundary>
               </BrowserRouter>
