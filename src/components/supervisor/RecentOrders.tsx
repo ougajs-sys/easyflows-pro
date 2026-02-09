@@ -313,7 +313,7 @@ export function RecentOrders() {
       console.error("Error assigning delivery person:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de réassigner le livreur",
+        description: "Impossible d'assigner le livreur",
         variant: "destructive",
       });
     } finally {
