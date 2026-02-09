@@ -34,10 +34,22 @@ interface OrderDetail {
   total_amount: number;
   created_at: string;
   delivery_address: string | null;
+  delivery_person_id: string | null;
+  assigned_to: string | null;
   clients: { full_name: string; phone: string } | null;
   products: { name: string } | null;
   deliveryPersonName: string | null;
   deliveryPersonPhone?: string | null;
+  assignedCallerName: string | null;
+  assignedCallerPhone?: string | null;
+}
+
+interface DeliveryPerson {
+  id: string;
+  name: string;
+  zone: string | null;
+  status: string;
+  pendingOrders: number;
 }
 
 const statusOptions: { value: OrderStatus; label: string; icon: React.ReactNode; color: string }[] = [
@@ -55,6 +67,8 @@ export function RecentOrders() {
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState("");
+  const [isUpdatingAssignment, setIsUpdatingAssignment] = useState(false);
 
   const { data: recentOrders, isLoading } = useQuery({
     queryKey: ["recent-orders-supervisor"],
@@ -68,6 +82,8 @@ export function RecentOrders() {
           total_amount,
           created_at,
           delivery_address,
+          delivery_person_id,
+          assigned_to,
           clients (full_name, phone),
           products (name),
           delivery_persons (
@@ -84,13 +100,17 @@ export function RecentOrders() {
       const deliveryPersonIds = data
         ?.filter(o => o.delivery_persons?.user_id)
         .map(o => o.delivery_persons!.user_id) || [];
+      const assignedCallerIds = data
+        ?.filter(o => o.assigned_to)
+        .map(o => o.assigned_to!) || [];
+      const profileIds = Array.from(new Set([...deliveryPersonIds, ...assignedCallerIds]));
 
       let profiles: Record<string, { name: string; phone: string | null }> = {};
-      if (deliveryPersonIds.length > 0) {
+      if (profileIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("id, full_name, phone")
-          .in("id", deliveryPersonIds);
+          .in("id", profileIds);
 
         profiles = profilesData?.reduce((acc, p) => {
           acc[p.id] = { name: p.full_name || "Inconnu", phone: p.phone };
@@ -106,7 +126,60 @@ export function RecentOrders() {
         deliveryPersonPhone: order.delivery_persons?.user_id 
           ? profiles[order.delivery_persons.user_id]?.phone
           : null,
+        assignedCallerName: order.assigned_to
+          ? profiles[order.assigned_to]?.name || "Inconnu"
+          : null,
+        assignedCallerPhone: order.assigned_to
+          ? profiles[order.assigned_to]?.phone
+          : null,
       }));
+    },
+    refetchInterval: 30000,
+  });
+
+  // Fetch available delivery persons
+  const { data: deliveryPersons, isLoading: dpLoading } = useQuery({
+    queryKey: ["available-delivery-persons"],
+    queryFn: async () => {
+      const { data: dps, error: dpError } = await supabase
+        .from("delivery_persons")
+        .select("id, user_id, zone, status")
+        .eq("is_active", true)
+        .in("status", ["available", "busy"]);
+
+      if (dpError) throw dpError;
+
+      // Get profiles
+      const userIds = dps?.map(dp => dp.user_id) || [];
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Get pending orders count per delivery person
+      const { data: pendingOrders, error: ordersError } = await supabase
+        .from("orders")
+        .select("id, delivery_person_id")
+        .in("delivery_person_id", dps?.map(dp => dp.id) || [])
+        .in("status", ["confirmed", "in_transit"]);
+
+      if (ordersError) throw ordersError;
+
+      const result: DeliveryPerson[] = dps?.map(dp => {
+        const profile = profiles?.find(p => p.id === dp.user_id);
+        const dpPendingOrders = pendingOrders?.filter(o => o.delivery_person_id === dp.id) || [];
+        return {
+          id: dp.id,
+          name: profile?.full_name || "Inconnu",
+          zone: dp.zone,
+          status: dp.status,
+          pendingOrders: dpPendingOrders.length,
+        };
+      }) || [];
+
+      return result.sort((a, b) => a.pendingOrders - b.pendingOrders);
     },
     refetchInterval: 30000,
   });
@@ -151,6 +224,138 @@ export function RecentOrders() {
     }
   };
 
+  const invalidateAssignmentQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["confirmed-orders-to-dispatch"] });
+    queryClient.invalidateQueries({ queryKey: ["recent-orders-supervisor"] });
+    queryClient.invalidateQueries({ queryKey: ["orders"] });
+    queryClient.invalidateQueries({ queryKey: ["delivery-orders"] });
+    queryClient.invalidateQueries({ queryKey: ["available-delivery-persons"] });
+  };
+
+  const handleUnassignDeliveryPerson = async () => {
+    if (!selectedOrder?.delivery_person_id) return;
+
+    setIsUpdatingAssignment(true);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ delivery_person_id: null })
+        .eq("id", selectedOrder.id);
+
+      if (error) throw error;
+
+      setSelectedOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              delivery_person_id: null,
+              deliveryPersonName: null,
+              deliveryPersonPhone: null,
+            }
+          : prev
+      );
+      setSelectedDeliveryPerson("");
+      invalidateAssignmentQueries();
+
+      toast({
+        title: "Livreur désassigné",
+        description: `La commande ${selectedOrder.order_number} n'a plus de livreur assigné.`,
+      });
+    } catch (error) {
+      console.error("Error unassigning delivery person:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de désassigner le livreur",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingAssignment(false);
+    }
+  };
+
+  const handleAssignDeliveryPerson = async (deliveryPersonId: string) => {
+    if (!selectedOrder || !deliveryPersonId) return;
+    if (deliveryPersonId === selectedOrder.delivery_person_id) return;
+
+    setIsUpdatingAssignment(true);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ delivery_person_id: deliveryPersonId })
+        .eq("id", selectedOrder.id);
+
+      if (error) throw error;
+
+      const assignedDeliveryPerson = deliveryPersons?.find((dp) => dp.id === deliveryPersonId);
+      setSelectedOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              delivery_person_id: deliveryPersonId,
+              deliveryPersonName: assignedDeliveryPerson?.name || prev.deliveryPersonName,
+              deliveryPersonPhone: null,
+            }
+          : prev
+      );
+      setSelectedDeliveryPerson(deliveryPersonId);
+      invalidateAssignmentQueries();
+
+      toast({
+        title: "Livreur réassigné",
+        description: `La commande ${selectedOrder.order_number} a été assignée au livreur.`,
+      });
+    } catch (error) {
+      console.error("Error assigning delivery person:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de réassigner le livreur",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingAssignment(false);
+    }
+  };
+
+  const handleUnassignCaller = async () => {
+    if (!selectedOrder?.assigned_to) return;
+
+    setIsUpdatingAssignment(true);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ assigned_to: null })
+        .eq("id", selectedOrder.id);
+
+      if (error) throw error;
+
+      setSelectedOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              assigned_to: null,
+              assignedCallerName: null,
+              assignedCallerPhone: null,
+            }
+          : prev
+      );
+      invalidateAssignmentQueries();
+
+      toast({
+        title: "Appelant désassigné",
+        description: `La commande ${selectedOrder.order_number} n'a plus d'appelant assigné.`,
+      });
+    } catch (error) {
+      console.error("Error unassigning caller:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de désassigner l'appelant",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingAssignment(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; className: string }> = {
       pending: { label: "En attente", className: "bg-warning/20 text-warning border-warning/30" },
@@ -168,7 +373,10 @@ export function RecentOrders() {
   // Mobile card view
   const MobileOrderCard = ({ order }: { order: OrderDetail }) => (
     <div
-      onClick={() => setSelectedOrder(order)}
+      onClick={() => {
+        setSelectedOrder(order);
+        setSelectedDeliveryPerson(order.delivery_person_id || "");
+      }}
       className="p-4 rounded-xl border bg-card/60 hover:bg-card/90 transition-all cursor-pointer active:scale-[0.98] shadow-sm"
     >
       <div className="flex items-center justify-between mb-3">
@@ -199,7 +407,10 @@ export function RecentOrders() {
   // Desktop row view
   const DesktopOrderRow = ({ order }: { order: OrderDetail }) => (
     <div
-      onClick={() => setSelectedOrder(order)}
+      onClick={() => {
+        setSelectedOrder(order);
+        setSelectedDeliveryPerson(order.delivery_person_id || "");
+      }}
       className="p-4 rounded-lg border bg-card/50 hover:bg-card/80 transition-all cursor-pointer"
     >
       <div className="flex items-start justify-between">
@@ -245,7 +456,13 @@ export function RecentOrders() {
     if (!selectedOrder) return null;
 
     return (
-      <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
+      <Dialog
+        open={!!selectedOrder}
+        onOpenChange={() => {
+          setSelectedOrder(null);
+          setSelectedDeliveryPerson("");
+        }}
+      >
         <DialogContent className="max-w-md mx-4 rounded-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
@@ -286,6 +503,104 @@ export function RecentOrders() {
                   Mise à jour en cours...
                 </div>
               )}
+            </div>
+
+            {/* Delivery Assignment Section */}
+            <div className="p-4 rounded-lg border space-y-3">
+              <h4 className="font-semibold flex items-center gap-2">
+                <Truck className="w-4 h-4 text-primary" />
+                Assignation Livreur
+              </h4>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Livreur actuel</p>
+                  <p className="font-medium">
+                    {selectedOrder.deliveryPersonName || "Aucun livreur assigné"}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUnassignDeliveryPerson}
+                  disabled={!selectedOrder.delivery_person_id || isUpdatingAssignment}
+                >
+                  {isUpdatingAssignment ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Désassigner"
+                  )}
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Réassigner</p>
+                {dpLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Chargement des livreurs...
+                  </div>
+                ) : deliveryPersons?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Aucun livreur disponible
+                  </p>
+                ) : (
+                  <Select
+                    value={selectedDeliveryPerson}
+                    onValueChange={(value) => {
+                      setSelectedDeliveryPerson(value);
+                      handleAssignDeliveryPerson(value);
+                    }}
+                    disabled={isUpdatingAssignment}
+                  >
+                    <SelectTrigger className="w-full bg-background">
+                      <SelectValue placeholder="Choisir un livreur..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {deliveryPersons?.map((dp) => (
+                        <SelectItem key={dp.id} value={dp.id}>
+                          <div className="flex items-center gap-2">
+                            <Truck className="w-4 h-4" />
+                            <span>{dp.name}</span>
+                            {dp.zone && (
+                              <span className="text-xs text-muted-foreground">({dp.zone})</span>
+                            )}
+                            <Badge variant="outline" className="text-xs ml-auto">
+                              {dp.pendingOrders} en cours
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+
+            {/* Caller Assignment Section */}
+            <div className="p-4 rounded-lg border space-y-3">
+              <h4 className="font-semibold flex items-center gap-2">
+                <User className="w-4 h-4 text-primary" />
+                Assignation Appelant
+              </h4>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Appelant actuel</p>
+                  <p className="font-medium">
+                    {selectedOrder.assignedCallerName || "Aucun appelant assigné"}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleUnassignCaller}
+                  disabled={!selectedOrder.assigned_to || isUpdatingAssignment}
+                >
+                  {isUpdatingAssignment ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Désassigner"
+                  )}
+                </Button>
+              </div>
             </div>
 
             {/* Order Info */}
@@ -375,7 +690,10 @@ export function RecentOrders() {
             <Button 
               variant="outline" 
               className="w-full" 
-              onClick={() => setSelectedOrder(null)}
+              onClick={() => {
+                setSelectedOrder(null);
+                setSelectedDeliveryPerson("");
+              }}
             >
               Fermer
             </Button>
