@@ -47,6 +47,7 @@ interface OrderDetail {
 interface DeliveryPerson {
   id: string;
   name: string;
+  phone: string | null;
   zone: string | null;
   status: string;
   pendingOrders: number;
@@ -153,7 +154,7 @@ export function RecentOrders() {
       const userIds = dps?.map(dp => dp.user_id) || [];
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, phone")
         .in("id", userIds);
 
       if (profilesError) throw profilesError;
@@ -173,6 +174,7 @@ export function RecentOrders() {
         return {
           id: dp.id,
           name: profile?.full_name || "Inconnu",
+          phone: profile?.phone || null,
           zone: dp.zone,
           status: dp.status,
           pendingOrders: dpPendingOrders.length,
@@ -259,7 +261,7 @@ export function RecentOrders() {
 
       toast({
         title: "Livreur désassigné",
-        description: `La commande ${selectedOrder.order_number} n'a plus de livreur assigné.`,
+        description: `Le livreur a été désassigné de la commande ${selectedOrder.order_number}.`,
       });
     } catch (error) {
       console.error("Error unassigning delivery person:", error);
@@ -293,7 +295,7 @@ export function RecentOrders() {
               ...prev,
               delivery_person_id: deliveryPersonId,
               deliveryPersonName: assignedDeliveryPerson?.name || prev.deliveryPersonName,
-              deliveryPersonPhone: null,
+              deliveryPersonPhone: assignedDeliveryPerson?.phone || null,
             }
           : prev
       );
@@ -302,7 +304,7 @@ export function RecentOrders() {
 
       toast({
         title: "Livreur réassigné",
-        description: `La commande ${selectedOrder.order_number} a été assignée au livreur.`,
+        description: `La commande ${selectedOrder.order_number} a été assignée à ${assignedDeliveryPerson?.name || "le livreur sélectionné"}.`,
       });
     } catch (error) {
       console.error("Error assigning delivery person:", error);
@@ -545,10 +547,7 @@ export function RecentOrders() {
                 ) : (
                   <Select
                     value={selectedDeliveryPerson}
-                    onValueChange={(value) => {
-                      setSelectedDeliveryPerson(value);
-                      handleAssignDeliveryPerson(value);
-                    }}
+                    onValueChange={handleAssignDeliveryPerson}
                     disabled={isUpdatingAssignment}
                   >
                     <SelectTrigger className="w-full bg-background">
