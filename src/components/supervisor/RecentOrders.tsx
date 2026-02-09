@@ -181,7 +181,7 @@ export function RecentOrders() {
           status: dp.status,
           pendingOrders: dpPendingOrders.length,
         };
-      }) || [];
+      });
 
       return result.sort((a, b) => a.pendingOrders - b.pendingOrders);
     },
@@ -542,7 +542,7 @@ export function RecentOrders() {
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Chargement des livreurs...
                   </div>
-                ) : deliveryPersons?.length === 0 ? (
+                ) : !deliveryPersons?.length ? (
                   <p className="text-sm text-muted-foreground">
                     Aucun livreur disponible
                   </p>
