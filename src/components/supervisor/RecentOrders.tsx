@@ -281,6 +281,7 @@ export function RecentOrders() {
     if (!selectedOrder || !deliveryPersonId) return;
     if (deliveryPersonId === selectedOrder.delivery_person_id) return;
 
+    const wasAssigned = Boolean(selectedOrder.delivery_person_id);
     setIsUpdatingAssignment(true);
     try {
       const { error } = await supabase
@@ -305,7 +306,7 @@ export function RecentOrders() {
       invalidateAssignmentQueries();
 
       toast({
-        title: "Livreur réassigné",
+        title: wasAssigned ? "Livreur réassigné" : "Livreur assigné",
         description: `La commande ${selectedOrder.order_number} a été assignée à ${assignedDeliveryPerson?.name || "le livreur sélectionné"}.`,
       });
     } catch (error) {
