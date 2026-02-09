@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, FirebaseApp } from "firebase/app";
 import { getMessaging, getToken, onMessage, Messaging } from "firebase/messaging";
 
 // Firebase configuration from environment variables
@@ -16,7 +16,7 @@ const firebaseConfig = {
 export const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
 // Initialize Firebase
-let app: any;
+let app: FirebaseApp | undefined;
 let messaging: Messaging | null = null;
 
 try {

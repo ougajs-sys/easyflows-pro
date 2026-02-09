@@ -15,7 +15,15 @@ interface PushNotificationRequest {
 
 // Get OAuth 2.0 access token for Firebase Cloud Messaging
 async function getAccessToken(serviceAccount: any): Promise<string> {
-  const jwtHeader = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  // Helper function for base64url encoding
+  const base64url = (str: string): string => {
+    return btoa(str)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  };
+
+  const jwtHeader = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   
   const now = Math.floor(Date.now() / 1000);
   const jwtClaimSet = {
@@ -26,7 +34,7 @@ async function getAccessToken(serviceAccount: any): Promise<string> {
     exp: now + 3600,
   };
   
-  const jwtClaimSetEncoded = btoa(JSON.stringify(jwtClaimSet));
+  const jwtClaimSetEncoded = base64url(JSON.stringify(jwtClaimSet));
   const signatureInput = `${jwtHeader}.${jwtClaimSetEncoded}`;
   
   // Import private key

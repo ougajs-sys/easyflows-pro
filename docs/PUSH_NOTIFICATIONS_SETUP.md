@@ -71,7 +71,9 @@ firebase.initializeApp({
 });
 ```
 
-**Note:** The service worker configuration must be hardcoded as it runs independently of your app. You can automate this during build if needed.
+**Note:** Service workers run independently and cannot access runtime environment variables. The configuration can be either:
+1. Manually hardcoded in the file (quick setup)
+2. Injected at build time using the provided script (automated - see [Firebase Service Worker Configuration](FIREBASE_SERVICE_WORKER_CONFIG.md))
 
 ### Supabase Edge Function Secrets
 

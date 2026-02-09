@@ -53,7 +53,16 @@ DECLARE
   product_name TEXT;
   push_payload JSONB;
   request_id BIGINT;
+  supabase_url TEXT;
 BEGIN
+  -- Get Supabase URL and validate it
+  supabase_url := current_setting('app.settings.supabase_url', true);
+  
+  IF supabase_url IS NULL OR supabase_url = '' THEN
+    RAISE WARNING 'Push notification skipped: app.settings.supabase_url not configured';
+    RETURN NEW;
+  END IF;
+
   -- Get enriched data
   SELECT c.full_name INTO client_name
   FROM public.clients c
@@ -67,34 +76,38 @@ BEGIN
   FOR admin_user_id IN
     SELECT * FROM get_admin_supervisor_ids()
   LOOP
-    -- Build payload with enriched context
-    push_payload := jsonb_build_object(
-      'user_id', admin_user_id,
-      'title', '🆕 Nouvelle commande',
-      'body', format('Commande %s - %s (%s) - %s DH',
-        COALESCE(NEW.order_number, 'N/A'),
-        COALESCE(client_name, 'Client'),
-        COALESCE(product_name, 'Produit'),
-        NEW.total_amount
-      ),
-      'data', jsonb_build_object(
-        'type', 'new_order',
-        'order_id', NEW.id,
-        'order_number', NEW.order_number,
-        'client_name', client_name,
-        'product_name', product_name,
-        'total_amount', NEW.total_amount,
-        'delivery_address', NEW.delivery_address,
-        'link', '/orders'
-      )
-    );
+    BEGIN
+      -- Build payload with enriched context
+      push_payload := jsonb_build_object(
+        'user_id', admin_user_id,
+        'title', '🆕 Nouvelle commande',
+        'body', format('Commande %s - %s (%s) - %s DH',
+          COALESCE(NEW.order_number, 'N/A'),
+          COALESCE(client_name, 'Client'),
+          COALESCE(product_name, 'Produit'),
+          NEW.total_amount
+        ),
+        'data', jsonb_build_object(
+          'type', 'new_order',
+          'order_id', NEW.id,
+          'order_number', NEW.order_number,
+          'client_name', client_name,
+          'product_name', product_name,
+          'total_amount', NEW.total_amount,
+          'delivery_address', NEW.delivery_address,
+          'link', '/orders'
+        )
+      );
 
-    -- Send HTTP POST to Edge Function using pg_net
-    SELECT net.http_post(
-      url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification',
-      headers := '{"Content-Type": "application/json"}'::jsonb,
-      body := push_payload
-    ) INTO request_id;
+      -- Send HTTP POST to Edge Function using pg_net
+      SELECT net.http_post(
+        url := supabase_url || '/functions/v1/send-push-notification',
+        headers := '{"Content-Type": "application/json"}'::jsonb,
+        body := push_payload
+      ) INTO request_id;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'Failed to send push notification for order %: %', NEW.id, SQLERRM;
+    END;
   END LOOP;
 
   RETURN NEW;
@@ -117,46 +130,59 @@ DECLARE
   product_name TEXT;
   push_payload JSONB;
   request_id BIGINT;
+  supabase_url TEXT;
 BEGIN
   -- Only trigger if assigned_to changed and is not null
   IF NEW.assigned_to IS NOT NULL AND (OLD.assigned_to IS NULL OR OLD.assigned_to != NEW.assigned_to) THEN
-    -- Get enriched data
-    SELECT c.full_name INTO client_name
-    FROM public.clients c
-    WHERE c.id = NEW.client_id;
+    -- Get Supabase URL and validate it
+    supabase_url := current_setting('app.settings.supabase_url', true);
+    
+    IF supabase_url IS NULL OR supabase_url = '' THEN
+      RAISE WARNING 'Push notification skipped: app.settings.supabase_url not configured';
+      RETURN NEW;
+    END IF;
 
-    SELECT p.name INTO product_name
-    FROM public.products p
-    WHERE p.id = NEW.product_id;
+    BEGIN
+      -- Get enriched data
+      SELECT c.full_name INTO client_name
+      FROM public.clients c
+      WHERE c.id = NEW.client_id;
 
-    -- Build payload
-    push_payload := jsonb_build_object(
-      'user_id', NEW.assigned_to,
-      'title', '📋 Commande assignée',
-      'body', format('Commande %s - %s (%s) - %s DH',
-        COALESCE(NEW.order_number, 'N/A'),
-        COALESCE(client_name, 'Client'),
-        COALESCE(product_name, 'Produit'),
-        NEW.total_amount
-      ),
-      'data', jsonb_build_object(
-        'type', 'order_assigned',
-        'order_id', NEW.id,
-        'order_number', NEW.order_number,
-        'client_name', client_name,
-        'product_name', product_name,
-        'total_amount', NEW.total_amount,
-        'delivery_address', NEW.delivery_address,
-        'link', '/orders'
-      )
-    );
+      SELECT p.name INTO product_name
+      FROM public.products p
+      WHERE p.id = NEW.product_id;
 
-    -- Send notification
-    SELECT net.http_post(
-      url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification',
-      headers := '{"Content-Type": "application/json"}'::jsonb,
-      body := push_payload
-    ) INTO request_id;
+      -- Build payload
+      push_payload := jsonb_build_object(
+        'user_id', NEW.assigned_to,
+        'title', '📋 Commande assignée',
+        'body', format('Commande %s - %s (%s) - %s DH',
+          COALESCE(NEW.order_number, 'N/A'),
+          COALESCE(client_name, 'Client'),
+          COALESCE(product_name, 'Produit'),
+          NEW.total_amount
+        ),
+        'data', jsonb_build_object(
+          'type', 'order_assigned',
+          'order_id', NEW.id,
+          'order_number', NEW.order_number,
+          'client_name', client_name,
+          'product_name', product_name,
+          'total_amount', NEW.total_amount,
+          'delivery_address', NEW.delivery_address,
+          'link', '/orders'
+        )
+      );
+
+      -- Send notification
+      SELECT net.http_post(
+        url := supabase_url || '/functions/v1/send-push-notification',
+        headers := '{"Content-Type": "application/json"}'::jsonb,
+        body := push_payload
+      ) INTO request_id;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'Failed to send push notification for order %: %', NEW.id, SQLERRM;
+    END;
   END IF;
 
   RETURN NEW;
@@ -180,52 +206,65 @@ DECLARE
   product_name TEXT;
   push_payload JSONB;
   request_id BIGINT;
+  supabase_url TEXT;
 BEGIN
   -- Only trigger if delivery_person_id changed and is not null
   IF NEW.delivery_person_id IS NOT NULL AND (OLD.delivery_person_id IS NULL OR OLD.delivery_person_id != NEW.delivery_person_id) THEN
+    -- Get Supabase URL and validate it
+    supabase_url := current_setting('app.settings.supabase_url', true);
+    
+    IF supabase_url IS NULL OR supabase_url = '' THEN
+      RAISE WARNING 'Push notification skipped: app.settings.supabase_url not configured';
+      RETURN NEW;
+    END IF;
+
     -- Get delivery person's user_id
     SELECT dp.user_id INTO delivery_user_id
     FROM public.delivery_persons dp
     WHERE dp.id = NEW.delivery_person_id;
 
     IF delivery_user_id IS NOT NULL THEN
-      -- Get enriched data
-      SELECT c.full_name INTO client_name
-      FROM public.clients c
-      WHERE c.id = NEW.client_id;
+      BEGIN
+        -- Get enriched data
+        SELECT c.full_name INTO client_name
+        FROM public.clients c
+        WHERE c.id = NEW.client_id;
 
-      SELECT p.name INTO product_name
-      FROM public.products p
-      WHERE p.id = NEW.product_id;
+        SELECT p.name INTO product_name
+        FROM public.products p
+        WHERE p.id = NEW.product_id;
 
-      -- Build payload
-      push_payload := jsonb_build_object(
-        'user_id', delivery_user_id,
-        'title', '🚚 Nouvelle livraison',
-        'body', format('Commande %s - %s (%s) - %s DH à livrer',
-          COALESCE(NEW.order_number, 'N/A'),
-          COALESCE(client_name, 'Client'),
-          COALESCE(product_name, 'Produit'),
-          NEW.total_amount
-        ),
-        'data', jsonb_build_object(
-          'type', 'delivery_assigned',
-          'order_id', NEW.id,
-          'order_number', NEW.order_number,
-          'client_name', client_name,
-          'product_name', product_name,
-          'total_amount', NEW.total_amount,
-          'delivery_address', NEW.delivery_address,
-          'link', '/delivery'
-        )
-      );
+        -- Build payload
+        push_payload := jsonb_build_object(
+          'user_id', delivery_user_id,
+          'title', '🚚 Nouvelle livraison',
+          'body', format('Commande %s - %s (%s) - %s DH à livrer',
+            COALESCE(NEW.order_number, 'N/A'),
+            COALESCE(client_name, 'Client'),
+            COALESCE(product_name, 'Produit'),
+            NEW.total_amount
+          ),
+          'data', jsonb_build_object(
+            'type', 'delivery_assigned',
+            'order_id', NEW.id,
+            'order_number', NEW.order_number,
+            'client_name', client_name,
+            'product_name', product_name,
+            'total_amount', NEW.total_amount,
+            'delivery_address', NEW.delivery_address,
+            'link', '/delivery'
+          )
+        );
 
-      -- Send notification
-      SELECT net.http_post(
-        url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification',
-        headers := '{"Content-Type": "application/json"}'::jsonb,
-        body := push_payload
-      ) INTO request_id;
+        -- Send notification
+        SELECT net.http_post(
+          url := supabase_url || '/functions/v1/send-push-notification',
+          headers := '{"Content-Type": "application/json"}'::jsonb,
+          body := push_payload
+        ) INTO request_id;
+      EXCEPTION WHEN OTHERS THEN
+        RAISE WARNING 'Failed to send push notification for order %: %', NEW.id, SQLERRM;
+      END;
     END IF;
   END IF;
 
@@ -248,36 +287,49 @@ DECLARE
   sender_name TEXT;
   push_payload JSONB;
   request_id BIGINT;
+  supabase_url TEXT;
 BEGIN
   -- Only send push for 1-to-1 messages (receiver_id is not null)
   IF NEW.receiver_id IS NOT NULL THEN
-    -- Get sender name
-    SELECT p.full_name INTO sender_name
-    FROM public.profiles p
-    WHERE p.id = NEW.sender_id;
+    -- Get Supabase URL and validate it
+    supabase_url := current_setting('app.settings.supabase_url', true);
+    
+    IF supabase_url IS NULL OR supabase_url = '' THEN
+      RAISE WARNING 'Push notification skipped: app.settings.supabase_url not configured';
+      RETURN NEW;
+    END IF;
 
-    -- Build payload
-    push_payload := jsonb_build_object(
-      'user_id', NEW.receiver_id,
-      'title', format('💬 Message de %s', COALESCE(sender_name, 'Utilisateur')),
-      'body', substring(NEW.content, 1, 100),
-      'data', jsonb_build_object(
-        'type', 'chat_message',
-        'message_id', NEW.id,
-        'sender_id', NEW.sender_id,
-        'sender_name', sender_name,
-        'channel', NEW.channel,
-        'order_id', NEW.order_id,
-        'link', '/chat'
-      )
-    );
+    BEGIN
+      -- Get sender name
+      SELECT p.full_name INTO sender_name
+      FROM public.profiles p
+      WHERE p.id = NEW.sender_id;
 
-    -- Send notification
-    SELECT net.http_post(
-      url := current_setting('app.settings.supabase_url', true) || '/functions/v1/send-push-notification',
-      headers := '{"Content-Type": "application/json"}'::jsonb,
-      body := push_payload
-    ) INTO request_id;
+      -- Build payload
+      push_payload := jsonb_build_object(
+        'user_id', NEW.receiver_id,
+        'title', format('💬 Message de %s', COALESCE(sender_name, 'Utilisateur')),
+        'body', substring(NEW.content, 1, 100),
+        'data', jsonb_build_object(
+          'type', 'chat_message',
+          'message_id', NEW.id,
+          'sender_id', NEW.sender_id,
+          'sender_name', sender_name,
+          'channel', NEW.channel,
+          'order_id', NEW.order_id,
+          'link', '/chat'
+        )
+      );
+
+      -- Send notification
+      SELECT net.http_post(
+        url := supabase_url || '/functions/v1/send-push-notification',
+        headers := '{"Content-Type": "application/json"}'::jsonb,
+        body := push_payload
+      ) INTO request_id;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'Failed to send push notification for message %: %', NEW.id, SQLERRM;
+    END;
   END IF;
 
   RETURN NEW;

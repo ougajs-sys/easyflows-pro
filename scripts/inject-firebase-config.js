@@ -34,29 +34,36 @@ if (!fs.existsSync(serviceWorkerPath)) {
 // Read the service worker file
 let content = fs.readFileSync(serviceWorkerPath, 'utf8');
 
+// Get project ID first
+const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+const authDomain = process.env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`;
+const storageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`;
+
 // Define replacements
 const replacements = {
   'YOUR_API_KEY': process.env.VITE_FIREBASE_API_KEY,
-  'YOUR_PROJECT_ID.firebaseapp.com': process.env.VITE_FIREBASE_AUTH_DOMAIN,
-  'YOUR_PROJECT_ID.appspot.com': process.env.VITE_FIREBASE_STORAGE_BUCKET,
   'YOUR_SENDER_ID': process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   'YOUR_APP_ID': process.env.VITE_FIREBASE_APP_ID,
 };
 
-// Find all occurrences of YOUR_PROJECT_ID (not followed by .firebaseapp or .appspot)
-const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+// Replace standalone YOUR_PROJECT_ID first
 if (projectId) {
-  // Replace standalone YOUR_PROJECT_ID
-  content = content.replace(
-    /projectId:\s*"YOUR_PROJECT_ID"/g,
-    `projectId: "${projectId}"`
-  );
+  content = content.replace(/projectId:\s*"YOUR_PROJECT_ID"/g, `projectId: "${projectId}"`);
+}
+
+// Replace compound strings with correct values
+if (authDomain) {
+  content = content.replace(/authDomain:\s*"YOUR_PROJECT_ID\.firebaseapp\.com"/g, `authDomain: "${authDomain}"`);
+}
+
+if (storageBucket) {
+  content = content.replace(/storageBucket:\s*"YOUR_PROJECT_ID\.appspot\.com"/g, `storageBucket: "${storageBucket}"`);
 }
 
 // Replace other placeholders
 for (const [key, value] of Object.entries(replacements)) {
   if (value) {
-    content = content.replace(new RegExp(key, 'g'), value);
+    content = content.replace(new RegExp(`"${key}"`, 'g'), `"${value}"`);
   } else {
     console.warn(`⚠️  Missing environment variable for: ${key}`);
   }

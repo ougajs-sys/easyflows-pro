@@ -44,6 +44,8 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
   // Navigate to appropriate page based on notification type
+  // NOTE: These routes must match the application's routing structure
+  // If routes change in the app, update these paths accordingly
   const data = event.notification.data;
   let url = '/';
   
@@ -52,13 +54,13 @@ self.addEventListener('notificationclick', (event) => {
       case 'new_order':
       case 'order_assigned':
       case 'delivery_assigned':
-        url = `/orders`;
+        url = `/orders`;  // Route to orders page
         break;
       case 'chat_message':
-        url = `/chat`;
+        url = `/chat`;  // Route to chat page
         break;
       default:
-        url = '/';
+        url = '/';  // Default to home page
     }
   }
   
