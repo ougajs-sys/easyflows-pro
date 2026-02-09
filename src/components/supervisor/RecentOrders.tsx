@@ -149,10 +149,11 @@ export function RecentOrders() {
         .in("status", ["available", "busy"]);
 
       if (dpError) throw dpError;
-      if (!dps || dps.length === 0) return [];
+      const deliveryPersonsData = dps ?? [];
+      if (deliveryPersonsData.length === 0) return [];
 
       // Get profiles
-      const userIds = dps?.map(dp => dp.user_id) || [];
+      const userIds = deliveryPersonsData.map(dp => dp.user_id);
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, full_name, phone")
@@ -164,12 +165,12 @@ export function RecentOrders() {
       const { data: pendingOrders, error: ordersError } = await supabase
         .from("orders")
         .select("id, delivery_person_id")
-        .in("delivery_person_id", dps?.map(dp => dp.id) || [])
+        .in("delivery_person_id", deliveryPersonsData.map(dp => dp.id))
         .in("status", ["confirmed", "in_transit"]);
 
       if (ordersError) throw ordersError;
 
-      const result: DeliveryPerson[] = dps?.map(dp => {
+      const result: DeliveryPerson[] = deliveryPersonsData.map(dp => {
         const profile = profiles?.find(p => p.id === dp.user_id);
         const dpPendingOrders = pendingOrders?.filter(o => o.delivery_person_id === dp.id) || [];
         return {
@@ -295,7 +296,7 @@ export function RecentOrders() {
           ? {
               ...prev,
               delivery_person_id: deliveryPersonId,
-              deliveryPersonName: assignedDeliveryPerson?.name || prev.deliveryPersonName,
+              deliveryPersonName: assignedDeliveryPerson?.name || "Inconnu",
               deliveryPersonPhone: assignedDeliveryPerson?.phone || null,
             }
           : prev
