@@ -2,6 +2,9 @@
 // This file handles background push notifications
 
 // Import Firebase scripts for service worker
+// NOTE: Using Firebase SDK v10.7.1 for service worker compatibility
+// These are the compat versions that work in service worker context
+// If you need to update these versions, test thoroughly in service worker environment
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 

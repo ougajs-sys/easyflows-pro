@@ -34,8 +34,14 @@ if (!fs.existsSync(serviceWorkerPath)) {
 // Read the service worker file
 let content = fs.readFileSync(serviceWorkerPath, 'utf8');
 
-// Get project ID first
+// Get project ID first and validate
 const projectId = process.env.VITE_FIREBASE_PROJECT_ID;
+
+if (!projectId) {
+  console.error('❌ VITE_FIREBASE_PROJECT_ID is required');
+  process.exit(1);
+}
+
 const authDomain = process.env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`;
 const storageBucket = process.env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`;
 
