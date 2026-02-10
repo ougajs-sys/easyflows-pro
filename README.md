@@ -63,6 +63,21 @@ This project is built with:
 
 ## Features
 
+### Push Notifications (PWA)
+
+EasyFlows Pro includes a complete push notification system using Firebase Cloud Messaging:
+
+- **Automatic Notifications**: Real-time push notifications for orders, assignments, and messages
+- **Service Worker Config Injection**: Firebase configuration is automatically injected before build
+- **Build-time Validation**: All required Firebase environment variables are validated before deployment
+
+**Important**: The service worker requires injected Firebase config which is handled automatically by the `prebuild` script. Ensure all Firebase environment variables are set in your `.env` file before building. See `scripts/README.md` for details.
+
+For detailed setup and configuration:
+- [Push Notifications Documentation](docs/PUSH_NOTIFICATIONS.md)
+- [Setup Guide](docs/SETUP_PUSH_NOTIFICATIONS.md)
+- [Scripts Documentation](scripts/README.md)
+
 ### Revenue Tracking & Deposit System
 
 EasyFlows Pro includes a comprehensive revenue tracking and deposit management system:
