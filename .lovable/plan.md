@@ -1,78 +1,40 @@
 
-# Correction : Filtrage de l'Onglet "Paiement en attente"
+# Finalisation du Systeme de Notifications Push
 
-## Probleme identifie
+## Probleme
 
-L'onglet "Paiement en attente" dans l'espace appelant affiche des commandes confirmees qui ne devraient pas y figurer.
-
-### Cause racine
-
-Dans le fichier `src/components/caller/CallerOrders.tsx`, la fonction `filterOrders` (lignes 328-350) utilise une logique incorrecte pour l'onglet "partial" :
-
-```typescript
-case "partial":
-  // PROBLEME : Filtre par amount_due > 0 au lieu du statut
-  return orders.filter((o) => 
-    Number(o.amount_due || 0) > 0 && 
-    o.status !== "pending" && 
-    o.status !== "cancelled" && 
-    o.status !== "delivered"
-  );
-```
-
-Cette logique inclut toutes les commandes avec un solde du (confirmees, en transit, reportees, etc.) au lieu de filtrer uniquement les commandes avec le statut `partial`.
-
-### Donnees en base
-
-| Statut | Commandes sans paiement | Paiement partiel |
-|--------|------------------------|------------------|
-| pending | 11 | 0 |
-| confirmed | 2 | 0 |
-| partial | 11 | 2 |
-| reported | 12 | 1 |
-
-Les commandes confirmees avec `amount_due > 0` apparaissent dans l'onglet "Paiement en attente" alors qu'elles ne devraient pas.
+La migration `20260209175145_pwa_push_notifications.sql` existe dans le code mais n'a jamais ete appliquee a la base de donnees. Les tables `user_push_tokens` et `push_log` n'existent pas, ce qui cause des erreurs de build TypeScript car le fichier `types.ts` ne contient pas ces tables.
 
 ## Solution
 
-Modifier la logique de filtrage pour utiliser le statut `partial` directement :
+### 1. Creer une nouvelle migration pour les tables manquantes
 
-```typescript
-case "partial":
-  // CORRECTION : Filtrer uniquement par statut partial
-  return orders.filter((o) => o.status === "partial");
-```
+Creer `supabase/migrations/20260210_create_push_tables.sql` avec :
+- Table `user_push_tokens` (id, user_id, token, platform, is_enabled, last_seen_at, created_at)
+- Table `push_log` (id, user_id, type, payload, status, created_at)
+- Index et politiques RLS
+- Fonction `send_push_notification` et triggers sur orders/messages
 
-## Fichier a modifier
+### 2. Mettre a jour les types Supabase
 
-| Fichier | Ligne | Modification |
-|---------|-------|--------------|
-| `src/components/caller/CallerOrders.tsx` | 335-342 | Simplifier le filtre pour utiliser uniquement `o.status === "partial"` |
+Ajouter dans `src/integrations/supabase/types.ts` les definitions TypeScript pour :
+- `user_push_tokens` (Row, Insert, Update, Relationships)
+- `push_log` (Row, Insert, Update, Relationships)
 
-## Code avant/apres
+### Fichiers a modifier
 
-### Avant (incorrect)
-```typescript
-case "partial":
-  // Filter by amount_due > 0, excluding pending, cancelled, and delivered orders
-  return orders.filter((o) => 
-    Number(o.amount_due || 0) > 0 && 
-    o.status !== "pending" && 
-    o.status !== "cancelled" && 
-    o.status !== "delivered"
-  );
-```
+| Fichier | Action |
+|---------|--------|
+| `supabase/migrations/20260210_create_push_tables.sql` | Creer - Tables, RLS, triggers |
+| `src/integrations/supabase/types.ts` | Modifier - Ajouter les types des 2 tables |
 
-### Apres (correct)
-```typescript
-case "partial":
-  // Afficher uniquement les commandes avec statut "partial" (paiement partiel)
-  return orders.filter((o) => o.status === "partial");
-```
+### Resultat attendu
 
-## Resultat attendu
-
-- L'onglet "Paiement en attente" affichera uniquement les commandes avec le statut `partial`
-- Les commandes confirmees resteront dans l'onglet "Confirmee"
-- Les statistiques seront correctes
-- Reduction de 11+ commandes a environ 14 commandes reellement en paiement partiel
+- Les erreurs de build seront resolues
+- Les tables seront creees en base de donnees
+- Les notifications push pourront fonctionner (une fois Firebase configure)
+- Les triggers enverront automatiquement des notifications lors de :
+  - Nouvelle commande (admins/superviseurs)
+  - Assignation appelant
+  - Assignation livreur
+  - Nouveau message chat
