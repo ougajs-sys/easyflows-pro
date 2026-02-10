@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
       injectManifest: {
         injectionPoint: undefined,
       },
+      injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.svg', 'pwa-512x512.svg'],
       manifest: {
         name: 'EasyFlows Pro - Gestion Intelligente',

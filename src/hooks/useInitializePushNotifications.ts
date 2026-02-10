@@ -1,12 +1,20 @@
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { usePushNotifications } from "./usePushNotifications";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useInitializePushNotifications() {
   const { isSupported, isPermissionGranted, requestPermission } = usePushNotifications();
+  const location = useLocation();
 
   useEffect(() => {
     const initializePush = async () => {
+      // Skip push notifications on public embed routes
+      if (location.pathname.startsWith('/embed/')) {
+        console.log('[Push Notifications] Skipping initialization on embed route');
+        return;
+      }
+
       // Only proceed if supported and user is authenticated
       if (!isSupported) return;
 
@@ -35,5 +43,5 @@ export function useInitializePushNotifications() {
     };
 
     initializePush();
-  }, [isSupported, isPermissionGranted, requestPermission]);
+  }, [isSupported, isPermissionGranted, requestPermission, location.pathname]);
 }
