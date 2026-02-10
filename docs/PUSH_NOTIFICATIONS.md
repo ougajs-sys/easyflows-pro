@@ -20,16 +20,23 @@ This document describes the PWA push notification system implemented for EasyFlo
 
 ### Frontend Components
 
-1. **Service Worker** (`src/service-worker.ts`)
+1. **Service Worker** (`firebase-messaging-sw.js`)
+   - Auto-generated at build time by `scripts/inject-firebase-config.cjs`
    - Handles push events from FCM
    - Manages notification display
    - Handles notification clicks
+   - **Note**: This file is git-ignored and regenerated on every build with injected Firebase config
 
-2. **Hooks**
+2. **PWA Service Worker** (`src/service-worker.ts`)
+   - Handles app caching and general PWA functionality
+   - Manages workbox precaching
+   - Works alongside the Firebase service worker
+
+3. **Hooks**
    - `usePushNotifications`: Main hook for managing push notifications
    - `useInitializePushNotifications`: Auto-initializes push on app load
 
-3. **UI Components**
+4. **UI Components**
    - `PushNotificationSettings`: Settings UI in user profile
 
 ### Backend Components
@@ -77,6 +84,14 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 VITE_FIREBASE_VAPID_KEY=your_vapid_key
 ```
+
+**Important**: All Firebase environment variables are required. The build process includes an automatic validation step (`scripts/inject-firebase-config.cjs`) that:
+- Validates all required Firebase env vars are present
+- Generates `firebase-messaging-sw.js` with injected config
+- Fails fast with clear error messages if any vars are missing
+- Prevents placeholder values from shipping to production
+
+This injection happens automatically via the `prebuild` npm script before every build.
 
 ### 3. Supabase Edge Function Secrets
 
