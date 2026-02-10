@@ -894,6 +894,33 @@ export type Database = {
         }
         Relationships: []
       }
+      push_log: {
+        Row: {
+          created_at: string | null
+          id: string
+          payload: Json | null
+          status: string | null
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          payload?: Json | null
+          status?: string | null
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          payload?: Json | null
+          status?: string | null
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       revenue_deposits: {
         Row: {
           confirmed_at: string | null
@@ -1477,6 +1504,36 @@ export type Database = {
           phone?: string | null
           tenant_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_push_tokens: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          last_seen_at: string | null
+          platform: string | null
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          last_seen_at?: string | null
+          platform?: string | null
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          last_seen_at?: string | null
+          platform?: string | null
+          token?: string
+          user_id?: string
         }
         Relationships: []
       }
