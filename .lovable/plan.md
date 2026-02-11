@@ -1,58 +1,102 @@
 
 
-# Correction des Crashs du Service Worker et du Build
+# Etat des Lieux - Systeme de Notifications Push
 
-## Probleme identifie
+## Ce qui est en place
 
-L'application crash a l'ouverture des formulaires embarques (et aussi en production) a cause de 2 problemes lies au service worker et aux notifications push :
+| Composant | Statut | Details |
+|-----------|--------|---------|
+| Tables DB (`user_push_tokens`, `push_log`) | OK | Creees avec RLS |
+| Edge Function `send-push-notification` | OK | Code complet avec FCM HTTP v1 |
+| Hook frontend `usePushNotifications` | OK | Gestion token + permissions |
+| Hook `useInitializePushNotifications` | OK | Auto-init au login |
+| UI Parametres (`PushNotificationSettings`) | OK | Toggle dans le profil |
+| Service Worker (push handler) | OK | Gere les events push + click |
+| Trigger messages (chat) | OK | `messages_push_notify` appelle une edge function |
+| Secret `FIREBASE_SERVICE_ACCOUNT_JSON` | OK | Configure dans Supabase |
 
-### Probleme 1 : Le build echoue completement
-Le script `prebuild` (`scripts/inject-firebase-config.cjs`) appelle `process.exit(1)` quand les variables Firebase ne sont pas configurees. Comme ces variables ne sont pas encore definies, **tout le build est bloque**.
+## Ce qui manque (3 elements bloquants)
 
-### Probleme 2 : Le service worker crash au chargement
-Dans `vite.config.ts`, le parametre `injectionPoint: undefined` empeche Vite d'injecter la liste des fichiers a mettre en cache (`__WB_MANIFEST`). Quand le service worker appelle `precacheAndRoute(self.__WB_MANIFEST)`, la valeur est `undefined`, ce qui cause l'erreur "e is not iterable". Ce crash du service worker provoque ensuite l'ecran de blocage visible sur la capture d'ecran.
+### 1. Cles Firebase publiques non configurees
 
-## Solution
+Le fichier `src/config/firebase.ts` utilise `import.meta.env.VITE_FIREBASE_*` qui sont **toutes vides**. Le fichier `.env` ne contient que les variables Supabase. Sans ces cles, le frontend ne peut pas initialiser Firebase ni obtenir de token FCM.
 
-### 1. Rendre le script prebuild tolerant (scripts/inject-firebase-config.cjs)
+**Action** : Hardcoder les cles publiques Firebase directement dans `src/config/firebase.ts` (ce sont des cles publiques, pas de risque de securite). L'utilisateur doit fournir : `apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`, et `vapidKey`.
 
-Au lieu de tuer le build, le script affichera un avertissement et continuera si les variables Firebase ne sont pas configurees. Le fichier `firebase-messaging-sw.js` ne sera simplement pas genere.
+### 2. Secret `FCM_PROJECT_ID` potentiellement manquant
 
-```text
-Avant : process.exit(1) → build echoue
-Apres : console.warn(...) → build continue normalement
-```
+L'edge function `send-push-notification` lit `FCM_PROJECT_ID` en plus de `FCM_SERVICE_ACCOUNT_JSON`. Ce secret n'apparait pas dans la liste des secrets configures. Il est necessaire pour construire l'URL FCM v1.
 
-### 2. Corriger la configuration du service worker (vite.config.ts)
+**Action** : Ajouter le secret `FCM_PROJECT_ID` dans Supabase (ou l'extraire du JSON du service account deja configure).
 
-Retirer `injectionPoint: undefined` pour permettre a Vite d'injecter correctement le manifeste de precache dans le service worker.
+### 3. Aucun trigger push sur les commandes
 
-```text
-Avant : injectManifest: { injectionPoint: undefined }
-Apres : injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png,ico}'] }
-```
+Les triggers sur la table `orders` ne contiennent aucun declencheur pour les notifications push. Seul le chat (`messages`) a un trigger push. Les evenements suivants ne generent donc **aucune notification** :
+- Nouvelle commande creee
+- Commande assignee a un appelant
+- Commande assignee a un livreur
 
-### 3. Securiser le service worker (src/service-worker.ts)
+**Action** : Creer des triggers SQL sur `orders` pour appeler l'edge function lors de ces evenements.
 
-Ajouter une verification defensive avant d'appeler `precacheAndRoute` pour eviter le crash si le manifeste n'est pas injecte.
+### 4. Probleme d'URL dans le trigger messages
 
-```text
-Avant : precacheAndRoute(self.__WB_MANIFEST)  // crash si undefined
-Apres : verification que __WB_MANIFEST existe et est iterable avant l'appel
-```
+Le trigger `messages_push_notify` appelle `push-v1` mais l'edge function s'appelle `send-push-notification`. L'URL est incorrecte : elle pointe vers `https://...functions/v1/push-v1` au lieu de `https://...functions/v1/send-push-notification`.
 
-## Fichiers a modifier
+**Action** : Corriger la fonction `messages_push_notify` pour pointer vers la bonne URL.
+
+## Plan d'implementation
+
+### Etape 1 : Collecte des cles Firebase (utilisateur)
+
+L'utilisateur fournit :
+- La configuration SDK Firebase (apiKey, authDomain, projectId, etc.)
+- La VAPID key
+- Confirmation du project ID Firebase (pour le secret `FCM_PROJECT_ID`)
+
+### Etape 2 : Configuration frontend
+
+Modifier `src/config/firebase.ts` pour hardcoder les valeurs publiques au lieu d'utiliser les variables d'environnement VITE (qui ne sont pas supportees dans Lovable).
+
+### Etape 3 : Ajouter le secret FCM_PROJECT_ID
+
+Stocker le project ID Firebase comme secret Supabase pour l'edge function.
+
+### Etape 4 : Corriger le trigger messages
+
+Mettre a jour la fonction `messages_push_notify` pour appeler la bonne edge function (`send-push-notification`) avec le bon format de payload (le format actuel envoie un payload `type`/`message` mais l'edge function attend `user_id`/`tokens`/`title`/`body`).
+
+### Etape 5 : Creer les triggers orders
+
+Creer une fonction SQL + trigger sur `orders` qui :
+- Sur INSERT : notifie les admins/superviseurs d'une nouvelle commande
+- Sur UPDATE de `delivery_person_id` : notifie le livreur assigne
+- Sur UPDATE du caller assigne : notifie l'appelant
+
+Ces triggers devront :
+1. Recuperer les tokens FCM des utilisateurs cibles depuis `user_push_tokens`
+2. Appeler l'edge function `send-push-notification` via `pg_net` ou `http_post_with_service_role`
+
+### Etape 6 : Adapter l'edge function (si necessaire)
+
+L'edge function actuelle accepte directement des tokens. Les triggers devront soit :
+- Envoyer les tokens directement (recuperes en SQL)
+- Ou l'edge function devra etre modifiee pour accepter des `user_ids` et recuperer les tokens elle-meme
+
+La seconde option est plus propre et plus sure.
+
+## Resume des fichiers a modifier
 
 | Fichier | Modification |
 |---------|-------------|
-| `scripts/inject-firebase-config.cjs` | Remplacer `process.exit(1)` par un `console.warn` + `return` |
-| `vite.config.ts` | Corriger la configuration `injectManifest` |
-| `src/service-worker.ts` | Ajouter une garde defensive sur `__WB_MANIFEST` |
+| `src/config/firebase.ts` | Hardcoder les cles publiques Firebase |
+| Secret Supabase `FCM_PROJECT_ID` | Ajouter via l'outil secrets |
+| Migration SQL | Corriger `messages_push_notify` + creer triggers `orders` |
+| `supabase/functions/send-push-notification/index.ts` | Ajouter support `user_ids` (recupere tokens en interne) |
 
-## Resultat attendu
+## Prerequis utilisateur
 
-- Le build fonctionne meme sans les variables Firebase configurees
-- Les formulaires embarques s'ouvrent sans crash
-- Les notifications push fonctionneront des que les cles Firebase seront ajoutees
-- Aucune regression sur le reste de l'application
+Avant de commencer l'implementation, l'utilisateur doit fournir :
+1. Les 6 cles de configuration Firebase SDK (publiques)
+2. La VAPID key
+3. Le project ID Firebase (pour le secret)
 
