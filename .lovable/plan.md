@@ -1,40 +1,58 @@
 
-# Finalisation du Systeme de Notifications Push
 
-## Probleme
+# Correction des Crashs du Service Worker et du Build
 
-La migration `20260209175145_pwa_push_notifications.sql` existe dans le code mais n'a jamais ete appliquee a la base de donnees. Les tables `user_push_tokens` et `push_log` n'existent pas, ce qui cause des erreurs de build TypeScript car le fichier `types.ts` ne contient pas ces tables.
+## Probleme identifie
+
+L'application crash a l'ouverture des formulaires embarques (et aussi en production) a cause de 2 problemes lies au service worker et aux notifications push :
+
+### Probleme 1 : Le build echoue completement
+Le script `prebuild` (`scripts/inject-firebase-config.cjs`) appelle `process.exit(1)` quand les variables Firebase ne sont pas configurees. Comme ces variables ne sont pas encore definies, **tout le build est bloque**.
+
+### Probleme 2 : Le service worker crash au chargement
+Dans `vite.config.ts`, le parametre `injectionPoint: undefined` empeche Vite d'injecter la liste des fichiers a mettre en cache (`__WB_MANIFEST`). Quand le service worker appelle `precacheAndRoute(self.__WB_MANIFEST)`, la valeur est `undefined`, ce qui cause l'erreur "e is not iterable". Ce crash du service worker provoque ensuite l'ecran de blocage visible sur la capture d'ecran.
 
 ## Solution
 
-### 1. Creer une nouvelle migration pour les tables manquantes
+### 1. Rendre le script prebuild tolerant (scripts/inject-firebase-config.cjs)
 
-Creer `supabase/migrations/20260210_create_push_tables.sql` avec :
-- Table `user_push_tokens` (id, user_id, token, platform, is_enabled, last_seen_at, created_at)
-- Table `push_log` (id, user_id, type, payload, status, created_at)
-- Index et politiques RLS
-- Fonction `send_push_notification` et triggers sur orders/messages
+Au lieu de tuer le build, le script affichera un avertissement et continuera si les variables Firebase ne sont pas configurees. Le fichier `firebase-messaging-sw.js` ne sera simplement pas genere.
 
-### 2. Mettre a jour les types Supabase
+```text
+Avant : process.exit(1) → build echoue
+Apres : console.warn(...) → build continue normalement
+```
 
-Ajouter dans `src/integrations/supabase/types.ts` les definitions TypeScript pour :
-- `user_push_tokens` (Row, Insert, Update, Relationships)
-- `push_log` (Row, Insert, Update, Relationships)
+### 2. Corriger la configuration du service worker (vite.config.ts)
 
-### Fichiers a modifier
+Retirer `injectionPoint: undefined` pour permettre a Vite d'injecter correctement le manifeste de precache dans le service worker.
 
-| Fichier | Action |
-|---------|--------|
-| `supabase/migrations/20260210_create_push_tables.sql` | Creer - Tables, RLS, triggers |
-| `src/integrations/supabase/types.ts` | Modifier - Ajouter les types des 2 tables |
+```text
+Avant : injectManifest: { injectionPoint: undefined }
+Apres : injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png,ico}'] }
+```
 
-### Resultat attendu
+### 3. Securiser le service worker (src/service-worker.ts)
 
-- Les erreurs de build seront resolues
-- Les tables seront creees en base de donnees
-- Les notifications push pourront fonctionner (une fois Firebase configure)
-- Les triggers enverront automatiquement des notifications lors de :
-  - Nouvelle commande (admins/superviseurs)
-  - Assignation appelant
-  - Assignation livreur
-  - Nouveau message chat
+Ajouter une verification defensive avant d'appeler `precacheAndRoute` pour eviter le crash si le manifeste n'est pas injecte.
+
+```text
+Avant : precacheAndRoute(self.__WB_MANIFEST)  // crash si undefined
+Apres : verification que __WB_MANIFEST existe et est iterable avant l'appel
+```
+
+## Fichiers a modifier
+
+| Fichier | Modification |
+|---------|-------------|
+| `scripts/inject-firebase-config.cjs` | Remplacer `process.exit(1)` par un `console.warn` + `return` |
+| `vite.config.ts` | Corriger la configuration `injectManifest` |
+| `src/service-worker.ts` | Ajouter une garde defensive sur `__WB_MANIFEST` |
+
+## Resultat attendu
+
+- Le build fonctionne meme sans les variables Firebase configurees
+- Les formulaires embarques s'ouvrent sans crash
+- Les notifications push fonctionneront des que les cles Firebase seront ajoutees
+- Aucune regression sur le reste de l'application
+
