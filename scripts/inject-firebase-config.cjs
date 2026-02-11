@@ -38,13 +38,13 @@ function validateEnvironmentVariables() {
   }
   
   if (missing.length > 0) {
-    console.error('\n❌ ERROR: Missing required Firebase environment variables:\n');
+    console.warn('\n⚠️  WARNING: Missing Firebase environment variables:\n');
     missing.forEach(varName => {
-      console.error(`   - ${varName}`);
+      console.warn(`   - ${varName}`);
     });
-    console.error('\nPlease set these variables in your .env file before building.');
-    console.error('See .env.example for reference.\n');
-    process.exit(1);
+    console.warn('\nPush notifications will not work until these are configured.');
+    console.warn('Skipping firebase-messaging-sw.js generation.\n');
+    return false;
   }
   
   console.log('✅ All required Firebase environment variables are present');
@@ -141,8 +141,13 @@ function main() {
   console.log('to ensure push notifications work correctly in production.\n');
   
   // Step 1: Validate environment variables
-  validateEnvironmentVariables();
+  const isValid = validateEnvironmentVariables();
   
+  if (isValid === false) {
+    console.log('⏭️  Skipping Firebase service worker generation.\n');
+    return;
+  }
+
   // Step 2: Generate service worker file
   generateServiceWorkerFile();
   

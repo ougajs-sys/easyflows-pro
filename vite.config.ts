@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
       filename: 'service-worker.ts',
       strategies: 'injectManifest',
       injectManifest: {
-        injectionPoint: undefined,
+        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.svg', 'pwa-512x512.svg'],
       manifest: {

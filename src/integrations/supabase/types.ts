@@ -1880,6 +1880,10 @@ export type Database = {
             }
             Returns: boolean
           }
+      http_post_with_service_role: {
+        Args: { body: Json; url: string }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
       is_admin_user: { Args: { p_user_id: string }; Returns: boolean }
       manual_withdrawal_from_delivery: {
