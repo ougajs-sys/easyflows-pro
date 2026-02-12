@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
-import { Bell, Search, User, LogOut } from "lucide-react";
+import { Bell, User, LogOut } from "lucide-react";
+import { GlobalSearch } from "./GlobalSearch";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -52,17 +53,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         )}>
           <div className="flex items-center justify-between h-full px-4 md:px-6">
             {/* Search */}
-            <div className={cn(
-              "relative",
-              isMobile ? "flex-1 max-w-[200px]" : "w-96"
-            )}>
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder={isMobile ? "Rechercher..." : "Rechercher commandes, clients, livreurs..."}
-                className="w-full h-10 pl-10 pr-4 rounded-lg bg-secondary border border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm"
-              />
-            </div>
+            <GlobalSearch />
 
             {/* Actions */}
             <div className="flex items-center gap-2 md:gap-3">
