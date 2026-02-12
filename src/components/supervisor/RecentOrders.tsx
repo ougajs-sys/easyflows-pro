@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Package, User, MapPin, Phone, Truck, ExternalLink, CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Clock, Package, User, MapPin, Phone, Truck, ExternalLink, CheckCircle2, XCircle, AlertCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -62,6 +62,8 @@ const statusOptions: { value: OrderStatus; label: string; icon: React.ReactNode;
   { value: "reported", label: "Reportée", icon: <AlertCircle className="w-4 h-4" />, color: "text-muted-foreground" },
 ];
 
+const ORDERS_PER_PAGE = 50;
+
 export function RecentOrders() {
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -69,11 +71,20 @@ export function RecentOrders() {
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedDeliveryPerson, setSelectedDeliveryPerson] = useState("");
+  const [currentPage, setCurrentPage] = useState(0);
   const [isUpdatingAssignment, setIsUpdatingAssignment] = useState(false);
 
   const { data: recentOrders, isLoading } = useQuery({
-    queryKey: ["recent-orders-supervisor"],
+    queryKey: ["recent-orders-supervisor", currentPage],
     queryFn: async () => {
+      const from = currentPage * ORDERS_PER_PAGE;
+      const to = from + ORDERS_PER_PAGE - 1;
+
+      // Get total count
+      const { count } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true });
+
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -93,7 +104,7 @@ export function RecentOrders() {
           )
         `)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .range(from, to);
 
       if (error) throw error;
 
@@ -119,21 +130,24 @@ export function RecentOrders() {
         }, {} as Record<string, { name: string; phone: string | null }>) || {};
       }
 
-      return data?.map(order => ({
-        ...order,
-        deliveryPersonName: order.delivery_persons?.user_id 
-          ? profiles[order.delivery_persons.user_id]?.name || "Inconnu"
-          : null,
-        deliveryPersonPhone: order.delivery_persons?.user_id 
-          ? profiles[order.delivery_persons.user_id]?.phone
-          : null,
-        assignedCallerName: order.assigned_to
-          ? profiles[order.assigned_to]?.name || "Inconnu"
-          : null,
-        assignedCallerPhone: order.assigned_to
-          ? profiles[order.assigned_to]?.phone
-          : null,
-      }));
+      return {
+        orders: data?.map(order => ({
+          ...order,
+          deliveryPersonName: order.delivery_persons?.user_id 
+            ? profiles[order.delivery_persons.user_id]?.name || "Inconnu"
+            : null,
+          deliveryPersonPhone: order.delivery_persons?.user_id 
+            ? profiles[order.delivery_persons.user_id]?.phone
+            : null,
+          assignedCallerName: order.assigned_to
+            ? profiles[order.assigned_to]?.name || "Inconnu"
+            : null,
+          assignedCallerPhone: order.assigned_to
+            ? profiles[order.assigned_to]?.phone
+            : null,
+        })) || [],
+        totalCount: count || 0,
+      };
     },
     refetchInterval: 30000,
   });
@@ -726,21 +740,50 @@ export function RecentOrders() {
                 <div key={i} className={`${isMobile ? 'h-32' : 'h-16'} bg-secondary/30 rounded-lg animate-pulse`} />
               ))}
             </div>
-          ) : recentOrders?.length === 0 ? (
+          ) : recentOrders?.orders.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               Aucune commande récente
             </div>
           ) : isMobile ? (
             <div className="grid grid-cols-1 gap-3">
-              {recentOrders?.map((order) => (
+              {recentOrders?.orders.map((order) => (
                 <MobileOrderCard key={order.id} order={order as OrderDetail} />
               ))}
             </div>
           ) : (
             <div className="space-y-3">
-              {recentOrders?.map((order) => (
+              {recentOrders?.orders.map((order) => (
                 <DesktopOrderRow key={order.id} order={order as OrderDetail} />
               ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {recentOrders && recentOrders.totalCount > ORDERS_PER_PAGE && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage + 1} sur {Math.ceil(recentOrders.totalCount / ORDERS_PER_PAGE)} ({recentOrders.totalCount} commandes)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  disabled={currentPage === 0}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Précédent
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={(currentPage + 1) * ORDERS_PER_PAGE >= recentOrders.totalCount}
+                >
+                  Suivant
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
