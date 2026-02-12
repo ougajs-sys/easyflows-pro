@@ -24,7 +24,7 @@ export function PushNotificationSettings() {
           .select('is_enabled')
           .eq('user_id', user.id)
           .limit(1)
-          .single();
+          .maybeSingle();
         
         if (!error && data) {
           setIsEnabled(data.is_enabled);
