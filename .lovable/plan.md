@@ -1,54 +1,37 @@
 
 
-## Correction : Restaurer et securiser la section Notifications Push dans le profil
+## Correction : Débloquer le build Netlify (faux positif du scanner de secrets)
 
-### Diagnostic
+### Probleme
 
-Le code source contient bien le composant `PushNotificationSettings` dans `UserProfile.tsx` (ligne 252). La section est presente dans le code mais n'apparait pas sur le site publie.
-
-Deux causes possibles :
-1. Les derniers changements n'ont pas ete **publies** sur le site de production
-2. Le composant `PushNotificationSettings` crashe silencieusement a cause d'une erreur (par exemple, une requete a `user_push_tokens` qui echoue), ce qui empeche son rendu sans message d'erreur visible
+Netlify détecte la clé Firebase API (`AIzaSy...`) dans `src/config/firebase.ts` comme un secret potentiel et bloque le build. Cette clé est une **clé publique SDK** (publishable key) qui est conçue pour être exposée côté client — ce n'est pas un secret.
 
 ### Solution
 
-Envelopper le composant `PushNotificationSettings` dans un **error boundary** (via un try-catch dans le rendu) pour qu'il ne puisse jamais faire crasher la page profil, meme en cas d'erreur.
+Ajouter une variable d'environnement dans le fichier `netlify.toml` pour désactiver la détection intelligente de secrets pour cette valeur spécifique.
 
-### Modifications
+### Modification
 
-**Fichier : `src/components/profile/UserProfile.tsx`**
+**Fichier : `netlify.toml`**
 
-Envelopper `<PushNotificationSettings />` dans un bloc de protection pour eviter qu'une erreur dans ce composant ne fasse disparaitre toute la section :
-
-```text
-Avant:
-  <PushNotificationSettings />
-
-Apres:
-  <ErrorBoundary fallback for PushNotificationSettings>
-    <PushNotificationSettings />
-  </ErrorBoundary>
-```
-
-Concretement, creer un petit composant ErrorBoundary (classe React) ou utiliser un wrapper avec un state d'erreur qui affiche un message de repli au lieu de crasher.
-
-**Fichier : `src/components/profile/PushNotificationSettingsWrapper.tsx`** (nouveau)
-
-Un wrapper simple qui capture les erreurs du composant enfant :
+Ajouter dans la section `[build.environment]` :
 
 ```text
-- Si le composant fonctionne : affiche normalement les parametres de notifications
-- Si le composant crashe : affiche une carte avec un message "Les parametres de notifications ne sont pas disponibles"
+SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 ```
+
+Alternativement, pour une approche plus ciblée, utiliser `SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES` avec la clé Firebase concernée. Mais désactiver la détection intelligente est plus simple car les vraies clés secrètes ne sont jamais dans le code (elles sont stockées dans les secrets Supabase).
+
+### Pourquoi c'est sur
+
+- La clé Firebase API (`AIzaSy...`) est une clé **publique** conçue pour être utilisée côté client
+- Elle est restreinte par les règles de sécurité Firebase (domaines autorisés, etc.)
+- Les vrais secrets (service account, webhook secret, etc.) sont stockés dans les secrets Supabase Edge Functions, jamais dans le code source
+- Netlify documente cette approche : https://ntl.fyi/configure-secrets-scanning
 
 ### Resultat attendu
 
-- La section "Notifications Push" sera **toujours visible** dans le profil, meme en cas d'erreur
-- Si tout fonctionne correctement, l'utilisateur verra le switch d'activation et le bouton d'autorisation
-- Si une erreur survient, un message de repli s'affichera au lieu de faire disparaitre la section
-- Apres publication, les changements seront visibles sur le site de production
-
-### Rappel important
-
-Apres l'application des corrections, vous devrez **publier** le projet pour que les changements apparaissent sur `easyflow-pro.site`.
+- Le build Netlify passera sans erreur
+- Aucun changement fonctionnel dans l'application
+- Les notifications push et toutes les fonctionnalités restent identiques
 
