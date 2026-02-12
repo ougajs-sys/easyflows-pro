@@ -1,59 +1,43 @@
 
-## Rendre la barre de recherche globale fonctionnelle
+
+## Rendre les notes de livraison toujours visibles sur la fiche livreur
 
 ### Probleme
-La barre de recherche dans le header du `DashboardLayout` (utilisee par les superviseurs et administrateurs) est purement decorative : c'est un simple `<input>` sans etat, sans gestionnaire d'evenements et sans logique de recherche. Les layouts des appelants (`CallerLayout`) et livreurs (`DeliveryLayout`) n'ont meme pas de barre de recherche.
+Les **notes de livraison** (`delivery_notes`) -- remplies par l'appelant ou le superviseur lors du traitement de la commande -- sont cachees dans la section depliable. Le livreur doit cliquer pour les voir, ce qui ralentit son travail et l'oblige parfois a appeler pour obtenir les informations.
 
-### Solution
-Creer un composant de recherche globale (`GlobalSearch`) qui :
-- Recherche en temps reel dans les **commandes** (par numero, nom du client, telephone)
-- Recherche dans les **clients** (par nom, telephone, ville)
-- Recherche dans les **livreurs/profils** (par nom)
-- Affiche les resultats dans un menu deroulant sous la barre de recherche
-- Navigue vers la page concernee quand l'utilisateur clique sur un resultat
+### Ce qui change
+- Le **nom du client** passe en `text-base font-semibold` pour etre plus visible
+- Les **notes de livraison** sont sorties de la section depliable et affichees **toujours visibles**, juste apres l'adresse, dans un encadre ambre avec une icone
+- La section depliable conserve uniquement les details financiers
 
-### Fichiers a creer/modifier
+### Fichier modifie
 
-**1. Nouveau composant : `src/components/layout/GlobalSearch.tsx`**
-- Composant autonome avec etat de recherche, debounce (300ms)
-- 3 requetes Supabase en parallele : `orders`, `clients`, `profiles`
-- Affichage des resultats groupes par categorie (Commandes, Clients, Personnes)
-- Limite a 5 resultats par categorie pour la performance
-- Clic sur un resultat : navigation vers `/orders`, `/clients`, ou `/profile`
-- Fermeture du dropdown au clic exterieur ou sur Echap
-- Recherche declenchee a partir de 2 caracteres
+**`src/components/delivery/DeliveryOrderCard.tsx`**
 
-**2. Modifier : `src/components/layout/DashboardLayout.tsx`**
-- Remplacer le `<input>` statique par le composant `<GlobalSearch />`
-- Aucun autre changement dans le layout
+1. Ligne 160 : agrandir le nom du client (`text-base font-semibold` au lieu de `font-medium`)
+2. Ajouter un bloc visible apres l'adresse (ligne ~190) pour afficher `delivery_notes` dans un encadre `bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800` avec icone `MessageSquare`
+3. Retirer `delivery_notes` de la section depliable (lignes 211-215)
+4. Importer `MessageSquare` depuis lucide-react
 
-### Details techniques
-
-Le composant `GlobalSearch` effectuera 3 requetes Supabase simultanees :
+### Resultat visuel
 
 ```text
-orders:   .select('id, order_number, status, total_amount, client:clients(full_name, phone)')
-          .or('order_number.ilike.%query%, client_phone.ilike.%query%')
-          .limit(5)
-
-clients:  .select('id, full_name, phone, city, zone')
-          .or('full_name.ilike.%query%, phone.ilike.%query%, city.ilike.%query%')
-          .limit(5)
-
-profiles: .select('id, full_name, phone')
-          .ilike('full_name', '%query%')
-          .limit(5)
++--------------------------------------------------+
+| CMD-000203  [Confirmee]                      [v]  |
+| 10 fevr., 06:52                                   |
+|                                                   |
+| JEAN DUPONT                                       |  <-- Plus gros, en gras
+| Tel: 0747695677 / 0700000000                      |
+| Adr: Tanda gare TSR  [Zone Nord]                  |
+|                                                   |
+| [!] Livrer avant 14h, sonner 2 fois, apt 3B      |  <-- Toujours visible, fond ambre
+|                                                   |
+| [CREME APDMP x2]                     19 800 F     |
+|                                     Reste: 19 800 |
+|                                                   |
+| [  Demarrer la livraison  ]              [X]      |
++--------------------------------------------------+
 ```
 
-Les resultats s'afficheront dans un dropdown positionne sous la barre de recherche avec :
-- Icone + texte pour chaque resultat
-- Categorie en en-tete de section
-- Animation d'ouverture/fermeture fluide
-- Indicateur de chargement pendant la recherche
-- Message "Aucun resultat" si rien ne correspond
+Aucun changement de donnees ni de requete Supabase -- le champ `delivery_notes` est deja charge. Seul l'affichage est reorganise.
 
-### Resultat attendu
-- La recherche fonctionne pour tous les roles utilisant le `DashboardLayout` (superviseur, administrateur, appelant sur les pages globales)
-- Les resultats apparaissent en temps reel pendant la saisie
-- Un clic sur un resultat redirige vers la page appropriee
-- La recherche est fluide grace au debounce de 300ms
