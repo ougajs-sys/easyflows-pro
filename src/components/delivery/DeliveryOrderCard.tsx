@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote, XCircle } from "lucide-react";
+import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote, XCircle, MessageSquare } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -157,7 +157,7 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
           <div className="space-y-2 mb-3">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-muted-foreground" />
-              <span className="font-medium text-foreground">{order.client?.full_name}</span>
+              <span className="text-base font-semibold text-foreground">{order.client?.full_name}</span>
             </div>
             <div className="flex items-center gap-2">
               <Phone className="w-4 h-4 text-muted-foreground" />
@@ -187,7 +187,15 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
                 )}
               </span>
             </div>
-          </div>
+            </div>
+
+          {/* Delivery Notes - Always visible */}
+          {order.delivery_notes && (
+            <div className="mt-3 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+              <MessageSquare className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">{order.delivery_notes}</p>
+            </div>
+          )}
 
           {/* Product & Amount */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
@@ -208,12 +216,6 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
           {/* Expanded Details */}
           {expanded && (
             <div className="mt-4 pt-4 border-t border-border space-y-2">
-              {order.delivery_notes && (
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Notes:</span>
-                  <p className="text-foreground mt-1">{order.delivery_notes}</p>
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-muted-foreground">Montant payé:</span>
