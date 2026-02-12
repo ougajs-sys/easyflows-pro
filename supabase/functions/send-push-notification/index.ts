@@ -7,8 +7,9 @@ const corsHeaders = {
 };
 
 interface PushNotificationRequest {
-  user_id: string;
-  tokens: string[];
+  user_id?: string;
+  user_ids?: string[];
+  tokens?: string[];
   title: string;
   body: string;
   data?: Record<string, any>;
@@ -205,25 +206,58 @@ serve(async (req) => {
       throw new Error("Invalid FCM_SERVICE_ACCOUNT_JSON format");
     }
 
-    // Parse request body
-    const { user_id, tokens, title, body, data }: PushNotificationRequest = await req.json();
-
-    if (!tokens || tokens.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No tokens provided" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Use project_id from service account if FCM_PROJECT_ID not set
+    const projectId = FCM_PROJECT_ID || serviceAccount.project_id;
+    if (!projectId) {
+      throw new Error("FCM project ID not found in secrets or service account JSON");
     }
 
-    console.log(`Sending push notification to ${tokens.length} token(s) for user ${user_id}`);
+    // Parse request body
+    const { user_id, user_ids, tokens: providedTokens, title, body, data }: PushNotificationRequest = await req.json();
 
-    // Get access token
-    const accessToken = await getAccessToken(serviceAccount);
-
-    // Initialize Supabase client for logging
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Resolve tokens: either provided directly or fetched from user_ids
+    let tokens: string[] = providedTokens || [];
+
+    // Collect all target user IDs
+    const targetUserIds: string[] = [];
+    if (user_ids && user_ids.length > 0) {
+      targetUserIds.push(...user_ids);
+    }
+    if (user_id) {
+      targetUserIds.push(user_id);
+    }
+
+    // Fetch tokens from database for user_ids
+    if (targetUserIds.length > 0 && tokens.length === 0) {
+      const { data: tokenRecords, error: tokenError } = await supabase
+        .from("user_push_tokens")
+        .select("token")
+        .in("user_id", targetUserIds)
+        .eq("is_enabled", true);
+
+      if (tokenError) {
+        console.error("Error fetching tokens:", tokenError);
+      } else if (tokenRecords) {
+        tokens = tokenRecords.map((r: any) => r.token);
+      }
+    }
+
+    if (tokens.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, results: { sent: 0, failed: 0, errors: [], message: "No tokens found" } }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Sending push notification to ${tokens.length} token(s)`);
+
+    // Get access token
+    const accessToken = await getAccessToken(serviceAccount);
 
     // Send to all tokens
     const results = {
@@ -235,7 +269,7 @@ serve(async (req) => {
     for (const token of tokens) {
       const result = await sendFCMNotification(
         accessToken,
-        FCM_PROJECT_ID,
+        projectId,
         token,
         title,
         body,
