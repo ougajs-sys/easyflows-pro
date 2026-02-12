@@ -1,64 +1,55 @@
 
 
-## Correction : Supprimer la dépendance au Vault pour les notifications push
+## Correction : Stabiliser l'enregistrement des tokens FCM
 
-### Probleme
-La fonction SQL `http_post_with_service_role()` tente de lire un secret (`service_role_key`) depuis le Vault Supabase. Cela echoue car les permissions du Vault sont restrictives dans l'editeur SQL standard.
+### Probleme actuel
+Les fonctions `requestPermission` et `toggleNotifications` dans `usePushNotifications.ts` sont recreees a chaque rendu React, ce qui provoque une boucle infinie dans `useInitializePushNotifications.ts`. Le token FCM n'est jamais enregistre de maniere fiable.
 
-### Solution
-L'Edge Function `send-push-notification` est configuree avec `verify_jwt = false` dans `supabase/config.toml`. Elle n'a donc **pas besoin** d'un Bearer token valide pour etre appelee. On peut simplifier la fonction SQL pour utiliser directement la cle anon (publique et deja connue).
+### Corrections
 
-### Ce qui va changer
+**Fichier 1 : `src/hooks/usePushNotifications.ts`**
+- Envelopper `requestPermission` dans `useCallback` avec les bonnes dependances
+- Envelopper `toggleNotifications` dans `useCallback`
+- Cela stabilise les references et empeche les re-rendus en boucle
 
-**1. Migration SQL** - Modifier la fonction `http_post_with_service_role()`
+**Fichier 2 : `src/hooks/useInitializePushNotifications.ts`**
+- Ajouter un `useRef(false)` comme garde (`hasInitialized`) pour garantir que l'initialisation ne se fait qu'une seule fois par session
+- Mettre `hasInitialized.current = true` des l'entree dans la fonction d'initialisation
+- Retirer `requestPermission` des dependances du `useEffect` en utilisant une ref stable
 
-Remplacer la lecture du Vault par la cle anon hardcodee (cle publique, sans risque de securite) :
+### Resultat
 
-```text
-Avant:
-  vault.decrypted_secrets -> service_role_key -> erreur si absent
-
-Apres:
-  Cle anon hardcodee directement dans la fonction (cle publique)
-```
-
-La cle anon est : `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFweHp1Z2x2dmZ2b29rem1wZ2ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4NzA3NzYsImV4cCI6MjA4MjQ0Njc3Nn0.Km_gUYYcjHSTbkZIu6_QIYT4bCa6SXZc0eXV3FwYhrc`
-
-C'est une cle **publique** (elle est deja visible dans le code client), donc aucun risque de securite.
-
-**2. Aucun changement cote frontend** - Le code React reste identique.
-
-### Resultat attendu
-- Les triggers SQL (`orders_push_notify`, `messages_push_notify`) pourront appeler l'Edge Function sans aucune dependance au Vault
-- Les commandes continueront a etre creees normalement
-- Les notifications push seront envoyees des que des utilisateurs auront enregistre leurs tokens FCM
+- Le token FCM est enregistre **une seule fois** dans la table `user_push_tokens`
+- Il persiste indefiniment en base de donnees
+- Le Service Worker reste actif en arriere-plan et recoit les notifications meme quand l'app est fermee
+- L'utilisateur n'a plus besoin de re-autoriser les notifications a chaque visite
+- Les triggers SQL (commandes, messages) enverront les notifications via l'Edge Function vers FCM vers le navigateur de l'utilisateur
 
 ### Details techniques
 
-La fonction `http_post_with_service_role` sera simplifiee :
-
 ```text
-CREATE OR REPLACE FUNCTION public.http_post_with_service_role(url text, body jsonb)
-RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER
-AS $$
-declare
-  anon_key text := 'eyJhbGci...'; -- cle publique anon
-  resp record;
-begin
-  select * into resp from net.http_post(
-    url := url,
-    headers := jsonb_build_object(
-      'Content-Type','application/json',
-      'Authorization', 'Bearer ' || anon_key
-    ),
-    body := body::text,
-    timeout_milliseconds := 10000
-  );
-  return jsonb_build_object('status', resp.status_code, 'body', resp.response_body);
-end;
-$$;
-```
+usePushNotifications.ts :
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    // ... meme logique existante
+  }, [isSupported, toast]);
 
-Cela supprime completement le besoin de configurer quoi que ce soit dans le Vault.
+  const toggleNotifications = useCallback(async (enabled: boolean): Promise<void> => {
+    // ... meme logique existante
+  }, [toast]);
+
+useInitializePushNotifications.ts :
+  const hasInitialized = useRef(false);
+  const requestPermissionRef = useRef(requestPermission);
+  requestPermissionRef.current = requestPermission;
+
+  useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+
+    const initializePush = async () => {
+      // ... meme logique mais utilise requestPermissionRef.current
+    };
+    initializePush();
+  }, [isSupported, isPermissionGranted]);
+```
 
