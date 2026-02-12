@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useRoleRequests } from '@/hooks/useRoleRequests';
-import { PushNotificationSettings } from '@/components/profile/PushNotificationSettings';
+import { PushNotificationSettingsWrapper } from '@/components/profile/PushNotificationSettingsWrapper';
 import { 
   Camera, 
   Save, 
@@ -249,7 +249,7 @@ export function UserProfile() {
       </Card>
 
       {/* Push Notification Settings */}
-      <PushNotificationSettings />
+      <PushNotificationSettingsWrapper />
 
       {/* Role Request Card */}
       <Card className="glass">
