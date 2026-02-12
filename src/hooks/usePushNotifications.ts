@@ -75,12 +75,22 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       setIsPermissionGranted(true);
 
+      // Wait for the service worker to be ready (registered by vite-plugin-pwa)
+      let swRegistration: ServiceWorkerRegistration | undefined;
+      try {
+        swRegistration = await navigator.serviceWorker.ready;
+      } catch (swError) {
+        console.warn("Service worker not available:", swError);
+      }
+
       // Initialize Firebase and get token
       const { messaging, getToken } = await initializeFirebase();
 
-      // Get registration token
+      // Get registration token - MUST pass serviceWorkerRegistration
+      // so Firebase uses our existing SW instead of looking for /firebase-messaging-sw.js
       const currentToken = await getToken(messaging, {
         vapidKey: vapidKey,
+        ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
       });
 
       if (!currentToken) {
