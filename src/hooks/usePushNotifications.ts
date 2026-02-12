@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { firebaseConfig, vapidKey } from "@/config/firebase";
@@ -47,7 +47,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
   };
 
-  const requestPermission = async (): Promise<boolean> => {
+  const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
       toast({
         title: "Non supporté",
@@ -137,9 +137,9 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       setIsLoading(false);
       return false;
     }
-  };
+  }, [isSupported, toast]);
 
-  const toggleNotifications = async (enabled: boolean): Promise<void> => {
+  const toggleNotifications = useCallback(async (enabled: boolean): Promise<void> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -170,7 +170,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
 
   return {
     isSupported,
