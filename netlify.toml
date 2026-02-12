@@ -14,6 +14,8 @@
 [build.environment]
   # Node version
   NODE_VERSION = "18"
+  # Disable smart secrets detection - Firebase public API key is a publishable key, not a secret
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
 # Redirect rules for SPA
 # Preserve static assets - must come BEFORE catch-all redirect
