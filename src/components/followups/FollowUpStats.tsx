@@ -7,11 +7,11 @@ export function FollowUpStats() {
 
   const statCards = [
     {
-      title: 'Total relances',
-      value: stats.total,
-      icon: MessageSquare,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
+      title: 'À valider',
+      value: stats.awaitingValidation,
+      icon: Clock,
+      color: 'text-yellow-500',
+      bgColor: 'bg-yellow-500/10',
     },
     {
       title: "Aujourd'hui",

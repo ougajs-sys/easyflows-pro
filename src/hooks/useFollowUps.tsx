@@ -154,7 +154,7 @@ export function useFollowUps() {
         .from('follow_ups')
         .select('order_id')
         .in('order_id', orderIds)
-        .eq('status', 'pending');
+        .in('status', ['pending', 'awaiting_validation']);
 
       if (followUpsError) throw followUpsError;
 
@@ -173,7 +173,7 @@ export function useFollowUps() {
             client_id: order.client_id,
             order_id: order.id,
             type: order.status === 'partial' ? 'partial_payment' as FollowUpType : 'rescheduled' as FollowUpType,
-            status: 'pending' as FollowUpStatus,
+            status: 'awaiting_validation' as FollowUpStatus,
             scheduled_at: followUpDate,
             created_by: userId,
             notes: order.status === 'partial' 
@@ -201,6 +201,7 @@ export function useFollowUps() {
   const stats = {
     total: followUps.length,
     pending: followUps.filter(f => f.status === 'pending').length,
+    awaitingValidation: followUps.filter(f => f.status === 'awaiting_validation').length,
     completed: followUps.filter(f => f.status === 'completed').length,
     overdue: followUps.filter(f => 
       f.status === 'pending' && new Date(f.scheduled_at) < new Date()

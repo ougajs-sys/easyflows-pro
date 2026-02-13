@@ -97,7 +97,7 @@ export function FollowUpForm({ open, onOpenChange }: FollowUpFormProps) {
         type: data.type,
         scheduled_at: data.scheduled_at.toISOString(),
         notes: data.notes || null,
-        status: 'pending',
+        status: 'awaiting_validation' as any,
         created_by: user?.id,
       });
       toast.success('Relance créée avec succès');

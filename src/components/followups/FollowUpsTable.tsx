@@ -36,12 +36,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { MoreHorizontal, CheckCircle, XCircle, Phone, Calendar, Package, Trash2, MessageSquare } from 'lucide-react';
+import { MoreHorizontal, CheckCircle, XCircle, Phone, Calendar, Package, Trash2, MessageSquare, UserCheck } from 'lucide-react';
 import { useFollowUps } from '@/hooks/useFollowUps';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { format, isToday, isPast, isTomorrow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { ValidateFollowUpDialog } from './ValidateFollowUpDialog';
 
 type FollowUpType = Database['public']['Enums']['followup_type'];
 type FollowUpStatus = Database['public']['Enums']['followup_status'];
@@ -60,6 +61,7 @@ const typeLabels: Record<FollowUpType, { label: string; color: string }> = {
 };
 
 const statusLabels: Record<FollowUpStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+  awaiting_validation: { label: 'À valider', variant: 'secondary' },
   pending: { label: 'En attente', variant: 'outline' },
   completed: { label: 'Complétée', variant: 'default' },
   cancelled: { label: 'Annulée', variant: 'destructive' },
@@ -70,6 +72,8 @@ export function FollowUpsTable({ searchQuery, typeFilter, statusFilter }: Follow
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [completingFollowUp, setCompletingFollowUp] = useState<string | null>(null);
   const [completionNotes, setCompletionNotes] = useState('');
+  const [selectedForValidation, setSelectedForValidation] = useState<string[]>([]);
+  const [showValidateDialog, setShowValidateDialog] = useState(false);
 
   const filteredFollowUps = followUps.filter((followUp) => {
     const clientName = followUp.client?.full_name || '';
@@ -171,6 +175,7 @@ export function FollowUpsTable({ searchQuery, typeFilter, statusFilter }: Follow
                   <TableHead>Commande</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead>Assigné à</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -178,7 +183,7 @@ export function FollowUpsTable({ searchQuery, typeFilter, statusFilter }: Follow
               <TableBody>
                 {filteredFollowUps.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Aucune relance trouvée
                     </TableCell>
                   </TableRow>
@@ -232,9 +237,14 @@ export function FollowUpsTable({ searchQuery, typeFilter, statusFilter }: Follow
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={statusLabels[followUp.status].variant}>
-                          {statusLabels[followUp.status].label}
+                        <Badge variant={statusLabels[followUp.status]?.variant || 'outline'}>
+                          {statusLabels[followUp.status]?.label || followUp.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {(followUp as any).assigned_profile?.full_name || '-'}
+                        </span>
                       </TableCell>
                       <TableCell className="max-w-[200px]">
                         <span className="text-sm text-muted-foreground truncate block">
@@ -242,7 +252,19 @@ export function FollowUpsTable({ searchQuery, typeFilter, statusFilter }: Follow
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        {followUp.status === 'pending' ? (
+                        {followUp.status === 'awaiting_validation' ? (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedForValidation([followUp.id]);
+                              setShowValidateDialog(true);
+                            }}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Valider
+                          </Button>
+                        ) : followUp.status === 'pending' ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon">
@@ -332,6 +354,13 @@ export function FollowUpsTable({ searchQuery, typeFilter, statusFilter }: Follow
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Validate Dialog */}
+      <ValidateFollowUpDialog
+        open={showValidateDialog}
+        onOpenChange={setShowValidateDialog}
+        followUpIds={selectedForValidation}
+      />
     </>
   );
 }

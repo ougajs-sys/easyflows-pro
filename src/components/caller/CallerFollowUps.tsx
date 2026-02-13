@@ -89,10 +89,12 @@ export function CallerFollowUps() {
           notes,
           created_at,
           completed_at,
+          assigned_to,
           order:orders (id, order_number, status, total_amount),
           client:clients (id, full_name, phone)
         `)
-        .eq("created_by", user.id)
+        .eq("assigned_to", user.id)
+        .eq("status", "pending")
         .order("scheduled_at", { ascending: true });
 
       if (error) throw error;
