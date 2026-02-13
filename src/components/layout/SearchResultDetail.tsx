@@ -56,6 +56,9 @@ interface ClientDetail {
     created_at: string;
     caller_name: string | null;
     delivery_person_name: string | null;
+    product_name: string | null;
+    quantity: number;
+    unit_price: number;
   }[];
 }
 
@@ -167,6 +170,8 @@ export function SearchResultDetail({
           .from("orders")
           .select(`
             id, order_number, status, total_amount, created_at, created_by,
+            quantity, unit_price,
+            product:products(name, price),
             delivery_person:delivery_persons(user_id)
           `)
           .eq("client_id", clientId)
@@ -204,6 +209,9 @@ export function SearchResultDetail({
           delivery_person_name: o.delivery_person?.user_id
             ? profilesMap[o.delivery_person.user_id] || null
             : null,
+          product_name: o.product?.name || null,
+          quantity: o.quantity || 1,
+          unit_price: o.unit_price || 0,
         })),
       });
     } catch (err) {
@@ -354,14 +362,20 @@ export function SearchResultDetail({
                             <span className="font-medium">{o.order_number || "—"}</span>
                             <Badge variant={st(o.status).variant} className="text-xs">{st(o.status).label}</Badge>
                           </div>
+                          {o.product_name && (
+                            <div className="text-xs font-medium text-foreground">
+                              <ShoppingCart className="w-3 h-3 inline mr-1" />
+                              {o.product_name}
+                            </div>
+                          )}
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>{formatCurrency(o.total_amount)}</span>
+                            <span>{o.quantity} × {formatCurrency(o.unit_price)} = {formatCurrency(o.total_amount)}</span>
                             <span>{format(new Date(o.created_at), "dd/MM/yyyy", { locale: fr })}</span>
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {o.caller_name && <span>Appelant: {o.caller_name}</span>}
+                            {o.caller_name && <span className="font-medium">Appelant: {o.caller_name}</span>}
                             {o.caller_name && o.delivery_person_name && <span> • </span>}
-                            {o.delivery_person_name && <span>Livreur: {o.delivery_person_name}</span>}
+                            {o.delivery_person_name && <span className="font-medium">Livreur: {o.delivery_person_name}</span>}
                           </div>
                         </div>
                       ))}
