@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-globals */
 /// <reference lib="webworker" />
 
-import { precacheAndRoute } from 'workbox-precaching';
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -12,6 +12,14 @@ if (manifest && Array.isArray(manifest) && manifest.length > 0) {
 } else {
   console.warn('[Service Worker] No precache manifest found, skipping precache.');
 }
+
+// Clean up outdated caches automatically
+cleanupOutdatedCaches();
+
+// Force immediate activation of new service worker
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
 
 // Firebase messaging background handler
 self.addEventListener('push', (event: PushEvent) => {
