@@ -1,120 +1,95 @@
 
 
-# Correction complete du systeme de relances + workflow de validation
+# Recherche globale precise avec fiche detaillee
 
-## Problemes actuels confirmes
+## Probleme actuel
 
-- **176 relances zombies sur 197** : 111 pour des commandes annulees, 61 pour des commandes livrees, 4 pour des confirmees -- toutes encore "pending"
-- **Pas de fermeture automatique** quand le statut de la commande change
-- **Les appelants ne voient que leurs propres relances** (filtre `created_by = user.id`)
-- **Pas de validation superviseur** ni de choix de l'appelant assigne
+La recherche globale redirige vers les pages de liste (`/orders`, `/clients`, `/roles`) sans filtrer ni ouvrir la fiche specifique du resultat clique. Les resultats affichent tres peu d'informations.
 
-## Nouveau workflow demande
+## Solution
 
-```text
-Commande reportee/partielle
-        |
-        v
-  Relance creee (statut: "awaiting_validation")
-        |
-        v
-  Superviseur/Admin valide
-  + choisit l'appelant assigne
-        |
-        v
-  Relance active (statut: "pending")
-  visible par l'appelant assigne
-        |
-        v
-  Appelant traite la relance
-        |
-        v
-  Relance completee/annulee
-```
+Transformer la recherche globale pour qu'elle affiche des resultats riches directement dans le dropdown, et qu'un clic ouvre une **fiche detaillee** (Dialog) avec toutes les informations pertinentes : client, appelant qui a traite l'appel, livreur assigne, produit, statut, montants, historique.
 
-## Plan d'implementation
+## Changements prevus
 
-### Etape 1 : Migration de la base de donnees
+### 1. Enrichir les donnees de recherche (GlobalSearch.tsx)
 
-**Ajouter des colonnes a `follow_ups` :**
-- `assigned_to` (uuid, nullable) -- l'appelant assigne a cette relance
-- `validated_by` (uuid, nullable) -- le superviseur qui a valide
-- `validated_at` (timestamptz, nullable) -- date de validation
+**Commandes** -- Recuperer plus de champs :
+- Client : nom, telephone, ville, zone
+- Produit : nom, prix
+- Appelant (created_by) : nom via profiles
+- Livreur (delivery_person_id) : nom via delivery_persons + profiles
+- Montant paye, montant du, adresse de livraison, notes de livraison, date de creation
 
-**Ajouter un nouveau statut** au type enum `followup_status` :
-- Ajouter la valeur `awaiting_validation`
+**Clients** -- Recuperer aussi :
+- Segment, adresse, notes, total_orders, total_spent, telephone secondaire
 
-**Nettoyage des donnees :**
-- Fermer les 176 relances zombies (commandes deja livrees/confirmees/annulees)
+### 2. Afficher des resultats plus detailles dans le dropdown
 
-**Trigger SQL auto-fermeture :**
-- Creer une fonction + trigger sur `orders` : quand le statut passe a "delivered", "confirmed" ou "cancelled", toutes les relances `pending` ou `awaiting_validation` associees sont marquees "completed" automatiquement (dans `follow_ups` ET `scheduled_followups`)
+Chaque resultat de commande affichera :
+- Numero de commande + statut (badge colore)
+- Nom du client + telephone
+- Nom de l'appelant qui a cree la commande
+- Nom du livreur assigne
+- Montant total + montant paye
 
-**Mettre a jour les politiques RLS :**
-- Les appelants ne voient que les relances qui leur sont assignees (`assigned_to = auth.uid()`)
-- Les superviseurs/admins voient toutes les relances
-- Ajouter les droits INSERT pour les livreurs (car le report cree une relance)
+Chaque resultat client affichera :
+- Nom + telephones
+- Ville/Zone + segment (badge)
+- Nombre de commandes + total depense
 
-### Etape 2 : Interface superviseur -- validation des relances
+### 3. Creer un composant SearchResultDetail (nouvelle Dialog)
 
-**Modifier `FollowUpsTable.tsx` (page /followups accessible aux superviseurs) :**
-- Ajouter un filtre de statut "En attente de validation"
-- Ajouter une colonne "Assigne a" dans le tableau
-- Ajouter un bouton "Valider" qui ouvre un dialogue de validation
+Quand l'utilisateur clique sur un resultat :
 
-**Creer un dialogue de validation :**
-- Liste deroulante des appelants disponibles (depuis `user_roles` + `profiles` ou `role = 'appelant'`)
-- Bouton valider : met a jour `status = 'pending'`, `assigned_to`, `validated_by`, `validated_at`
-- Possibilite de valider en lot (selection multiple)
+**Pour une commande** -- Dialog avec :
+- En-tete : numero de commande + statut
+- Section Client : nom, telephones, ville, zone, adresse
+- Section Commande : produit, quantite, prix unitaire, montant total, montant paye, montant du
+- Section Appelant : nom de celui qui a cree la commande
+- Section Livreur : nom du livreur assigne + statut
+- Section Livraison : adresse, notes
+- Dates : creation, livraison
 
-**Modifier `FollowUpStats.tsx` :**
-- Ajouter un compteur "A valider" pour les superviseurs
+**Pour un client** -- Dialog avec :
+- Info client complete : nom, telephones, ville, zone, adresse, notes, segment
+- Stats : total commandes, total depense
+- Liste des dernieres commandes avec statut, montant, appelant, livreur
 
-### Etape 3 : Interface appelant -- voir les relances assignees
+### 4. Fichiers concernes
 
-**Modifier `CallerFollowUps.tsx` :**
-- Remplacer le filtre `.eq("created_by", user.id)` par `.eq("assigned_to", user.id)`
-- Ne montrer que les relances avec `status = 'pending'` (deja validees)
-- Les relances "awaiting_validation" ne sont PAS visibles pour les appelants
+- `src/components/layout/GlobalSearch.tsx` -- Refonte de la recherche et des resultats
+- `src/components/layout/SearchResultDetail.tsx` -- Nouveau composant Dialog pour afficher la fiche detaillee
 
-### Etape 4 : Generation automatique corrigee
+### 5. Pas de migration SQL necessaire
 
-**Modifier `useFollowUps.tsx` > `generateAutoFollowUps` :**
-- Les relances auto-generees sont creees avec `status = 'awaiting_validation'` au lieu de `'pending'`
-- Pas de `assigned_to` a la creation (sera defini lors de la validation)
-- Verification anti-doublon amelioree : verifier aussi les relances `awaiting_validation`
-
-**Modifier le `ReportOrderDialog` (report par livreur/appelant) :**
-- Les relances creees lors du report sont aussi en `awaiting_validation`
-
-### Etape 5 : Notifications
-
-- Quand une relance est creee (auto ou manuelle), notification au superviseur pour validation
-- Quand une relance est validee et assignee, notification push a l'appelant concerne
+Toutes les donnees existent deja dans les tables `orders`, `clients`, `profiles`, `delivery_persons` et `products`. Il suffit d'enrichir les requetes SELECT.
 
 ## Details techniques
 
-### Migration SQL
+### Requete enrichie pour les commandes
+```text
+orders -> select:
+  id, order_number, status, total_amount, amount_paid, amount_due,
+  quantity, unit_price, delivery_address, delivery_notes, created_at,
+  client:clients(full_name, phone, phone_secondary, city, zone, address, segment),
+  product:products(name, price),
+  created_by (-> profiles.full_name pour le nom de l'appelant),
+  delivery_person:delivery_persons(id, user_id, status -> profiles.full_name)
+```
 
-1. `ALTER TYPE followup_status ADD VALUE 'awaiting_validation'`
-2. `ALTER TABLE follow_ups ADD COLUMN assigned_to uuid REFERENCES auth.users(id)`
-3. `ALTER TABLE follow_ups ADD COLUMN validated_by uuid REFERENCES auth.users(id)`  
-4. `ALTER TABLE follow_ups ADD COLUMN validated_at timestamptz`
-5. Nettoyage : `UPDATE follow_ups SET status = 'completed', completed_at = now() WHERE status = 'pending' AND order_id IN (SELECT id FROM orders WHERE status IN ('delivered','confirmed','cancelled'))`
-6. Trigger `auto_close_followups_on_order_update` sur la table `orders`
-7. Mise a jour des politiques RLS sur `follow_ups` pour filtrer par `assigned_to`
+Note : comme il n'y a pas de relation directe delivery_persons -> profiles, les profils des livreurs et appelants seront recuperes dans une seconde requete (pattern existant dans useOrders).
 
-### Fichiers modifies
+### Requete enrichie pour les clients
+```text
+clients -> select:
+  id, full_name, phone, phone_secondary, city, zone, address,
+  segment, notes, total_orders, total_spent
+```
 
-- `src/hooks/useFollowUps.tsx` -- generation en `awaiting_validation`, anti-doublon
-- `src/components/followups/FollowUpsTable.tsx` -- colonne "Assigne a", bouton valider, filtre
-- `src/components/followups/FollowUpStats.tsx` -- compteur "A valider"
-- `src/components/followups/FollowUpForm.tsx` -- creation en `awaiting_validation`
-- `src/components/caller/CallerFollowUps.tsx` -- filtre par `assigned_to` au lieu de `created_by`
-- `src/pages/FollowUps.tsx` -- ajout filtre "awaiting_validation"
-- Nouveau : `src/components/followups/ValidateFollowUpDialog.tsx` -- dialogue de validation avec choix de l'appelant
-
-### Aucun nouveau package necessaire
-
-Toutes les dependances UI (Dialog, Select, Command) sont deja installees.
+### Interaction utilisateur
+1. L'utilisateur tape dans la barre de recherche
+2. Les resultats apparaissent avec des informations detaillees
+3. Un clic ouvre la Dialog de fiche detaillee
+4. Le bouton "Voir dans la liste" reste disponible pour naviguer vers la page complete si besoin
 
