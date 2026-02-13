@@ -102,6 +102,7 @@ export default function FollowUps() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="awaiting_validation">À valider</SelectItem>
                   <SelectItem value="pending">En attente</SelectItem>
                   <SelectItem value="completed">Complétée</SelectItem>
                   <SelectItem value="cancelled">Annulée</SelectItem>

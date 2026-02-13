@@ -487,6 +487,7 @@ export type Database = {
       }
       follow_ups: {
         Row: {
+          assigned_to: string | null
           client_id: string
           completed_at: string | null
           created_at: string
@@ -497,8 +498,11 @@ export type Database = {
           scheduled_at: string
           status: Database["public"]["Enums"]["followup_status"]
           type: Database["public"]["Enums"]["followup_type"]
+          validated_at: string | null
+          validated_by: string | null
         }
         Insert: {
+          assigned_to?: string | null
           client_id: string
           completed_at?: string | null
           created_at?: string
@@ -509,8 +513,11 @@ export type Database = {
           scheduled_at: string
           status?: Database["public"]["Enums"]["followup_status"]
           type: Database["public"]["Enums"]["followup_type"]
+          validated_at?: string | null
+          validated_by?: string | null
         }
         Update: {
+          assigned_to?: string | null
           client_id?: string
           completed_at?: string | null
           created_at?: string
@@ -521,6 +528,8 @@ export type Database = {
           scheduled_at?: string
           status?: Database["public"]["Enums"]["followup_status"]
           type?: Database["public"]["Enums"]["followup_type"]
+          validated_at?: string | null
+          validated_by?: string | null
         }
         Relationships: [
           {
@@ -1957,7 +1966,11 @@ export type Database = {
       app_role: "appelant" | "livreur" | "superviseur" | "administrateur"
       client_segment: "new" | "regular" | "vip" | "inactive" | "problematic"
       delivery_status: "available" | "busy" | "offline"
-      followup_status: "pending" | "completed" | "cancelled"
+      followup_status:
+        | "pending"
+        | "completed"
+        | "cancelled"
+        | "awaiting_validation"
       followup_type:
         | "reminder"
         | "partial_payment"
@@ -2104,7 +2117,12 @@ export const Constants = {
       app_role: ["appelant", "livreur", "superviseur", "administrateur"],
       client_segment: ["new", "regular", "vip", "inactive", "problematic"],
       delivery_status: ["available", "busy", "offline"],
-      followup_status: ["pending", "completed", "cancelled"],
+      followup_status: [
+        "pending",
+        "completed",
+        "cancelled",
+        "awaiting_validation",
+      ],
       followup_type: [
         "reminder",
         "partial_payment",
