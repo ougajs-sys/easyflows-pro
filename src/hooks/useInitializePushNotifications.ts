@@ -1,40 +1,48 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePushNotifications } from "./usePushNotifications";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useInitializePushNotifications() {
-  const { isSupported, isPermissionGranted, requestPermission } = usePushNotifications();
-  const hasInitialized = useRef(false);
+  const { isSupported, isChecking, isPermissionGranted, requestPermission, refreshToken } = usePushNotifications();
+  const [hasRegistered, setHasRegistered] = useState(false);
   const requestPermissionRef = useRef(requestPermission);
+  const refreshTokenRef = useRef(refreshToken);
   requestPermissionRef.current = requestPermission;
+  refreshTokenRef.current = refreshToken;
 
+  // Auto-register when support is confirmed
   useEffect(() => {
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
+    if (isChecking || !isSupported || hasRegistered) return;
 
-    const initializePush = async () => {
-      if (!isSupported) return;
-
+    const tryRegister = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: tokens } = await supabase
-        .from('user_push_tokens')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
-
-      if (!tokens || tokens.length === 0) {
-        if (Notification.permission === 'default') {
-          setTimeout(() => {
-            requestPermissionRef.current();
-          }, 2000);
-        }
-      } else if (isPermissionGranted) {
-        requestPermissionRef.current().catch(console.error);
+      if (Notification.permission === 'granted') {
+        // Permission already granted — refresh token silently
+        const ok = await refreshTokenRef.current();
+        if (ok) setHasRegistered(true);
+      } else if (Notification.permission === 'default') {
+        // First time — request permission
+        const ok = await requestPermissionRef.current();
+        if (ok) setHasRegistered(true);
       }
     };
 
-    initializePush();
-  }, [isSupported, isPermissionGranted]);
+    tryRegister();
+  }, [isSupported, isChecking, hasRegistered]);
+
+  // Re-register on every SIGNED_IN event (login, token refresh)
+  useEffect(() => {
+    if (isChecking || !isSupported) return;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_IN' && Notification.permission === 'granted') {
+        const ok = await refreshTokenRef.current();
+        if (ok) setHasRegistered(true);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [isSupported, isChecking]);
 }
