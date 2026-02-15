@@ -188,10 +188,9 @@ export function parseAndValidateCSV(content: string): ValidationResult {
       }
     });
     
-    // Validate required fields
+    // Use phone as default name if name is missing
     if (!client.full_name || client.full_name.trim() === '') {
-      invalid.push({ row: i + 1, data: rowData, error: 'Nom manquant' });
-      continue;
+      client.full_name = client.phone || 'Client';
     }
     
     if (!client.phone) {
