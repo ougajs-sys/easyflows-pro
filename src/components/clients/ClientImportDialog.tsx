@@ -120,7 +120,7 @@ export function ClientImportDialog({ open, onOpenChange }: ClientImportDialogPro
         <DialogHeader>
           <DialogTitle>Importer des clients</DialogTitle>
           <DialogDescription>
-            Importez vos clients depuis un fichier CSV. Formats acceptés : nom, téléphone, ville.
+            Importez vos clients depuis un fichier CSV. Formats acceptés : nom, téléphone, ville OU téléphone, ville.
           </DialogDescription>
         </DialogHeader>
 
