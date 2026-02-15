@@ -3,21 +3,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Bell, BellOff, Loader2, RefreshCw, Smartphone } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 export function PushNotificationSettings() {
   const { user } = useAuth();
-  const { isSupported, isPermissionGranted, isLoading, requestPermission, toggleNotifications } = usePushNotifications();
+  const { isSupported, isChecking, isPermissionGranted, isLoading, requestPermission, toggleNotifications, refreshToken } = usePushNotifications();
   const [isEnabled, setIsEnabled] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const loadNotificationStatus = async () => {
       if (!user) return;
-      
+
       try {
         const { data, error } = await supabase
           .from('user_push_tokens')
@@ -25,7 +26,7 @@ export function PushNotificationSettings() {
           .eq('user_id', user.id)
           .limit(1)
           .maybeSingle();
-        
+
         if (!error && data) {
           setIsEnabled(data.is_enabled);
         }
@@ -41,7 +42,6 @@ export function PushNotificationSettings() {
 
   const handleToggle = async (checked: boolean) => {
     if (checked && !isPermissionGranted) {
-      // Request permission first
       const granted = await requestPermission();
       if (granted) {
         setIsEnabled(true);
@@ -52,7 +52,17 @@ export function PushNotificationSettings() {
     }
   };
 
-  if (!isSupported) {
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    const ok = await refreshToken();
+    if (ok) {
+      setIsEnabled(true);
+    }
+    setIsRefreshing(false);
+  };
+
+  // Loading state while checking support
+  if (isChecking) {
     return (
       <Card>
         <CardHeader>
@@ -60,10 +70,38 @@ export function PushNotificationSettings() {
             <Bell className="h-5 w-5" />
             Notifications Push
           </CardTitle>
-          <CardDescription>
-            Votre navigateur ne supporte pas les notifications push.
+          <CardDescription className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Vérification de la compatibilité...
           </CardDescription>
         </CardHeader>
+      </Card>
+    );
+  }
+
+  // Not supported — show platform-specific instructions
+  if (!isSupported) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Smartphone className="h-5 w-5" />
+            Notifications Push
+          </CardTitle>
+          <CardDescription>
+            Les notifications push ne sont pas disponibles sur ce navigateur.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="rounded-lg border border-muted bg-muted/30 p-4 space-y-2">
+            <p className="text-sm font-medium">Pour activer les notifications :</p>
+            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2">
+              <li><strong>Android</strong> : Ouvrez l'app dans Chrome, puis installez-la via le menu ⋮ → « Installer l'application »</li>
+              <li><strong>iPhone/iPad</strong> : Ouvrez dans Safari, appuyez sur Partager → « Sur l'écran d'accueil » (iOS 16.4+)</li>
+              <li><strong>PC/Mac</strong> : Utilisez Chrome, Edge ou Firefox à jour</li>
+            </ul>
+          </div>
+        </CardContent>
       </Card>
     );
   }
@@ -105,9 +143,9 @@ export function PushNotificationSettings() {
             <p className="text-sm text-amber-900 dark:text-amber-100">
               Les notifications ne sont pas autorisées dans votre navigateur. Activez-les pour recevoir des alertes en temps réel.
             </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="mt-2"
               onClick={() => requestPermission()}
               disabled={isLoading}
@@ -116,6 +154,19 @@ export function PushNotificationSettings() {
               Autoriser les notifications
             </Button>
           </div>
+        )}
+
+        {isPermissionGranted && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="w-full"
+          >
+            {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Réactiver / Rafraîchir le token
+          </Button>
         )}
 
         <div className="text-sm text-muted-foreground space-y-2">
