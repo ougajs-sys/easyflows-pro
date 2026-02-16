@@ -1,85 +1,90 @@
 
 
-# Notifications push invisibles et inactives sur mobile -- Solution definitive
+# Correction du systeme de campagnes SMS/WhatsApp
 
-## Probleme identifie
+## Problemes identifies
 
-Deux problemes distincts empechent les notifications push de fonctionner sur mobile :
+### Probleme 1 (CRITIQUE) : `auth.getClaims()` n'existe pas
+Dans la derniere mise a jour de securite du fichier `supabase/functions/send-sms/index.ts` (ligne 41), la methode `authClient.auth.getClaims(token)` a ete utilisee. **Cette methode n'existe pas** dans le SDK Supabase JS. La methode correcte est `authClient.auth.getUser()`.
 
-### 1. La carte "Notifications Push" est masquee sur mobile
-Dans `usePushNotifications.ts` (ligne 22), le check `isSupported` teste :
-```text
-'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window
-```
-Sur certains navigateurs mobiles ou PWA installees, ces APIs peuvent ne pas etre toutes disponibles au moment du check (chargement asynchrone du service worker, WebView restreint). Quand `isSupported = false`, le composant `PushNotificationSettings` affiche un message "non supporte" sans aucune action possible.
+Cela provoque un crash immediat de la fonction : chaque appel retourne une erreur 401 ou 500, ce qui explique les 0 envoyes et 1000 echecs sur les campagnes recentes.
 
-### 2. L'initialisation automatique echoue silencieusement
-Dans `useInitializePushNotifications.ts` (ligne 16), si `isSupported` est `false`, le hook retourne immediatement sans rien faire. L'utilisateur n'est jamais enregistre pour les notifications.
+Preuve : les campagnes creees **avant** la mise a jour de securite (05/02/2026) montrent des envois reussis (66/119, 66/98). Les campagnes **apres** (15/02, 16/02) montrent 0/1000 avec 1000 echecs.
 
-De plus, le hook ne se re-execute jamais apres le premier rendu (`hasInitialized.current = true`), meme si les APIs deviennent disponibles apres le chargement du service worker.
+### Probleme 2 : Limite de 1000 destinataires
+La fonction `send-sms` rejette les requetes depassant 1000 numeros (ligne 75-79). Mais le hook `useCampaigns` envoie TOUS les numeros en une seule requete. Avec ~10 000 clients importes, toute campagne ciblant "tous les clients" echouera systematiquement.
+
+### Probleme 3 : `process-scheduled-campaigns` incompatible
+La fonction `process-scheduled-campaigns` appelle `send-sms` via `supabase.functions.invoke` avec la cle service role. Mais `send-sms` attend maintenant un JWT utilisateur pour extraire l'ID utilisateur. Cet appel machine-a-machine echouera toujours.
+
+### Probleme 4 : Meme bug dans `send-notification-sms`
+Le fichier `supabase/functions/send-notification-sms/index.ts` utilise probablement aussi `getClaims` (ajoute dans la meme mise a jour securite).
 
 ## Solution
 
-### Fichier 1 : `src/hooks/usePushNotifications.ts`
+### Fichier 1 : `supabase/functions/send-sms/index.ts`
 
-**Rendre la detection plus robuste et asynchrone :**
-- Remplacer le check synchrone unique par une detection progressive : verifier d'abord `Notification` et `serviceWorker`, puis attendre que le service worker soit `ready` avant de verifier `PushManager`
-- Ajouter un etat `isChecking` pour differencier "pas encore verifie" de "pas supporte"
-- Re-verifier le support si le premier check echoue (retry apres 3 secondes pour laisser le temps au SW de s'installer)
+- Remplacer `authClient.auth.getClaims(token)` par `authClient.auth.getUser()` (methode standard)
+- Extraire `userId` depuis `userData.user.id`
+- Augmenter la limite de 1000 a 10000 destinataires (la boucle d'envoi gere deja le traitement un par un)
+- Ajouter un mode "service" : si le header Authorization contient la cle service role, bypasser le check de role utilisateur (pour permettre a `process-scheduled-campaigns` d'appeler `send-sms`)
 
-**Changements concrets :**
-- Nouveau state `isChecking` (true par defaut)
-- Le `useEffect` fait une detection en 2 etapes : check rapide puis verification via `navigator.serviceWorker.ready`
-- Si le premier check echoue, un retry apres 3s est programme
-- `isSupported` passe a `true` des que toutes les APIs sont confirmees
+### Fichier 2 : `src/hooks/useCampaigns.tsx`
 
-### Fichier 2 : `src/hooks/useInitializePushNotifications.ts`
+- Ajouter un systeme de **batching** cote client : decouper les numeros en lots de 500 et les envoyer sequentiellement
+- Cumuler les resultats (sent/failed) de chaque lot
+- Mettre a jour la campagne avec les totaux finaux
 
-**Rendre l'initialisation reactive et persistante :**
-- Supprimer le garde `hasInitialized.current` qui empeche la re-execution
-- Utiliser un state `hasRegistered` pour tracker si l'enregistrement a reussi (pas juste tente)
-- Re-executer quand `isSupported` passe de `false` a `true` (apres detection asynchrone)
-- Ajouter un listener sur `auth.onAuthStateChange` pour re-enregistrer a chaque connexion (pas seulement au premier rendu)
-- Si la permission est deja `granted`, toujours rafraichir le token FCM (les tokens expirent)
+### Fichier 3 : `supabase/functions/send-notification-sms/index.ts`
 
-**Changements concrets :**
-- Le `useEffect` reagit a `isSupported` et `isPermissionGranted`
-- Ajout d'un listener `onAuthStateChange('SIGNED_IN')` qui declenche l'enregistrement
-- Rafraichissement du token a chaque connexion si permission deja accordee
-- Plus de `setTimeout` arbitraire de 2 secondes
+- Appliquer la meme correction : remplacer `getClaims` par `getUser()`
 
-### Fichier 3 : `src/components/profile/PushNotificationSettings.tsx`
+### Fichier 4 : `supabase/functions/process-scheduled-campaigns/index.ts`
 
-**Toujours afficher la carte avec un etat clair :**
-- Quand `isChecking` : afficher un spinner "Verification en cours..."
-- Quand `!isSupported` : afficher un message explicatif avec des instructions specifiques selon la plateforme (iOS Safari, Android Chrome, navigateur desktop) au lieu de simplement "non supporte"
-- Quand `isSupported` : afficher le toggle (comportement actuel)
-- Ajouter un bouton "Reactiver" qui force un nouveau `requestPermission()` pour re-generer le token FCM (utile si le token a expire)
+- S'assurer que l'appel a `send-sms` passe le header Authorization avec la cle service role pour beneficier du mode service
 
-### Fichier 4 : `src/hooks/usePushNotifications.ts` (complement)
+## Details techniques
 
-**Rafraichissement automatique du token :**
-- Ajouter une fonction `refreshToken()` exportee qui re-genere le token FCM et met a jour la base
-- Appeler cette fonction a chaque connexion utilisateur (via `useInitializePushNotifications`)
-- Cela garantit que meme si le token a change (reinstallation PWA, nettoyage du navigateur), l'utilisateur reste joignable
+### Correction auth (send-sms)
 
-## Resultat attendu
+Avant (ligne 41, CASSEE) :
+```text
+const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+const userId = claimsData.claims.sub;
+```
 
-1. Sur mobile, la carte "Notifications Push" est **toujours visible** avec un etat clair
-2. Les notifications sont **automatiquement activees** a chaque connexion
-3. Les tokens FCM sont **rafraichis automatiquement** pour eviter les tokens expires
-4. Si le support push n'est pas disponible, l'utilisateur voit des **instructions specifiques** a son appareil
-5. Un bouton "Reactiver" permet de forcer la re-generation du token en cas de probleme
+Apres (CORRIGEE) :
+```text
+const { data: userData, error: userError } = await authClient.auth.getUser();
+const userId = userData?.user?.id;
+```
+
+### Batching cote client (useCampaigns)
+
+```text
+const BATCH_SIZE = 500;
+for (let i = 0; i < phones.length; i += BATCH_SIZE) {
+  const batch = phones.slice(i, i + BATCH_SIZE);
+  const result = await supabase.functions.invoke("send-sms", {
+    body: { campaign_id, phones: batch, message, type }
+  });
+  totalSent += result.data.sent;
+  totalFailed += result.data.failed;
+}
+```
+
+### Mode service pour appels internes
+
+La fonction detectera si l'appel vient d'une autre edge function (via la cle service role) et sautera la verification de role utilisateur, tout en gardant la validation des donnees d'entree.
 
 ## Fichiers modifies
 
 | Fichier | Modification |
 |---------|-------------|
-| `src/hooks/usePushNotifications.ts` | Detection asynchrone progressive + `refreshToken()` + export `isChecking` |
-| `src/hooks/useInitializePushNotifications.ts` | Initialisation reactive + listener auth + rafraichissement token |
-| `src/components/profile/PushNotificationSettings.tsx` | UI toujours visible + etat de chargement + instructions mobile + bouton reactiver |
+| `supabase/functions/send-sms/index.ts` | Fix `getClaims` -> `getUser()`, augmenter limite, mode service |
+| `supabase/functions/send-notification-sms/index.ts` | Fix `getClaims` -> `getUser()` |
+| `src/hooks/useCampaigns.tsx` | Batching par lots de 500 |
+| `supabase/functions/process-scheduled-campaigns/index.ts` | Pas de changement necessaire (utilise deja service role) |
 
 ## Aucune migration SQL necessaire
-
-Les tables `user_push_tokens` et `push_log` restent inchangees. Seule la logique client est modifiee.
 
