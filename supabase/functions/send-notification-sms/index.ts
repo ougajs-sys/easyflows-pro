@@ -113,6 +113,7 @@ serve(async (req) => {
       body: new URLSearchParams({
         phonenumber: cleanPhone,
         text: message,
+        channel: channel,
       }),
     });
 
