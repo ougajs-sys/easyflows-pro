@@ -13,12 +13,11 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log("Checking for scheduled campaigns...");
 
-    // Find campaigns that are scheduled and due to be sent
     const now = new Date().toISOString();
     const { data: scheduledCampaigns, error: fetchError } = await supabase
       .from("campaigns")
@@ -26,32 +25,36 @@ serve(async (req) => {
       .eq("status", "scheduled")
       .lte("scheduled_at", now);
 
-    if (fetchError) {
-      throw fetchError;
-    }
+    if (fetchError) throw fetchError;
 
     console.log(`Found ${scheduledCampaigns?.length || 0} campaigns to process`);
 
     const results = [];
+    const BATCH_SIZE = 500;
 
     for (const campaign of scheduledCampaigns || []) {
       console.log(`Processing campaign: ${campaign.name} (${campaign.id})`);
 
       try {
-        // Get clients based on segment
-        let clientsQuery = supabase.from("clients").select("id, phone");
-        
-        if (campaign.segment && campaign.segment !== 'all') {
-          clientsQuery = clientsQuery.eq("segment", campaign.segment);
+        // Get all clients (paginated to bypass 1000 row limit)
+        let allClients: { id: string; phone: string }[] = [];
+        let from = 0;
+        const pageSize = 1000;
+
+        while (true) {
+          let clientsQuery = supabase.from("clients").select("id, phone").range(from, from + pageSize - 1);
+          if (campaign.segment && campaign.segment !== 'all') {
+            clientsQuery = clientsQuery.eq("segment", campaign.segment);
+          }
+          const { data: clients, error: clientsError } = await clientsQuery;
+          if (clientsError) throw clientsError;
+          if (!clients || clients.length === 0) break;
+          allClients = allClients.concat(clients);
+          if (clients.length < pageSize) break;
+          from += pageSize;
         }
 
-        const { data: clients, error: clientsError } = await clientsQuery;
-        
-        if (clientsError) {
-          throw clientsError;
-        }
-
-        if (!clients || clients.length === 0) {
+        if (allClients.length === 0) {
           console.log(`No clients found for campaign ${campaign.id}`);
           await supabase.from("campaigns").update({
             status: "completed",
@@ -64,37 +67,56 @@ serve(async (req) => {
         // Update status to sending
         await supabase.from("campaigns").update({
           status: "sending",
-          total_recipients: clients.length,
+          total_recipients: allClients.length,
         }).eq("id", campaign.id);
 
-        // Call send-sms function
-        const phones = clients.map(c => c.phone);
-        const { data, error } = await supabase.functions.invoke("send-sms", {
-          body: {
-            campaign_id: campaign.id,
-            phones,
-            message: campaign.message,
-            type: campaign.type,
-          },
-        });
+        // Send in batches using service role key for auth bypass
+        const phones = allClients.map(c => c.phone);
+        let totalSent = 0;
+        let totalFailed = 0;
 
-        if (error) {
-          throw error;
+        for (let i = 0; i < phones.length; i += BATCH_SIZE) {
+          const batch = phones.slice(i, i + BATCH_SIZE);
+          
+          const { data, error } = await supabase.functions.invoke("send-sms", {
+            body: {
+              campaign_id: campaign.id,
+              phones: batch,
+              message: campaign.message,
+              type: campaign.type,
+            },
+          });
+
+          if (error) {
+            console.error(`Batch failed:`, error);
+            totalFailed += batch.length;
+          } else if (data) {
+            totalSent += data.sent || 0;
+            totalFailed += data.failed || 0;
+          }
         }
+
+        // Final update
+        await supabase.from("campaigns").update({
+          sent_count: totalSent,
+          failed_count: totalFailed,
+          status: "completed",
+          sent_at: new Date().toISOString(),
+        }).eq("id", campaign.id);
 
         results.push({
           campaign_id: campaign.id,
           name: campaign.name,
           status: "processed",
-          recipients: clients.length,
-          ...data,
+          recipients: allClients.length,
+          sent: totalSent,
+          failed: totalFailed,
         });
 
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         console.error(`Error processing campaign ${campaign.id}:`, error);
         
-        // Mark campaign as failed
         await supabase.from("campaigns").update({
           status: "cancelled",
         }).eq("id", campaign.id);

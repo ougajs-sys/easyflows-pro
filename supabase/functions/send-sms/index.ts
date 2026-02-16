@@ -14,7 +14,6 @@ interface SendSmsRequest {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -33,34 +32,44 @@ serve(async (req) => {
       });
     }
 
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-    const userId = claimsData.claims.sub;
+    const isServiceRole = token === supabaseServiceKey;
 
-    // --- Role check: only superviseur/administrateur ---
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: userRoles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("confirmed", true);
+    let userId: string | undefined;
 
-    const roles = (userRoles || []).map((r: { role: string }) => r.role);
-    if (!roles.some((r: string) => ["superviseur", "administrateur"].includes(r))) {
-      return new Response(JSON.stringify({ error: "Access denied" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+    if (isServiceRole) {
+      // Service role call (from process-scheduled-campaigns) — skip user role check
+      userId = "service-role";
+    } else {
+      // User JWT call — validate user and check role
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
       });
+
+      const { data: userData, error: userError } = await authClient.auth.getUser();
+      if (userError || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Invalid token" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      userId = userData.user.id;
+
+      // Role check: only superviseur/administrateur
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: userRoles } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("confirmed", true);
+
+      const roles = (userRoles || []).map((r: { role: string }) => r.role);
+      if (!roles.some((r: string) => ["superviseur", "administrateur"].includes(r))) {
+        return new Response(JSON.stringify({ error: "Access denied" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
     }
 
     // --- Input validation ---
@@ -72,8 +81,8 @@ serve(async (req) => {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
-    if (phones.length > 1000) {
-      return new Response(JSON.stringify({ error: "Maximum 1000 recipients per request" }), {
+    if (phones.length > 10000) {
+      return new Response(JSON.stringify({ error: "Maximum 10000 recipients per request" }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -96,7 +105,9 @@ serve(async (req) => {
       throw new Error("MESSENGER360_API_KEY not configured");
     }
 
-    console.log(`Sending ${type} to ${phones.length} recipients (by user ${userId})`);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    console.log(`Sending ${type} to ${phones.length} recipients (by ${userId})`);
 
     const results = {
       sent: 0,
