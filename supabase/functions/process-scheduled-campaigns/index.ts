@@ -113,7 +113,7 @@ serve(async (req) => {
           sent_at: new Date().toISOString(),
         }).eq("id", campaign.id);
 
-        console.log(`Campaign ${campaign.name} completed: ${totalSent} sent, ${totalFailed} failed out of ${allClients.length} recipients`);
+        console.log(`Campaign ${campaign.name} completed: ${totalSent} sent, ${totalFailed} failed out of ${phones.length} recipients (${allClients.length} total clients)`);
 
         results.push({
           campaign_id: campaign.id,
