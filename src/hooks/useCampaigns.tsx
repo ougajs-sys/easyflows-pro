@@ -19,6 +19,8 @@ export interface Campaign {
   updated_at: string;
 }
 
+const BATCH_SIZE = 500;
+
 export const useCampaigns = () => {
   const queryClient = useQueryClient();
 
@@ -77,7 +79,7 @@ export const useCampaigns = () => {
 
   const sendCampaign = useMutation({
     mutationFn: async (campaignId: string) => {
-      // Get campaign and clients
+      // Get campaign
       const { data: campaign, error: campaignError } = await supabase
         .from("campaigns")
         .select("*")
@@ -86,42 +88,75 @@ export const useCampaigns = () => {
       
       if (campaignError) throw campaignError;
 
-      // Get clients based on segment
-      let clientsQuery = supabase.from("clients").select("id, phone");
-      
-      if (campaign.segment && campaign.segment !== 'all') {
-        const validSegments = ['new', 'regular', 'vip', 'inactive', 'problematic'] as const;
-        if (validSegments.includes(campaign.segment as any)) {
-          clientsQuery = clientsQuery.eq("segment", campaign.segment as typeof validSegments[number]);
+      // Get clients based on segment — fetch all pages (bypass 1000 row limit)
+      let allClients: { id: string; phone: string }[] = [];
+      let from = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        let clientsQuery = supabase.from("clients").select("id, phone").range(from, from + pageSize - 1);
+        
+        if (campaign.segment && campaign.segment !== 'all') {
+          const validSegments = ['new', 'regular', 'vip', 'inactive', 'problematic'] as const;
+          if (validSegments.includes(campaign.segment as any)) {
+            clientsQuery = clientsQuery.eq("segment", campaign.segment as typeof validSegments[number]);
+          }
         }
+
+        const { data: clients, error: clientsError } = await clientsQuery;
+        if (clientsError) throw clientsError;
+
+        if (!clients || clients.length === 0) break;
+        allClients = allClients.concat(clients);
+        if (clients.length < pageSize) break;
+        from += pageSize;
       }
 
-      const { data: clients, error: clientsError } = await clientsQuery;
-      if (clientsError) throw clientsError;
-
-      if (!clients || clients.length === 0) {
+      if (allClients.length === 0) {
         throw new Error("Aucun client trouvé pour ce segment");
       }
 
       // Update campaign status and total recipients
       await supabase.from("campaigns").update({
         status: "sending",
-        total_recipients: clients.length,
+        total_recipients: allClients.length,
       }).eq("id", campaignId);
 
-      // Call edge function to send messages
-      const phones = clients.map(c => c.phone);
-      const { data, error } = await supabase.functions.invoke("send-sms", {
-        body: {
-          campaign_id: campaignId,
-          phones,
-          message: campaign.message,
-          type: campaign.type,
-        },
-      });
+      // Send in batches of 500
+      const phones = allClients.map(c => c.phone);
+      let totalSent = 0;
+      let totalFailed = 0;
 
-      if (error) throw error;
-      return data;
+      for (let i = 0; i < phones.length; i += BATCH_SIZE) {
+        const batch = phones.slice(i, i + BATCH_SIZE);
+        
+        const { data, error } = await supabase.functions.invoke("send-sms", {
+          body: {
+            campaign_id: campaignId,
+            phones: batch,
+            message: campaign.message,
+            type: campaign.type,
+          },
+        });
+
+        if (error) {
+          console.error(`Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, error);
+          totalFailed += batch.length;
+        } else if (data) {
+          totalSent += data.sent || 0;
+          totalFailed += data.failed || 0;
+        }
+      }
+
+      // Final update with cumulative totals
+      await supabase.from("campaigns").update({
+        sent_count: totalSent,
+        failed_count: totalFailed,
+        status: "completed",
+        sent_at: new Date().toISOString(),
+      }).eq("id", campaignId);
+
+      return { sent: totalSent, failed: totalFailed };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
