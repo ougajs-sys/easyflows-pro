@@ -72,11 +72,16 @@ serve(async (req) => {
 
         // Send in batches using service role key for auth bypass
         const phones = allClients.map(c => c.phone);
+        const totalBatches = Math.ceil(phones.length / BATCH_SIZE);
+        console.log(`Sending campaign to ${phones.length} recipients in ${totalBatches} batch(es)`);
         let totalSent = 0;
         let totalFailed = 0;
 
         for (let i = 0; i < phones.length; i += BATCH_SIZE) {
           const batch = phones.slice(i, i + BATCH_SIZE);
+          const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+          
+          console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} recipients)`);
           
           const { data, error } = await supabase.functions.invoke("send-sms", {
             body: {
@@ -85,12 +90,16 @@ serve(async (req) => {
               message: campaign.message,
               type: campaign.type,
             },
+            headers: {
+              Authorization: `Bearer ${supabaseServiceKey}`,
+            },
           });
 
           if (error) {
-            console.error(`Batch failed:`, error);
+            console.error(`Batch ${batchNumber}/${totalBatches} failed:`, error);
             totalFailed += batch.length;
           } else if (data) {
+            console.log(`Batch ${batchNumber}/${totalBatches} completed: ${data.sent || 0} sent, ${data.failed || 0} failed`);
             totalSent += data.sent || 0;
             totalFailed += data.failed || 0;
           }
@@ -103,6 +112,8 @@ serve(async (req) => {
           status: "completed",
           sent_at: new Date().toISOString(),
         }).eq("id", campaign.id);
+
+        console.log(`Campaign ${campaign.name} completed: ${totalSent} sent, ${totalFailed} failed out of ${phones.length} recipients (${allClients.length} total clients)`);
 
         results.push({
           campaign_id: campaign.id,
