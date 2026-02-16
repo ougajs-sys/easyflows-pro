@@ -80,7 +80,6 @@ serve(async (req) => {
         for (let i = 0; i < phones.length; i += BATCH_SIZE) {
           const batch = phones.slice(i, i + BATCH_SIZE);
           const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-          const totalBatches = Math.ceil(phones.length / BATCH_SIZE);
           
           console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} recipients)`);
           
