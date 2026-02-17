@@ -271,13 +271,17 @@ export type Database = {
       clients: {
         Row: {
           address: string | null
+          campaign_batch: number | null
+          campaign_group: string | null
           city: string | null
+          country_code: string | null
           created_at: string
           created_by: string | null
           full_name: string
           id: string
           notes: string | null
           phone: string
+          phone_normalized: string | null
           phone_secondary: string | null
           segment: Database["public"]["Enums"]["client_segment"]
           total_orders: number
@@ -287,13 +291,17 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          campaign_batch?: number | null
+          campaign_group?: string | null
           city?: string | null
+          country_code?: string | null
           created_at?: string
           created_by?: string | null
           full_name: string
           id?: string
           notes?: string | null
           phone: string
+          phone_normalized?: string | null
           phone_secondary?: string | null
           segment?: Database["public"]["Enums"]["client_segment"]
           total_orders?: number
@@ -303,13 +311,17 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          campaign_batch?: number | null
+          campaign_group?: string | null
           city?: string | null
+          country_code?: string | null
           created_at?: string
           created_by?: string | null
           full_name?: string
           id?: string
           notes?: string | null
           phone?: string
+          phone_normalized?: string | null
           phone_secondary?: string | null
           segment?: Database["public"]["Enums"]["client_segment"]
           total_orders?: number
