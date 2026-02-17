@@ -93,10 +93,15 @@ export const useCampaigns = () => {
       let from = 0;
       const pageSize = 1000;
 
+      const isGroupSegment = campaign.segment && campaign.segment.startsWith('campaign_group:');
+      const groupName = isGroupSegment ? campaign.segment!.replace('campaign_group:', '') : null;
+
       while (true) {
         let clientsQuery = supabase.from("clients").select("id, phone").range(from, from + pageSize - 1);
         
-        if (campaign.segment && campaign.segment !== 'all') {
+        if (isGroupSegment && groupName) {
+          clientsQuery = clientsQuery.eq("campaign_group", groupName);
+        } else if (campaign.segment && campaign.segment !== 'all') {
           const validSegments = ['new', 'regular', 'vip', 'inactive', 'problematic'] as const;
           if (validSegments.includes(campaign.segment as any)) {
             clientsQuery = clientsQuery.eq("segment", campaign.segment as typeof validSegments[number]);

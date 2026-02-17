@@ -45,12 +45,14 @@ const categoryIcons = {
   status: CheckCircle2,
   behavior: TrendingUp,
   frequency: Calendar,
+  group: Users,
 };
 
 const categoryLabels = {
   status: "Segments par statut",
   behavior: "Segments par comportement",
   frequency: "Segments par fréquence",
+  group: "Groupes de contacts (500)",
 };
 
 const segmentIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -182,7 +184,7 @@ export function CampaignSegmentSelector({
       {/* Segment Categories */}
       <ScrollArea className="h-[400px] pr-4">
         <div className="space-y-4">
-          {(['status', 'behavior', 'frequency'] as const).map((category) => {
+          {(['group', 'status', 'behavior', 'frequency'] as const).map((category) => {
             const CategoryIcon = categoryIcons[category];
             const categorySegments = groupedSegments[category] || [];
 

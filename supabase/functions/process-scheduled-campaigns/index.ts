@@ -43,7 +43,11 @@ serve(async (req) => {
 
         while (true) {
           let clientsQuery = supabase.from("clients").select("id, phone").range(from, from + pageSize - 1);
-          if (campaign.segment && campaign.segment !== 'all') {
+          const isGroupSegment = campaign.segment && campaign.segment.startsWith('campaign_group:');
+          if (isGroupSegment) {
+            const groupName = campaign.segment!.replace('campaign_group:', '');
+            clientsQuery = clientsQuery.eq("campaign_group", groupName);
+          } else if (campaign.segment && campaign.segment !== 'all') {
             clientsQuery = clientsQuery.eq("segment", campaign.segment);
           }
           const { data: clients, error: clientsError } = await clientsQuery;

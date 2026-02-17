@@ -7,7 +7,7 @@ export interface ClientSegment {
   label: string;
   description: string;
   count: number;
-  category: 'status' | 'behavior' | 'frequency';
+  category: 'status' | 'behavior' | 'frequency' | 'group';
 }
 
 export function useClientSegments() {
@@ -17,7 +17,7 @@ export function useClientSegments() {
       // Fetch all clients with their orders
       const { data: clients, error: clientsError } = await supabase
         .from('clients')
-        .select('id, segment, total_orders, total_spent, created_at');
+        .select('id, segment, total_orders, total_spent, created_at, campaign_group, campaign_batch');
 
       if (clientsError) throw clientsError;
 
@@ -118,6 +118,28 @@ export function useClientSegments() {
         }
       });
 
+      // Campaign group segments (Group-C-1, Group-C-2, etc.)
+      const groupCounts: Record<string, number> = {};
+      clients?.forEach((client) => {
+        if (client.campaign_group) {
+          groupCounts[client.campaign_group] = (groupCounts[client.campaign_group] || 0) + 1;
+        }
+      });
+
+      const groupSegments: ClientSegment[] = Object.entries(groupCounts)
+        .sort(([a], [b]) => {
+          const numA = parseInt(a.replace('Group-C-', ''));
+          const numB = parseInt(b.replace('Group-C-', ''));
+          return numA - numB;
+        })
+        .map(([groupName, count]) => ({
+          id: `campaign_group:${groupName}`,
+          label: groupName,
+          description: `${count} contacts dans ce groupe`,
+          count,
+          category: 'group' as const,
+        }));
+
       const result: ClientSegment[] = [
         // All clients
         { id: 'all', label: 'Tous les clients', description: 'Tous les clients de la base', count: segmentCounts.all.size, category: 'status' },
@@ -140,6 +162,9 @@ export function useClientSegments() {
         { id: 'frequent', label: 'Clients réguliers', description: '3+ commandes ces 90 derniers jours', count: segmentCounts.frequent.size, category: 'frequency' },
         { id: 'occasional', label: 'Clients occasionnels', description: '1-2 commandes ces 90 derniers jours', count: segmentCounts.occasional.size, category: 'frequency' },
         { id: 'lost', label: 'Clients perdus', description: 'Aucune commande depuis 6 mois', count: segmentCounts.lost.size, category: 'frequency' },
+
+        // Campaign groups
+        ...groupSegments,
       ];
 
       return result;
@@ -151,7 +176,14 @@ export function useClientSegments() {
     // Re-fetch with same logic but return client list
     const { data: clients } = await supabase
       .from('clients')
-      .select('id, full_name, phone, total_orders, total_spent, created_at');
+      .select('id, full_name, phone, total_orders, total_spent, created_at, campaign_group');
+
+    // Handle campaign group segments directly
+    if (segmentId.startsWith('campaign_group:')) {
+      const groupName = segmentId.replace('campaign_group:', '');
+      const filtered = (clients || []).filter(c => c.campaign_group === groupName);
+      return filtered.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }));
+    }
 
     const { data: orders } = await supabase
       .from('orders')
