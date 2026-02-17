@@ -157,13 +157,17 @@ const Campaigns = () => {
   };
 
   const getSegmentLabel = (segment: string | null) => {
+    if (!segment) return 'Non défini';
+    if (segment.startsWith('campaign_group:')) {
+      return segment.replace('campaign_group:', '');
+    }
     switch (segment) {
       case 'all': return 'Tous les clients';
       case 'new': return 'Nouveaux clients';
       case 'regular': return 'Clients réguliers';
       case 'vip': return 'Clients VIP';
       case 'inactive': return 'Clients inactifs';
-      default: return 'Non défini';
+      default: return segment;
     }
   };
 
@@ -287,9 +291,9 @@ const Campaigns = () => {
                         onSelectionChange={(selected, excluded) => {
                           setSelectedSegments(selected);
                           setExcludedSegments(excluded);
-                          // Use first selected segment or 'all' for the campaign
+                          // Use first selected segment for the campaign
                           if (selected.length > 0) {
-                            setNewCampaign({ ...newCampaign, segment: selected[0] as 'all' | 'new' | 'regular' | 'vip' | 'inactive' });
+                            setNewCampaign({ ...newCampaign, segment: selected[0] as any });
                           }
                         }}
                       />
