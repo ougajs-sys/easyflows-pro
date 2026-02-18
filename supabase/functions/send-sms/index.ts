@@ -121,8 +121,10 @@ serve(async (req) => {
         const cleanPhone = phone
           .replace(/\s+/g, "")
           .replace(/-/g, "")
+          .replace(/^\+225/, "225")
           .replace(/^\+/, "")
-          .replace(/^0/, "212");
+          .replace(/^00225/, "225")
+          .replace(/^0(\d{9})$/, "225$1");
 
         const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
           method: "POST",
