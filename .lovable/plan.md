@@ -1,90 +1,61 @@
 
 
-# Correction du systeme de campagnes SMS/WhatsApp
+# Correction du systeme de campagnes WhatsApp
 
 ## Problemes identifies
 
-### Probleme 1 (CRITIQUE) : `auth.getClaims()` n'existe pas
-Dans la derniere mise a jour de securite du fichier `supabase/functions/send-sms/index.ts` (ligne 41), la methode `authClient.auth.getClaims(token)` a ete utilisee. **Cette methode n'existe pas** dans le SDK Supabase JS. La methode correcte est `authClient.auth.getUser()`.
+### 1. Groupes de contacts invisibles dans le selecteur de segments
+- Le state `expandedCategories` n'inclut pas `'group'` par defaut - les groupes sont caches au chargement
+- Le type TypeScript de `segment` dans `Campaign` est trop restrictif (`'all' | 'new' | 'regular' | 'vip' | 'inactive'`) et ne peut pas stocker `campaign_group:Group-C-1`
 
-Cela provoque un crash immediat de la fonction : chaque appel retourne une erreur 401 ou 500, ce qui explique les 0 envoyes et 1000 echecs sur les campagnes recentes.
+### 2. Echecs massifs des campagnes (throttling API)
+- Les logs montrent que **701 sur 1000 messages** echouent avec `ThrottlerException: Too Many Requests`
+- La fonction `send-sms` envoie les messages en boucle sans aucun delai entre chaque appel API 360messenger
+- L'API impose un rate limit que le systeme ne respecte pas
 
-Preuve : les campagnes creees **avant** la mise a jour de securite (05/02/2026) montrent des envois reussis (66/119, 66/98). Les campagnes **apres** (15/02, 16/02) montrent 0/1000 avec 1000 echecs.
+### 3. Double mise a jour du statut
+- `send-sms` met a jour le statut de la campagne apres chaque batch
+- `useCampaigns.sendCampaign` fait aussi une mise a jour finale
+- Cela cause des compteurs incoherents (ex: 123/2833 envoyes au lieu du total reel)
 
-### Probleme 2 : Limite de 1000 destinataires
-La fonction `send-sms` rejette les requetes depassant 1000 numeros (ligne 75-79). Mais le hook `useCampaigns` envoie TOUS les numeros en une seule requete. Avec ~10 000 clients importes, toute campagne ciblant "tous les clients" echouera systematiquement.
+## Plan de correction
 
-### Probleme 3 : `process-scheduled-campaigns` incompatible
-La fonction `process-scheduled-campaigns` appelle `send-sms` via `supabase.functions.invoke` avec la cle service role. Mais `send-sms` attend maintenant un JWT utilisateur pour extraire l'ID utilisateur. Cet appel machine-a-machine echouera toujours.
+### Etape 1 : Corriger la visibilite des groupes
+**Fichier** : `src/components/campaigns/CampaignSegmentSelector.tsx`
+- Ajouter `'group'` dans le state initial de `expandedCategories`
 
-### Probleme 4 : Meme bug dans `send-notification-sms`
-Le fichier `supabase/functions/send-notification-sms/index.ts` utilise probablement aussi `getClaims` (ajoute dans la meme mise a jour securite).
+### Etape 2 : Corriger le type TypeScript du segment
+**Fichier** : `src/hooks/useCampaigns.tsx`
+- Changer le type de `segment` dans l'interface `Campaign` en `string | null` pour accepter les segments de type `campaign_group:Group-C-X`
 
-## Solution
+**Fichier** : `src/pages/Campaigns.tsx`
+- Adapter le type de `newCampaign.segment` pour accepter les valeurs de type groupe
 
-### Fichier 1 : `supabase/functions/send-sms/index.ts`
+### Etape 3 : Ajouter un delai anti-throttling dans send-sms
+**Fichier** : `supabase/functions/send-sms/index.ts`
+- Ajouter un delai de 200ms entre chaque envoi de message pour respecter le rate limit de l'API 360messenger
+- Supprimer la mise a jour du statut de campagne dans `send-sms` (car c'est deja fait dans `useCampaigns`)
 
-- Remplacer `authClient.auth.getClaims(token)` par `authClient.auth.getUser()` (methode standard)
-- Extraire `userId` depuis `userData.user.id`
-- Augmenter la limite de 1000 a 10000 destinataires (la boucle d'envoi gere deja le traitement un par un)
-- Ajouter un mode "service" : si le header Authorization contient la cle service role, bypasser le check de role utilisateur (pour permettre a `process-scheduled-campaigns` d'appeler `send-sms`)
+### Etape 4 : Ajouter la segmentation par produit
+**Fichier** : `src/hooks/useClientSegments.tsx`
+- Ajouter une nouvelle categorie `product` qui regroupe les clients par produit commande
+- Inclure specialement les clients ayant annule des commandes pour un produit donne (pour les relances ciblees)
 
-### Fichier 2 : `src/hooks/useCampaigns.tsx`
+**Fichier** : `src/components/campaigns/CampaignSegmentSelector.tsx`
+- Ajouter les icones et labels pour la categorie `product`
 
-- Ajouter un systeme de **batching** cote client : decouper les numeros en lots de 500 et les envoyer sequentiellement
-- Cumuler les resultats (sent/failed) de chaque lot
-- Mettre a jour la campagne avec les totaux finaux
+**Fichier** : `src/hooks/useCampaigns.tsx`
+- Gerer le filtre `product:` dans `sendCampaign` pour recuperer les bons clients
 
-### Fichier 3 : `supabase/functions/send-notification-sms/index.ts`
+### Etape 5 : Corriger le filtrage dans la fonction Edge
+**Fichier** : `supabase/functions/process-scheduled-campaigns/index.ts`
+- Ajouter le support des segments `product:` pour les campagnes planifiees
 
-- Appliquer la meme correction : remplacer `getClaims` par `getUser()`
-
-### Fichier 4 : `supabase/functions/process-scheduled-campaigns/index.ts`
-
-- S'assurer que l'appel a `send-sms` passe le header Authorization avec la cle service role pour beneficier du mode service
-
-## Details techniques
-
-### Correction auth (send-sms)
-
-Avant (ligne 41, CASSEE) :
-```text
-const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-const userId = claimsData.claims.sub;
-```
-
-Apres (CORRIGEE) :
-```text
-const { data: userData, error: userError } = await authClient.auth.getUser();
-const userId = userData?.user?.id;
-```
-
-### Batching cote client (useCampaigns)
-
-```text
-const BATCH_SIZE = 500;
-for (let i = 0; i < phones.length; i += BATCH_SIZE) {
-  const batch = phones.slice(i, i + BATCH_SIZE);
-  const result = await supabase.functions.invoke("send-sms", {
-    body: { campaign_id, phones: batch, message, type }
-  });
-  totalSent += result.data.sent;
-  totalFailed += result.data.failed;
-}
-```
-
-### Mode service pour appels internes
-
-La fonction detectera si l'appel vient d'une autre edge function (via la cle service role) et sautera la verification de role utilisateur, tout en gardant la validation des donnees d'entree.
-
-## Fichiers modifies
-
-| Fichier | Modification |
-|---------|-------------|
-| `supabase/functions/send-sms/index.ts` | Fix `getClaims` -> `getUser()`, augmenter limite, mode service |
-| `supabase/functions/send-notification-sms/index.ts` | Fix `getClaims` -> `getUser()` |
-| `src/hooks/useCampaigns.tsx` | Batching par lots de 500 |
-| `supabase/functions/process-scheduled-campaigns/index.ts` | Pas de changement necessaire (utilise deja service role) |
-
-## Aucune migration SQL necessaire
+## Resume des fichiers modifies
+1. `src/components/campaigns/CampaignSegmentSelector.tsx` - Groupes visibles + categorie produit
+2. `src/hooks/useCampaigns.tsx` - Type segment flexible + filtre produit
+3. `src/hooks/useClientSegments.tsx` - Segments par produit
+4. `src/pages/Campaigns.tsx` - Type segment adapte
+5. `supabase/functions/send-sms/index.ts` - Delai anti-throttling + suppression double update
+6. `supabase/functions/process-scheduled-campaigns/index.ts` - Support segment produit
 
