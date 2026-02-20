@@ -58,7 +58,7 @@ const Campaigns = () => {
     type: "sms" as 'sms' | 'whatsapp',
     category: "promotion" as 'promotion' | 'relance' | 'notification' | 'custom',
     message: "",
-    segment: "all" as 'all' | 'new' | 'regular' | 'vip' | 'inactive',
+    segment: "all" as string,
     status: "draft" as 'draft' | 'scheduled',
     total_recipients: 0,
     scheduled_at: "",
@@ -293,7 +293,7 @@ const Campaigns = () => {
                           setExcludedSegments(excluded);
                           // Use first selected segment for the campaign
                           if (selected.length > 0) {
-                            setNewCampaign({ ...newCampaign, segment: selected[0] as any });
+                            setNewCampaign({ ...newCampaign, segment: selected[0] });
                           }
                         }}
                       />
@@ -301,7 +301,7 @@ const Campaigns = () => {
                   ) : (
                     <Select 
                       value={newCampaign.segment} 
-                      onValueChange={(v: 'all' | 'new' | 'regular' | 'vip' | 'inactive') => setNewCampaign({ ...newCampaign, segment: v })}
+                      onValueChange={(v: string) => setNewCampaign({ ...newCampaign, segment: v })}
                     >
                       <SelectTrigger>
                         <SelectValue />

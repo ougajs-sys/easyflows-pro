@@ -7,7 +7,7 @@ export interface Campaign {
   type: 'sms' | 'whatsapp';
   category: 'promotion' | 'relance' | 'notification' | 'custom';
   message: string;
-  segment: 'all' | 'new' | 'regular' | 'vip' | 'inactive' | null;
+  segment: string | null;
   status: 'draft' | 'scheduled' | 'sending' | 'completed' | 'cancelled';
   scheduled_at: string | null;
   sent_at: string | null;
@@ -94,27 +94,50 @@ export const useCampaigns = () => {
       const pageSize = 1000;
 
       const isGroupSegment = campaign.segment && campaign.segment.startsWith('campaign_group:');
+      const isProductSegment = campaign.segment && (campaign.segment.startsWith('product:') || campaign.segment.startsWith('product_cancelled:'));
       const groupName = isGroupSegment ? campaign.segment!.replace('campaign_group:', '') : null;
 
-      while (true) {
-        let clientsQuery = supabase.from("clients").select("id, phone").range(from, from + pageSize - 1);
+      // Product segments: fetch clients from orders
+      if (isProductSegment) {
+        const isCancelled = campaign.segment!.startsWith('product_cancelled:');
+        const productId = campaign.segment!.replace(isCancelled ? 'product_cancelled:' : 'product:', '');
         
-        if (isGroupSegment && groupName) {
-          clientsQuery = clientsQuery.eq("campaign_group", groupName);
-        } else if (campaign.segment && campaign.segment !== 'all') {
-          const validSegments = ['new', 'regular', 'vip', 'inactive', 'problematic'] as const;
-          if (validSegments.includes(campaign.segment as any)) {
-            clientsQuery = clientsQuery.eq("segment", campaign.segment as typeof validSegments[number]);
-          }
+        let ordersQuery = supabase.from("orders").select("client_id").eq("product_id", productId);
+        if (isCancelled) ordersQuery = ordersQuery.eq("status", "cancelled");
+        
+        const { data: orderRows, error: ordersError } = await ordersQuery;
+        if (ordersError) throw ordersError;
+        
+        const uniqueClientIds = [...new Set((orderRows || []).map(o => o.client_id))];
+        
+        // Fetch client phones in batches
+        for (let i = 0; i < uniqueClientIds.length; i += 100) {
+          const batch = uniqueClientIds.slice(i, i + 100);
+          const { data: clients } = await supabase.from("clients").select("id, phone").in("id", batch);
+          if (clients) allClients = allClients.concat(clients);
         }
+      } else {
+        // Standard segment logic with pagination
+        while (true) {
+          let clientsQuery = supabase.from("clients").select("id, phone").range(from, from + pageSize - 1);
+          
+          if (isGroupSegment && groupName) {
+            clientsQuery = clientsQuery.eq("campaign_group", groupName);
+          } else if (campaign.segment && campaign.segment !== 'all') {
+            const validSegments = ['new', 'regular', 'vip', 'inactive', 'problematic'] as const;
+            if (validSegments.includes(campaign.segment as any)) {
+              clientsQuery = clientsQuery.eq("segment", campaign.segment as typeof validSegments[number]);
+            }
+          }
 
-        const { data: clients, error: clientsError } = await clientsQuery;
-        if (clientsError) throw clientsError;
+          const { data: clients, error: clientsError } = await clientsQuery;
+          if (clientsError) throw clientsError;
 
-        if (!clients || clients.length === 0) break;
-        allClients = allClients.concat(clients);
-        if (clients.length < pageSize) break;
-        from += pageSize;
+          if (!clients || clients.length === 0) break;
+          allClients = allClients.concat(clients);
+          if (clients.length < pageSize) break;
+          from += pageSize;
+        }
       }
 
       if (allClients.length === 0) {

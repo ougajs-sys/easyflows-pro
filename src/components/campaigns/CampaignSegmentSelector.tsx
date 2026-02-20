@@ -41,18 +41,20 @@ interface CampaignSegmentSelectorProps {
   onSelectionChange: (selected: string[], excluded: string[]) => void;
 }
 
-const categoryIcons = {
+const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   status: CheckCircle2,
   behavior: TrendingUp,
   frequency: Calendar,
   group: Users,
+  product: Star,
 };
 
-const categoryLabels = {
+const categoryLabels: Record<string, string> = {
   status: "Segments par statut",
   behavior: "Segments par comportement",
   frequency: "Segments par fréquence",
   group: "Groupes de contacts (500)",
+  product: "Segments par produit",
 };
 
 const segmentIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -82,7 +84,7 @@ export function CampaignSegmentSelector({
   const [previewClients, setPreviewClients] = useState<{ id: string; full_name: string; phone: string }[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewSegment, setPreviewSegment] = useState<string>("");
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(['status', 'behavior', 'frequency']);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>(['group', 'status', 'behavior', 'frequency', 'product']);
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => 
@@ -184,8 +186,8 @@ export function CampaignSegmentSelector({
       {/* Segment Categories */}
       <ScrollArea className="h-[400px] pr-4">
         <div className="space-y-4">
-          {(['group', 'status', 'behavior', 'frequency'] as const).map((category) => {
-            const CategoryIcon = categoryIcons[category];
+          {(['group', 'product', 'status', 'behavior', 'frequency'] as const).map((category) => {
+            const CategoryIcon = categoryIcons[category] || Users;
             const categorySegments = groupedSegments[category] || [];
 
             return (

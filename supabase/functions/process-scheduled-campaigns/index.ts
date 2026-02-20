@@ -36,26 +36,45 @@ serve(async (req) => {
       console.log(`Processing campaign: ${campaign.name} (${campaign.id})`);
 
       try {
-        // Get all clients (paginated to bypass 1000 row limit)
+        // Get clients based on segment
         let allClients: { id: string; phone: string }[] = [];
-        let from = 0;
-        const pageSize = 1000;
+        const isGroupSegment = campaign.segment && campaign.segment.startsWith('campaign_group:');
+        const isProductSegment = campaign.segment && (campaign.segment.startsWith('product:') || campaign.segment.startsWith('product_cancelled:'));
 
-        while (true) {
-          let clientsQuery = supabase.from("clients").select("id, phone").range(from, from + pageSize - 1);
-          const isGroupSegment = campaign.segment && campaign.segment.startsWith('campaign_group:');
-          if (isGroupSegment) {
-            const groupName = campaign.segment!.replace('campaign_group:', '');
-            clientsQuery = clientsQuery.eq("campaign_group", groupName);
-          } else if (campaign.segment && campaign.segment !== 'all') {
-            clientsQuery = clientsQuery.eq("segment", campaign.segment);
+        if (isProductSegment) {
+          const isCancelled = campaign.segment!.startsWith('product_cancelled:');
+          const productId = campaign.segment!.replace(isCancelled ? 'product_cancelled:' : 'product:', '');
+          
+          let ordersQuery = supabase.from("orders").select("client_id").eq("product_id", productId);
+          if (isCancelled) ordersQuery = ordersQuery.eq("status", "cancelled");
+          
+          const { data: orderRows } = await ordersQuery;
+          const uniqueClientIds = [...new Set((orderRows || []).map((o: any) => o.client_id))];
+          
+          for (let i = 0; i < uniqueClientIds.length; i += 100) {
+            const batch = uniqueClientIds.slice(i, i + 100);
+            const { data: clients } = await supabase.from("clients").select("id, phone").in("id", batch);
+            if (clients) allClients = allClients.concat(clients);
           }
-          const { data: clients, error: clientsError } = await clientsQuery;
-          if (clientsError) throw clientsError;
-          if (!clients || clients.length === 0) break;
-          allClients = allClients.concat(clients);
-          if (clients.length < pageSize) break;
-          from += pageSize;
+        } else {
+          let from = 0;
+          const pageSize = 1000;
+
+          while (true) {
+            let clientsQuery = supabase.from("clients").select("id, phone").range(from, from + pageSize - 1);
+            if (isGroupSegment) {
+              const groupName = campaign.segment!.replace('campaign_group:', '');
+              clientsQuery = clientsQuery.eq("campaign_group", groupName);
+            } else if (campaign.segment && campaign.segment !== 'all') {
+              clientsQuery = clientsQuery.eq("segment", campaign.segment);
+            }
+            const { data: clients, error: clientsError } = await clientsQuery;
+            if (clientsError) throw clientsError;
+            if (!clients || clients.length === 0) break;
+            allClients = allClients.concat(clients);
+            if (clients.length < pageSize) break;
+            from += pageSize;
+          }
         }
 
         if (allClients.length === 0) {
