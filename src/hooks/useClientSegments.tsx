@@ -7,7 +7,7 @@ export interface ClientSegment {
   label: string;
   description: string;
   count: number;
-  category: 'status' | 'behavior' | 'frequency' | 'group';
+  category: 'status' | 'behavior' | 'frequency' | 'group' | 'product';
 }
 
 export function useClientSegments() {
@@ -21,12 +21,18 @@ export function useClientSegments() {
 
       if (clientsError) throw clientsError;
 
-      // Fetch all orders for analysis
+      // Fetch all orders for analysis (include product_id)
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
-        .select('id, client_id, status, created_at, total_amount');
+        .select('id, client_id, status, created_at, total_amount, product_id');
 
       if (ordersError) throw ordersError;
+
+      // Fetch products for product segmentation
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id, name')
+        .eq('is_active', true);
 
       const now = new Date();
       const thirtyDaysAgo = subDays(now, 30);
@@ -118,7 +124,7 @@ export function useClientSegments() {
         }
       });
 
-      // Campaign group segments (Group-C-1, Group-C-2, etc.)
+      // Campaign group segments
       const groupCounts: Record<string, number> = {};
       clients?.forEach((client) => {
         if (client.campaign_group) {
@@ -139,6 +145,47 @@ export function useClientSegments() {
           count,
           category: 'group' as const,
         }));
+
+      // Product-based segments (clients who ordered each product + cancelled orders per product)
+      const productClientSets: Record<string, Set<string>> = {};
+      const productCancelledSets: Record<string, Set<string>> = {};
+      
+      orders?.forEach((order) => {
+        if (order.product_id) {
+          if (!productClientSets[order.product_id]) {
+            productClientSets[order.product_id] = new Set();
+            productCancelledSets[order.product_id] = new Set();
+          }
+          productClientSets[order.product_id].add(order.client_id);
+          if (order.status === 'cancelled') {
+            productCancelledSets[order.product_id].add(order.client_id);
+          }
+        }
+      });
+
+      const productSegments: ClientSegment[] = [];
+      (products || []).forEach((product) => {
+        const clientCount = productClientSets[product.id]?.size || 0;
+        const cancelledCount = productCancelledSets[product.id]?.size || 0;
+        if (clientCount > 0) {
+          productSegments.push({
+            id: `product:${product.id}`,
+            label: product.name,
+            description: `${clientCount} clients ayant commandé ce produit`,
+            count: clientCount,
+            category: 'product' as const,
+          });
+        }
+        if (cancelledCount > 0) {
+          productSegments.push({
+            id: `product_cancelled:${product.id}`,
+            label: `${product.name} (annulés)`,
+            description: `${cancelledCount} clients ayant annulé ce produit`,
+            count: cancelledCount,
+            category: 'product' as const,
+          });
+        }
+      });
 
       const result: ClientSegment[] = [
         // All clients
@@ -165,6 +212,9 @@ export function useClientSegments() {
 
         // Campaign groups
         ...groupSegments,
+
+        // Product segments
+        ...productSegments,
       ];
 
       return result;
@@ -182,6 +232,26 @@ export function useClientSegments() {
     if (segmentId.startsWith('campaign_group:')) {
       const groupName = segmentId.replace('campaign_group:', '');
       const filtered = (clients || []).filter(c => c.campaign_group === groupName);
+      return filtered.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }));
+    }
+
+    // Handle product segments
+    if (segmentId.startsWith('product:') || segmentId.startsWith('product_cancelled:')) {
+      const isCancelled = segmentId.startsWith('product_cancelled:');
+      const productId = segmentId.replace(isCancelled ? 'product_cancelled:' : 'product:', '');
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('client_id, status')
+        .eq('product_id', productId);
+      
+      const clientIds = new Set<string>();
+      (orders || []).forEach(o => {
+        if (isCancelled ? o.status === 'cancelled' : true) {
+          clientIds.add(o.client_id);
+        }
+      });
+      
+      const filtered = (clients || []).filter(c => clientIds.has(c.id));
       return filtered.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }));
     }
 

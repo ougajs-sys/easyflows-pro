@@ -115,7 +115,7 @@ serve(async (req) => {
       errors: [] as string[],
     };
 
-    // Send messages to each phone
+    // Send messages to each phone with throttling delay
     for (const phone of phones) {
       try {
         const cleanPhone = phone
@@ -176,15 +176,9 @@ serve(async (req) => {
           });
         }
       }
-    }
 
-    if (campaign_id) {
-      await supabase.from("campaigns").update({
-        sent_count: results.sent,
-        failed_count: results.failed,
-        status: "completed",
-        sent_at: new Date().toISOString(),
-      }).eq("id", campaign_id);
+      // Anti-throttling: 200ms delay between each API call
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     console.log(`Completed: ${results.sent} sent, ${results.failed} failed`);
