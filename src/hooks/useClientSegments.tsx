@@ -10,26 +10,42 @@ export interface ClientSegment {
   category: 'status' | 'behavior' | 'frequency' | 'group' | 'product';
 }
 
+// Helper to fetch all rows with pagination (bypasses 1000 row limit)
+async function fetchAllRows<T>(
+  queryBuilder: () => any,
+  pageSize = 1000
+): Promise<T[]> {
+  let all: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await queryBuilder().range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
 export function useClientSegments() {
   const { data: segments = [], isLoading } = useQuery({
     queryKey: ['client-segments'],
     queryFn: async () => {
-      // Fetch all clients with their orders
-      const { data: clients, error: clientsError } = await supabase
-        .from('clients')
-        .select('id, segment, total_orders, total_spent, created_at, campaign_group, campaign_batch');
+      // Fetch ALL clients with pagination
+      const clients = await fetchAllRows<{
+        id: string; segment: string; total_orders: number; total_spent: number;
+        created_at: string; campaign_group: string | null; campaign_batch: number | null;
+      }>(() => supabase.from('clients').select('id, segment, total_orders, total_spent, created_at, campaign_group, campaign_batch'));
 
-      if (clientsError) throw clientsError;
+      // Fetch ALL orders with pagination
+      const orders = await fetchAllRows<{
+        id: string; client_id: string; status: string; created_at: string;
+        total_amount: number; product_id: string | null;
+      }>(() => supabase.from('orders').select('id, client_id, status, created_at, total_amount, product_id'));
 
-      // Fetch all orders for analysis (include product_id)
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('id, client_id, status, created_at, total_amount, product_id');
-
-      if (ordersError) throw ordersError;
-
-      // Fetch products for product segmentation
-      const { data: products, error: productsError } = await supabase
+      // Fetch products (small table, no pagination needed)
+      const { data: products } = await supabase
         .from('products')
         .select('id, name')
         .eq('is_active', true);
@@ -41,67 +57,39 @@ export function useClientSegments() {
       const sixMonthsAgo = subDays(now, 180);
 
       // Group orders by client
-      const ordersByClient = orders?.reduce((acc, order) => {
-        if (!acc[order.client_id]) {
-          acc[order.client_id] = [];
-        }
+      const ordersByClient = orders.reduce((acc, order) => {
+        if (!acc[order.client_id]) acc[order.client_id] = [];
         acc[order.client_id].push(order);
         return acc;
-      }, {} as Record<string, typeof orders>) || {};
+      }, {} as Record<string, typeof orders>);
 
       // Calculate segments
       const segmentCounts: Record<string, Set<string>> = {
-        // Status-based
-        all: new Set(),
-        confirmed_paid: new Set(),
-        cancelled: new Set(),
-        reported: new Set(),
-        pending: new Set(),
-        // Behavior-based
-        new: new Set(),
-        regular: new Set(),
-        vip: new Set(),
-        inactive_30: new Set(),
-        inactive_60: new Set(),
-        inactive_90: new Set(),
-        // Frequency-based
-        frequent: new Set(),
-        occasional: new Set(),
-        lost: new Set(),
+        all: new Set(), confirmed_paid: new Set(), cancelled: new Set(),
+        reported: new Set(), pending: new Set(), new: new Set(),
+        regular: new Set(), vip: new Set(), inactive_30: new Set(),
+        inactive_60: new Set(), inactive_90: new Set(), frequent: new Set(),
+        occasional: new Set(), lost: new Set(),
       };
 
-      clients?.forEach((client) => {
+      clients.forEach((client) => {
         const clientOrders = ordersByClient[client.id] || [];
         segmentCounts.all.add(client.id);
 
-        // Status-based segments
-        const hasConfirmed = clientOrders.some(o => o.status === 'delivered' || o.status === 'confirmed');
-        const hasCancelled = clientOrders.some(o => o.status === 'cancelled');
-        const hasReported = clientOrders.some(o => o.status === 'reported');
-        const hasPending = clientOrders.some(o => o.status === 'pending' || o.status === 'partial');
+        if (clientOrders.some(o => o.status === 'delivered' || o.status === 'confirmed')) segmentCounts.confirmed_paid.add(client.id);
+        if (clientOrders.some(o => o.status === 'cancelled')) segmentCounts.cancelled.add(client.id);
+        if (clientOrders.some(o => o.status === 'reported')) segmentCounts.reported.add(client.id);
+        if (clientOrders.some(o => o.status === 'pending' || o.status === 'partial')) segmentCounts.pending.add(client.id);
 
-        if (hasConfirmed) segmentCounts.confirmed_paid.add(client.id);
-        if (hasCancelled) segmentCounts.cancelled.add(client.id);
-        if (hasReported) segmentCounts.reported.add(client.id);
-        if (hasPending) segmentCounts.pending.add(client.id);
-
-        // Behavior-based segments
         const deliveredOrders = clientOrders.filter(o => o.status === 'delivered');
         const totalOrders = deliveredOrders.length;
         const totalSpent = deliveredOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
-        if (totalOrders === 0 || totalOrders === 1) {
-          segmentCounts.new.add(client.id);
-        }
-        if (totalOrders >= 3) {
-          segmentCounts.regular.add(client.id);
-        }
-        if (totalOrders >= 5 || totalSpent >= 100000) {
-          segmentCounts.vip.add(client.id);
-        }
+        if (totalOrders <= 1) segmentCounts.new.add(client.id);
+        if (totalOrders >= 3) segmentCounts.regular.add(client.id);
+        if (totalOrders >= 5 || totalSpent >= 100000) segmentCounts.vip.add(client.id);
 
-        // Inactivity check
-        const lastOrderDate = clientOrders.length > 0 
+        const lastOrderDate = clientOrders.length > 0
           ? new Date(Math.max(...clientOrders.map(o => new Date(o.created_at).getTime())))
           : null;
 
@@ -110,23 +98,18 @@ export function useClientSegments() {
           if (lastOrderDate < sixtyDaysAgo) segmentCounts.inactive_60.add(client.id);
           if (lastOrderDate < ninetyDaysAgo) segmentCounts.inactive_90.add(client.id);
           if (lastOrderDate < sixMonthsAgo) segmentCounts.lost.add(client.id);
-        } else if (clientOrders.length === 0) {
-          // No orders at all - could be new registration
+        } else {
           segmentCounts.inactive_30.add(client.id);
         }
 
-        // Frequency analysis (last 90 days)
         const recentOrders = clientOrders.filter(o => new Date(o.created_at) >= ninetyDaysAgo);
-        if (recentOrders.length >= 3) {
-          segmentCounts.frequent.add(client.id);
-        } else if (recentOrders.length >= 1) {
-          segmentCounts.occasional.add(client.id);
-        }
+        if (recentOrders.length >= 3) segmentCounts.frequent.add(client.id);
+        else if (recentOrders.length >= 1) segmentCounts.occasional.add(client.id);
       });
 
       // Campaign group segments
       const groupCounts: Record<string, number> = {};
-      clients?.forEach((client) => {
+      clients.forEach((client) => {
         if (client.campaign_group) {
           groupCounts[client.campaign_group] = (groupCounts[client.campaign_group] || 0) + 1;
         }
@@ -146,11 +129,11 @@ export function useClientSegments() {
           category: 'group' as const,
         }));
 
-      // Product-based segments (clients who ordered each product + cancelled orders per product)
+      // Product-based segments
       const productClientSets: Record<string, Set<string>> = {};
       const productCancelledSets: Record<string, Set<string>> = {};
-      
-      orders?.forEach((order) => {
+
+      orders.forEach((order) => {
         if (order.product_id) {
           if (!productClientSets[order.product_id]) {
             productClientSets[order.product_id] = new Set();
@@ -169,97 +152,68 @@ export function useClientSegments() {
         const cancelledCount = productCancelledSets[product.id]?.size || 0;
         if (clientCount > 0) {
           productSegments.push({
-            id: `product:${product.id}`,
-            label: product.name,
+            id: `product:${product.id}`, label: product.name,
             description: `${clientCount} clients ayant commandé ce produit`,
-            count: clientCount,
-            category: 'product' as const,
+            count: clientCount, category: 'product' as const,
           });
         }
         if (cancelledCount > 0) {
           productSegments.push({
-            id: `product_cancelled:${product.id}`,
-            label: `${product.name} (annulés)`,
+            id: `product_cancelled:${product.id}`, label: `${product.name} (annulés)`,
             description: `${cancelledCount} clients ayant annulé ce produit`,
-            count: cancelledCount,
-            category: 'product' as const,
+            count: cancelledCount, category: 'product' as const,
           });
         }
       });
 
-      const result: ClientSegment[] = [
-        // All clients
-        { id: 'all', label: 'Tous les clients', description: 'Tous les clients de la base', count: segmentCounts.all.size, category: 'status' },
-        
-        // Status-based
-        { id: 'confirmed_paid', label: 'Clients Actifs - Confirmés', description: 'Commandes confirmées et payées', count: segmentCounts.confirmed_paid.size, category: 'status' },
-        { id: 'cancelled', label: 'Clients Annulations', description: 'Ayant annulé au moins une commande', count: segmentCounts.cancelled.size, category: 'status' },
-        { id: 'reported', label: 'Clients Reportés', description: 'Ayant reporté au moins une commande', count: segmentCounts.reported.size, category: 'status' },
-        { id: 'pending', label: 'Clients En Attente', description: 'Commandes en attente de confirmation', count: segmentCounts.pending.size, category: 'status' },
-        
-        // Behavior-based
-        { id: 'new', label: 'Nouveaux clients', description: 'Première commande ou aucune', count: segmentCounts.new.size, category: 'behavior' },
-        { id: 'regular', label: 'Clients fidèles', description: '3+ commandes réussies', count: segmentCounts.regular.size, category: 'behavior' },
-        { id: 'vip', label: 'Clients VIP', description: '5+ commandes ou 100k+ FCFA', count: segmentCounts.vip.size, category: 'behavior' },
-        { id: 'inactive_30', label: 'Inactifs 30 jours', description: 'Pas de commande depuis 30 jours', count: segmentCounts.inactive_30.size, category: 'behavior' },
-        { id: 'inactive_60', label: 'Inactifs 60 jours', description: 'Pas de commande depuis 60 jours', count: segmentCounts.inactive_60.size, category: 'behavior' },
-        { id: 'inactive_90', label: 'Inactifs 90 jours', description: 'Pas de commande depuis 90 jours', count: segmentCounts.inactive_90.size, category: 'behavior' },
-        
-        // Frequency-based
-        { id: 'frequent', label: 'Clients réguliers', description: '3+ commandes ces 90 derniers jours', count: segmentCounts.frequent.size, category: 'frequency' },
-        { id: 'occasional', label: 'Clients occasionnels', description: '1-2 commandes ces 90 derniers jours', count: segmentCounts.occasional.size, category: 'frequency' },
-        { id: 'lost', label: 'Clients perdus', description: 'Aucune commande depuis 6 mois', count: segmentCounts.lost.size, category: 'frequency' },
-
-        // Campaign groups
+      return [
+        { id: 'all', label: 'Tous les clients', description: 'Tous les clients de la base', count: segmentCounts.all.size, category: 'status' as const },
+        { id: 'confirmed_paid', label: 'Clients Actifs - Confirmés', description: 'Commandes confirmées et payées', count: segmentCounts.confirmed_paid.size, category: 'status' as const },
+        { id: 'cancelled', label: 'Clients Annulations', description: 'Ayant annulé au moins une commande', count: segmentCounts.cancelled.size, category: 'status' as const },
+        { id: 'reported', label: 'Clients Reportés', description: 'Ayant reporté au moins une commande', count: segmentCounts.reported.size, category: 'status' as const },
+        { id: 'pending', label: 'Clients En Attente', description: 'Commandes en attente de confirmation', count: segmentCounts.pending.size, category: 'status' as const },
+        { id: 'new', label: 'Nouveaux clients', description: 'Première commande ou aucune', count: segmentCounts.new.size, category: 'behavior' as const },
+        { id: 'regular', label: 'Clients fidèles', description: '3+ commandes réussies', count: segmentCounts.regular.size, category: 'behavior' as const },
+        { id: 'vip', label: 'Clients VIP', description: '5+ commandes ou 100k+ FCFA', count: segmentCounts.vip.size, category: 'behavior' as const },
+        { id: 'inactive_30', label: 'Inactifs 30 jours', description: 'Pas de commande depuis 30 jours', count: segmentCounts.inactive_30.size, category: 'behavior' as const },
+        { id: 'inactive_60', label: 'Inactifs 60 jours', description: 'Pas de commande depuis 60 jours', count: segmentCounts.inactive_60.size, category: 'behavior' as const },
+        { id: 'inactive_90', label: 'Inactifs 90 jours', description: 'Pas de commande depuis 90 jours', count: segmentCounts.inactive_90.size, category: 'behavior' as const },
+        { id: 'frequent', label: 'Clients réguliers', description: '3+ commandes ces 90 derniers jours', count: segmentCounts.frequent.size, category: 'frequency' as const },
+        { id: 'occasional', label: 'Clients occasionnels', description: '1-2 commandes ces 90 derniers jours', count: segmentCounts.occasional.size, category: 'frequency' as const },
+        { id: 'lost', label: 'Clients perdus', description: 'Aucune commande depuis 6 mois', count: segmentCounts.lost.size, category: 'frequency' as const },
         ...groupSegments,
-
-        // Product segments
         ...productSegments,
-      ];
-
-      return result;
+      ] as ClientSegment[];
     },
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 60000,
   });
 
   const getClientsForSegment = async (segmentId: string): Promise<{ id: string; full_name: string; phone: string }[]> => {
-    // Re-fetch with same logic but return client list
-    const { data: clients } = await supabase
-      .from('clients')
-      .select('id, full_name, phone, total_orders, total_spent, created_at, campaign_group');
+    // Fetch all clients with pagination
+    const clients = await fetchAllRows<{
+      id: string; full_name: string; phone: string; total_orders: number;
+      total_spent: number; created_at: string; campaign_group: string | null;
+    }>(() => supabase.from('clients').select('id, full_name, phone, total_orders, total_spent, created_at, campaign_group'));
 
-    // Handle campaign group segments directly
     if (segmentId.startsWith('campaign_group:')) {
       const groupName = segmentId.replace('campaign_group:', '');
-      const filtered = (clients || []).filter(c => c.campaign_group === groupName);
-      return filtered.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }));
+      return clients.filter(c => c.campaign_group === groupName).map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }));
     }
 
-    // Handle product segments
     if (segmentId.startsWith('product:') || segmentId.startsWith('product_cancelled:')) {
       const isCancelled = segmentId.startsWith('product_cancelled:');
       const productId = segmentId.replace(isCancelled ? 'product_cancelled:' : 'product:', '');
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('client_id, status')
-        .eq('product_id', productId);
-      
+      const orders = await fetchAllRows<{ client_id: string; status: string }>(
+        () => supabase.from('orders').select('client_id, status').eq('product_id', productId)
+      );
       const clientIds = new Set<string>();
-      (orders || []).forEach(o => {
-        if (isCancelled ? o.status === 'cancelled' : true) {
-          clientIds.add(o.client_id);
-        }
-      });
-      
-      const filtered = (clients || []).filter(c => clientIds.has(c.id));
-      return filtered.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }));
+      orders.forEach(o => { if (isCancelled ? o.status === 'cancelled' : true) clientIds.add(o.client_id); });
+      return clients.filter(c => clientIds.has(c.id)).map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }));
     }
 
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('id, client_id, status, created_at, total_amount');
-
-    if (!clients) return [];
+    const orders = await fetchAllRows<{
+      id: string; client_id: string; status: string; created_at: string; total_amount: number;
+    }>(() => supabase.from('orders').select('id, client_id, status, created_at, total_amount'));
 
     const now = new Date();
     const thirtyDaysAgo = subDays(now, 30);
@@ -267,18 +221,18 @@ export function useClientSegments() {
     const ninetyDaysAgo = subDays(now, 90);
     const sixMonthsAgo = subDays(now, 180);
 
-    const ordersByClient = orders?.reduce((acc, order) => {
+    const ordersByClient = orders.reduce((acc, order) => {
       if (!acc[order.client_id]) acc[order.client_id] = [];
       acc[order.client_id].push(order);
       return acc;
-    }, {} as Record<string, typeof orders>) || {};
+    }, {} as Record<string, typeof orders>);
 
-    const filteredClients = clients.filter((client) => {
+    const filtered = clients.filter((client) => {
       const clientOrders = ordersByClient[client.id] || [];
       const deliveredOrders = clientOrders.filter(o => o.status === 'delivered');
       const totalOrders = deliveredOrders.length;
       const totalSpent = deliveredOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
-      const lastOrderDate = clientOrders.length > 0 
+      const lastOrderDate = clientOrders.length > 0
         ? new Date(Math.max(...clientOrders.map(o => new Date(o.created_at).getTime())))
         : null;
       const recentOrders = clientOrders.filter(o => new Date(o.created_at) >= ninetyDaysAgo);
@@ -292,7 +246,7 @@ export function useClientSegments() {
         case 'new': return totalOrders <= 1;
         case 'regular': return totalOrders >= 3;
         case 'vip': return totalOrders >= 5 || totalSpent >= 100000;
-        case 'inactive_30': return !lastOrderDate || lastOrderDate < thirtyDaysAgo;
+        case 'inactive': case 'inactive_30': return !lastOrderDate || lastOrderDate < thirtyDaysAgo;
         case 'inactive_60': return !lastOrderDate || lastOrderDate < sixtyDaysAgo;
         case 'inactive_90': return !lastOrderDate || lastOrderDate < ninetyDaysAgo;
         case 'frequent': return recentOrders.length >= 3;
@@ -302,12 +256,8 @@ export function useClientSegments() {
       }
     });
 
-    return filteredClients.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }));
+    return filtered.map(c => ({ id: c.id, full_name: c.full_name, phone: c.phone }));
   };
 
-  return {
-    segments,
-    isLoading,
-    getClientsForSegment,
-  };
+  return { segments, isLoading, getClientsForSegment };
 }
