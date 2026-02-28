@@ -123,10 +123,11 @@ export function SmsTestPanel() {
             <Label htmlFor="phone">Numéro de téléphone</Label>
             <Input
               id="phone"
-              placeholder="+212 6XX XXX XXX"
+              placeholder="+225 07XXXXXXXX"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">Format CI: 07, 05, 01, 21-25, 27 + 8 chiffres</p>
           </div>
 
           <div className="space-y-2">

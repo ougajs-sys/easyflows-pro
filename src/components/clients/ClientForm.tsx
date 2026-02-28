@@ -27,9 +27,16 @@ import { Database } from '@/integrations/supabase/types';
 
 type Client = Database['public']['Tables']['clients']['Row'];
 
+const CI_PHONE_REGEX = /^(\+?225|00225)?[0-9]{10}$/;
+
 const clientSchema = z.object({
   full_name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
-  phone: z.string().min(8, 'Numéro de téléphone invalide'),
+  phone: z.string()
+    .min(8, 'Numéro de téléphone invalide')
+    .refine((val) => {
+      const cleaned = val.replace(/[\s\-\(\)\.]/g, '');
+      return CI_PHONE_REGEX.test(cleaned) || /^\d{10,13}$/.test(cleaned);
+    }, 'Format CI invalide (ex: 0707070707 ou +22507070707)'),
   phone_secondary: z.string().optional(),
   city: z.string().optional(),
   zone: z.string().optional(),
@@ -151,7 +158,7 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                   <FormItem>
                     <FormLabel>Téléphone principal *</FormLabel>
                     <FormControl>
-                      <Input placeholder="06XXXXXXXX" {...field} />
+                    <Input placeholder="07XXXXXXXX ou +22507XXXXXXXX" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -165,7 +172,7 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                   <FormItem>
                     <FormLabel>Téléphone secondaire</FormLabel>
                     <FormControl>
-                      <Input placeholder="06XXXXXXXX" {...field} />
+                      <Input placeholder="05XXXXXXXX" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -181,7 +188,7 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                   <FormItem>
                     <FormLabel>Ville</FormLabel>
                     <FormControl>
-                      <Input placeholder="Casablanca" {...field} />
+                      <Input placeholder="Abidjan" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -195,7 +202,7 @@ export function ClientForm({ open, onOpenChange, client }: ClientFormProps) {
                   <FormItem>
                     <FormLabel>Zone / Quartier</FormLabel>
                     <FormControl>
-                      <Input placeholder="Maarif" {...field} />
+                      <Input placeholder="Cocody" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
