@@ -1,61 +1,47 @@
 
+1) Corriger la source du problème “groupes non sélectionnables” (limite Supabase 1000)
+- Modifier `src/hooks/useClientSegments.tsx` pour paginer `clients` et `orders` (boucles `.range(...)`) au lieu de requêtes non paginées.
+- Recalculer les segments (group, product, status, frequency) sur l’ensemble des données, pas uniquement les 1000 premières lignes.
+- Résultat attendu: affichage des 6 groupes `Group-C-1 ... Group-C-6` avec comptes réels.
 
-# Correction du systeme de campagnes WhatsApp
+2) Corriger la résolution des destinataires (segments avancés mal appliqués)
+- Modifier `src/hooks/useCampaigns.tsx` pour supprimer la whitelist actuelle `['new','regular','vip','inactive','problematic']` qui fait tomber certains segments en “all”.
+- Gérer explicitement tous les IDs de segments utilisés par l’UI (`confirmed_paid`, `cancelled`, `reported`, `pending`, `inactive_30/60/90`, `frequent`, `occasional`, `lost`, `campaign_group:*`, `product:*`, `product_cancelled:*`).
+- Appliquer la même logique côté planifié dans `supabase/functions/process-scheduled-campaigns/index.ts`.
 
-## Problemes identifies
+3) Stabiliser l’exécution des campagnes (éviter les campagnes bloquées en “sending”)
+- Déplacer l’orchestration lourde côté Edge (ne plus dépendre d’une boucle longue côté client).
+- Réutiliser la logique de `process-scheduled-campaigns` pour traiter aussi les envois immédiats (ou via un endpoint dédié unique).
+- Mettre à jour `campaigns.sent_count/failed_count/status` en continu par batch, puis finaliser systématiquement en `completed` ou `cancelled` (jamais bloqué en `sending` sans reprise).
 
-### 1. Groupes de contacts invisibles dans le selecteur de segments
-- Le state `expandedCategories` n'inclut pas `'group'` par defaut - les groupes sont caches au chargement
-- Le type TypeScript de `segment` dans `Campaign` est trop restrictif (`'all' | 'new' | 'regular' | 'vip' | 'inactive'`) et ne peut pas stocker `campaign_group:Group-C-1`
+4) Fiabiliser l’envoi SMS Côte d’Ivoire (+225) et les erreurs réelles
+- Modifier `supabase/functions/send-sms/index.ts` et `supabase/functions/send-notification-sms/index.ts`:
+  - normalisation stricte CI (préfixes valides: `01,05,07,21,22,23,24,25,27`);
+  - rejet/trace explicite des numéros non valides dans `campaign_logs.error_message`;
+  - conservation du délai anti-throttling + ajout retry/backoff sur 429 (si `Retry-After` présent).
+  - journalisation détaillée du message retour provider (actuellement non visible dans les logs Edge).
+- Résultat attendu: plus de “échec silencieux”, causes lisibles immédiatement.
 
-### 2. Echecs massifs des campagnes (throttling API)
-- Les logs montrent que **701 sur 1000 messages** echouent avec `ThrottlerException: Too Many Requests`
-- La fonction `send-sms` envoie les messages en boucle sans aucun delai entre chaque appel API 360messenger
-- L'API impose un rate limit que le systeme ne respecte pas
+5) Corriger les entrées UI qui induisent en erreur pays/format
+- Modifier `src/components/sms/SmsTestPanel.tsx`:
+  - placeholder `+225 ...` (supprimer `+212`);
+  - validation en direct avec règles CI.
+- Modifier `src/components/clients/ClientForm.tsx`:
+  - placeholders adaptés CI;
+  - validation téléphone CI (au lieu de simple `min(8)`).
 
-### 3. Double mise a jour du statut
-- `send-sms` met a jour le statut de la campagne apres chaque batch
-- `useCampaigns.sendCampaign` fait aussi une mise a jour finale
-- Cela cause des compteurs incoherents (ex: 123/2833 envoyes au lieu du total reel)
+6) Durcir la qualité des données contacts (prévention durable)
+- Ajouter une migration SQL:
+  - backfill `phone_normalized` pour les numéros CI valides;
+  - rapport/listing des numéros invalides existants (52 détectés);
+  - trigger de normalisation/validation sur insert/update pour empêcher de nouvelles données hors format CI.
+- Option: définir `country_code='CI'` automatiquement quand validé.
 
-## Plan de correction
-
-### Etape 1 : Corriger la visibilite des groupes
-**Fichier** : `src/components/campaigns/CampaignSegmentSelector.tsx`
-- Ajouter `'group'` dans le state initial de `expandedCategories`
-
-### Etape 2 : Corriger le type TypeScript du segment
-**Fichier** : `src/hooks/useCampaigns.tsx`
-- Changer le type de `segment` dans l'interface `Campaign` en `string | null` pour accepter les segments de type `campaign_group:Group-C-X`
-
-**Fichier** : `src/pages/Campaigns.tsx`
-- Adapter le type de `newCampaign.segment` pour accepter les valeurs de type groupe
-
-### Etape 3 : Ajouter un delai anti-throttling dans send-sms
-**Fichier** : `supabase/functions/send-sms/index.ts`
-- Ajouter un delai de 200ms entre chaque envoi de message pour respecter le rate limit de l'API 360messenger
-- Supprimer la mise a jour du statut de campagne dans `send-sms` (car c'est deja fait dans `useCampaigns`)
-
-### Etape 4 : Ajouter la segmentation par produit
-**Fichier** : `src/hooks/useClientSegments.tsx`
-- Ajouter une nouvelle categorie `product` qui regroupe les clients par produit commande
-- Inclure specialement les clients ayant annule des commandes pour un produit donne (pour les relances ciblees)
-
-**Fichier** : `src/components/campaigns/CampaignSegmentSelector.tsx`
-- Ajouter les icones et labels pour la categorie `product`
-
-**Fichier** : `src/hooks/useCampaigns.tsx`
-- Gerer le filtre `product:` dans `sendCampaign` pour recuperer les bons clients
-
-### Etape 5 : Corriger le filtrage dans la fonction Edge
-**Fichier** : `supabase/functions/process-scheduled-campaigns/index.ts`
-- Ajouter le support des segments `product:` pour les campagnes planifiees
-
-## Resume des fichiers modifies
-1. `src/components/campaigns/CampaignSegmentSelector.tsx` - Groupes visibles + categorie produit
-2. `src/hooks/useCampaigns.tsx` - Type segment flexible + filtre produit
-3. `src/hooks/useClientSegments.tsx` - Segments par produit
-4. `src/pages/Campaigns.tsx` - Type segment adapte
-5. `supabase/functions/send-sms/index.ts` - Delai anti-throttling + suppression double update
-6. `supabase/functions/process-scheduled-campaigns/index.ts` - Support segment produit
-
+7) Vérification finale (E2E)
+- Test UI: `/campaigns` -> segmentation avancée -> sélectionner `Group-C-3` puis envoi test.
+- Vérifier en base:
+  - `campaigns`: `status=completed` et `sent_count + failed_count = total_recipients`;
+  - `campaign_logs`: une ligne par destinataire traité avec `status/error_message`.
+- Test SMS manuel:
+  - numéro local CI (`07XXXXXXXX`) et format international (`+22507XXXXXXXX`);
+  - confirmer résultat cohérent dans l’historique provider + logs Supabase.
