@@ -6,30 +6,49 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Valid CI phone prefixes (after country code 225)
 const VALID_CI_PREFIXES = ["01", "05", "07", "21", "22", "23", "24", "25", "27"];
 
 function normalizeCIPhone(phone: string): { valid: boolean; normalized: string; error?: string } {
   let cleaned = phone.replace(/[\s\-\(\)\.]/g, "");
   cleaned = cleaned.replace(/^\+/, "").replace(/^00/, "");
-
-  if (/^0\d{9}$/.test(cleaned)) {
-    cleaned = "225" + cleaned.substring(1);
-  }
-  if (!cleaned.startsWith("225") && /^\d{10}$/.test(cleaned)) {
-    cleaned = "225" + cleaned;
-  }
-
+  if (/^0\d{9}$/.test(cleaned)) cleaned = "225" + cleaned.substring(1);
+  if (!cleaned.startsWith("225") && /^\d{10}$/.test(cleaned)) cleaned = "225" + cleaned;
   if (!/^225\d{10}$/.test(cleaned)) {
-    return { valid: false, normalized: cleaned, error: `Format invalide: ${phone} -> ${cleaned} (attendu: 225 + 10 chiffres)` };
+    return { valid: false, normalized: cleaned, error: `Format invalide: ${phone} -> ${cleaned}` };
   }
-
   const prefix = cleaned.substring(3, 5);
   if (!VALID_CI_PREFIXES.includes(prefix)) {
-    return { valid: false, normalized: cleaned, error: `Préfixe CI invalide: ${prefix} (valides: ${VALID_CI_PREFIXES.join(",")})` };
+    return { valid: false, normalized: cleaned, error: `Préfixe CI invalide: ${prefix}` };
   }
-
   return { valid: true, normalized: cleaned };
+}
+
+// --- sms8.io sender ---
+async function sendViaSms8(phone: string, message: string, apiKey: string, deviceId: string): Promise<{ ok: boolean; data: any }> {
+  const phoneWithPlus = "+" + phone;
+  const url = `https://app.sms8.io/services/send.php?key=${encodeURIComponent(apiKey)}&number=${encodeURIComponent(phoneWithPlus)}&message=${encodeURIComponent(message)}&devices=${encodeURIComponent(JSON.stringify([deviceId]))}&type=sms`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.success || response.ok) return { ok: true, data };
+    return { ok: false, data };
+  } catch (err) {
+    return { ok: false, data: { message: err instanceof Error ? err.message : "sms8.io request failed" } };
+  }
+}
+
+// --- Messenger360 sender (WhatsApp) ---
+async function sendViaMessenger360(phone: string, message: string, channel: string, apiKey: string): Promise<{ ok: boolean; data: any; status?: number }> {
+  const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ phonenumber: phone, text: message, channel }),
+  });
+  const data = await response.json();
+  return { ok: response.ok, data, status: response.status };
 }
 
 interface SendSmsRequest {
@@ -108,15 +127,31 @@ serve(async (req) => {
       });
     }
 
-    const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
-    if (!MESSENGER360_API_KEY) {
-      throw new Error("MESSENGER360_API_KEY not configured");
+    const isSms = type === "sms";
+
+    // Validate provider config
+    if (isSms) {
+      const SMS8_API_KEY = Deno.env.get("SMS8_API_KEY");
+      const SMS8_DEVICE_ID = Deno.env.get("SMS8_DEVICE_ID");
+      if (!SMS8_API_KEY || !SMS8_DEVICE_ID) {
+        throw new Error("SMS8_API_KEY or SMS8_DEVICE_ID not configured");
+      }
+    } else {
+      const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
+      if (!MESSENGER360_API_KEY) {
+        throw new Error("MESSENGER360_API_KEY not configured");
+      }
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    console.log(`Sending ${type} to ${phones.length} recipients (by ${userId})`);
+    console.log(`Sending ${type} to ${phones.length} recipients via ${isSms ? 'sms8.io' : 'Messenger360'} (by ${userId})`);
+
+    const SMS8_API_KEY = Deno.env.get("SMS8_API_KEY") || "";
+    const SMS8_DEVICE_ID = Deno.env.get("SMS8_DEVICE_ID") || "";
+    const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY") || "";
 
     const results = { sent: 0, failed: 0, errors: [] as string[] };
+    const throttleMs = isSms ? 100 : 200;
 
     for (const phone of phones) {
       try {
@@ -125,69 +160,64 @@ serve(async (req) => {
         if (!valid) {
           results.failed++;
           results.errors.push(`${phone}: ${normError}`);
-          console.log(`INVALID: ${phone} -> ${normError}`);
           if (campaign_id) {
             await supabase.from("campaign_logs").insert({
               campaign_id, phone, status: "failed",
               error_message: normError || "Numéro CI invalide",
             });
           }
-          // No delay needed for invalid numbers
           continue;
         }
 
-        // Send with retry on 429
-        let sent = false;
-        let lastError = "";
-        for (let attempt = 0; attempt <= 2; attempt++) {
-          const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${MESSENGER360_API_KEY}`,
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({ phonenumber: normalized, text: message, channel: type }),
-          });
+        let sendResult: { ok: boolean; data: any };
 
-          const responseData = await response.json();
-
-          if (response.ok) {
-            sent = true;
-            results.sent++;
-            if (campaign_id) {
-              await supabase.from("campaign_logs").insert({
-                campaign_id, phone: normalized, status: "sent",
-              });
+        if (isSms) {
+          sendResult = await sendViaSms8(normalized, message, SMS8_API_KEY, SMS8_DEVICE_ID);
+        } else {
+          // WhatsApp with retry on 429
+          let sent = false;
+          let lastError = "";
+          for (let attempt = 0; attempt <= 2; attempt++) {
+            const res = await sendViaMessenger360(normalized, message, type, MESSENGER360_API_KEY);
+            if (res.ok) {
+              sendResult = res;
+              sent = true;
+              break;
             }
+            lastError = res.data?.message || JSON.stringify(res.data);
+            if (res.status === 429 && attempt < 2) {
+              const wait = Math.min(2000, 10000) * (attempt + 1);
+              await new Promise(r => setTimeout(r, wait));
+              continue;
+            }
+            sendResult = res;
             break;
           }
-
-          lastError = responseData?.message || JSON.stringify(responseData);
-
-          if (response.status === 429 && attempt < 2) {
-            const wait = Math.min(parseInt(response.headers.get("Retry-After") || "2") * 1000, 10000) * (attempt + 1);
-            console.log(`429 for ${normalized}, waiting ${wait}ms`);
-            await new Promise(r => setTimeout(r, wait));
-            continue;
+          if (!sent && !sendResult!) {
+            sendResult = { ok: false, data: { message: lastError || "Max retries exceeded" } };
           }
-
-          break;
         }
 
-        if (!sent) {
+        if (sendResult!.ok) {
+          results.sent++;
+          if (campaign_id) {
+            await supabase.from("campaign_logs").insert({
+              campaign_id, phone: normalized, status: "sent",
+            });
+          }
+        } else {
           results.failed++;
-          results.errors.push(`${normalized}: ${lastError}`);
-          console.log(`FAILED: ${normalized} -> ${lastError}`);
+          const errMsg = sendResult!.data?.message || JSON.stringify(sendResult!.data);
+          results.errors.push(`${normalized}: ${errMsg}`);
           if (campaign_id) {
             await supabase.from("campaign_logs").insert({
               campaign_id, phone: normalized, status: "failed",
-              error_message: lastError,
+              error_message: errMsg,
             });
           }
         }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        console.error(`Error sending to ${phone}:`, error);
         results.failed++;
         results.errors.push(`${phone}: ${errorMessage}`);
         if (campaign_id) {
@@ -197,11 +227,10 @@ serve(async (req) => {
         }
       }
 
-      // Anti-throttling delay
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, throttleMs));
     }
 
-    console.log(`Completed: ${results.sent} sent, ${results.failed} failed`);
+    console.log(`Completed: ${results.sent} sent, ${results.failed} failed via ${isSms ? 'sms8.io' : 'Messenger360'}`);
 
     return new Response(JSON.stringify(results), {
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
