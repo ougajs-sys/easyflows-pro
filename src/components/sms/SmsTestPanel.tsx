@@ -114,7 +114,7 @@ export function SmsTestPanel() {
           Test d'envoi SMS/WhatsApp
         </CardTitle>
         <CardDescription>
-          Testez l'envoi de SMS et notifications via Messenger360
+          SMS via sms8.io · WhatsApp via Messenger360
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
