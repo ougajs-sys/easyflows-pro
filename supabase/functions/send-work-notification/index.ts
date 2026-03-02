@@ -1,110 +1,207 @@
-// Edge Function: send-work-notification
-// Notifications métier WhatsApp Messenger360 pour Easyflows Pro
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-import { serve } from "std/server"
-import { createClient } from "@supabase/supabase-js"
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-)
+const VALID_CI_PREFIXES = ["01", "05", "07", "21", "22", "23", "24", "25", "27"];
 
-function normalizeCIPhone(raw: string): string {
-  // Normalisation du numéro Côte d'Ivoire pour Messenger360 : 225XXXXXXXXXX (sans +)
-  const digits = raw.replace(/[^0-9]/g, "")
-  if (digits.startsWith("225")) return digits
-  if (digits.length === 8) return "225" + digits
-  if (digits.length === 10 && digits.startsWith("07")) return "225" + digits
-  // À améliorer si besoin selon les formats rencontrés
-  return digits
+function normalizeCIPhone(raw: string): { valid: boolean; normalized: string; error?: string } {
+  let cleaned = raw.replace(/[\s\-\(\)\.]/g, "");
+  cleaned = cleaned.replace(/^\+/, "").replace(/^00/, "");
+
+  // 0XXXXXXXXX (10 digits local) -> 225XXXXXXXXX
+  if (/^0\d{9}$/.test(cleaned)) {
+    cleaned = "225" + cleaned.substring(1);
+  }
+
+  // 10 digits without prefix -> add 225
+  if (!cleaned.startsWith("225") && /^\d{10}$/.test(cleaned)) {
+    cleaned = "225" + cleaned;
+  }
+
+  // 8 digits (old format) -> add 225
+  if (/^\d{8}$/.test(cleaned)) {
+    cleaned = "225" + cleaned;
+  }
+
+  if (!/^225\d{10}$/.test(cleaned)) {
+    return { valid: false, normalized: cleaned, error: `Format invalide: ${raw} -> ${cleaned}` };
+  }
+
+  const prefix = cleaned.substring(3, 5);
+  if (!VALID_CI_PREFIXES.includes(prefix)) {
+    return { valid: false, normalized: cleaned, error: `Préfixe CI invalide: ${prefix}` };
+  }
+
+  return { valid: true, normalized: cleaned };
+}
+
+async function sendViaMessenger360(
+  phone: string,
+  message: string,
+  apiKey: string
+): Promise<{ ok: boolean; data: any; status?: number }> {
+  const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      phonenumber: phone,
+      text: message,
+      channel: "whatsapp",
+    }),
+  });
+  const data = await response.json();
+  return { ok: response.ok, data, status: response.status };
 }
 
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response("Méthode non autorisée", { status: 405 })
+    return new Response("Méthode non autorisée", { status: 405, headers: corsHeaders });
   }
 
-  let payload
+  let payload;
   try {
-    payload = await req.json()
+    payload = await req.json();
   } catch {
-    return new Response("Payload JSON invalide", { status: 400 })
+    return new Response("Payload JSON invalide", { status: 400, headers: corsHeaders });
   }
 
-  const { event_type, title, body, target_user_ids, link } = payload
+  const { event_type, title, body, target_user_ids, link } = payload;
 
   if (!event_type || !title || !body || !target_user_ids || !Array.isArray(target_user_ids)) {
-    return new Response("Paramètres requis manquants", { status: 400 })
+    return new Response("Paramètres requis manquants", { status: 400, headers: corsHeaders });
   }
 
-  // Récupération des profils cibles
+  const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
+  if (!MESSENGER360_API_KEY) {
+    console.error("MESSENGER360_API_KEY not configured");
+    return new Response("MESSENGER360_API_KEY not configured", { status: 500, headers: corsHeaders });
+  }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  console.log(`[send-work-notification] event=${event_type}, targets=${target_user_ids.length}`);
+
+  // Fetch target user phones
   const { data: users, error: fetchError } = await supabase
     .from("profiles")
     .select("id, phone")
-    .in("id", target_user_ids)
+    .in("id", target_user_ids);
 
   if (fetchError || !users) {
-    return new Response("Erreur récupération profils: " + `${fetchError?.message}`, { status: 500 })
+    console.error("Error fetching profiles:", fetchError?.message);
+    return new Response("Erreur récupération profils: " + fetchError?.message, {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
 
-  for (const user of users) {
-    if (!user.phone) continue
-    const recipient_phone = normalizeCIPhone(user.phone)
+  let sent = 0;
+  let failed = 0;
 
-    // Déduplication : vérifie s'il y a déjà eu la même notif sur ce user et cet event_type <60s
-    const { count = 0 } = await supabase
+  for (const user of users) {
+    if (!user.phone) {
+      console.log(`[skip] user ${user.id}: no phone`);
+      continue;
+    }
+
+    const { valid, normalized, error: normError } = normalizeCIPhone(user.phone);
+    if (!valid) {
+      console.log(`[skip] user ${user.id}: ${normError}`);
+      await supabase.from("work_notification_logs").insert([{
+        event_type,
+        recipient_user_id: user.id,
+        recipient_phone: user.phone,
+        message: `${title}\n${body}`,
+        link,
+        status: "error",
+        error_message: normError || "Numéro invalide",
+        provider: "messenger360",
+      }]);
+      failed++;
+      continue;
+    }
+
+    // Deduplication: skip if same event+user within 60s
+    const { count } = await supabase
       .from("work_notification_logs")
       .select("*", { count: "exact", head: true })
       .eq("event_type", event_type)
       .eq("recipient_user_id", user.id)
-      .gte("created_at", new Date(Date.now() - 60000).toISOString())
+      .gte("created_at", new Date(Date.now() - 60000).toISOString());
 
-    if (count > 0) {
-      // Déjà notifié
-      continue
+    if ((count ?? 0) > 0) {
+      console.log(`[skip] user ${user.id}: deduplicated`);
+      continue;
     }
 
-    const message =
-      `EasyFlows: ${title}.
-${body}
-Consultez: ${link ?? ''}`
+    const message = `EasyFlows: ${title}.\n${body}\nConsultez: ${link ?? ""}`;
 
-    // Envoi Messenger360 : POST {phone, message} avec autorisation (clé déjà configurée)
-    let status = "success"
-    let error_message = ""
+    // Send with retry on 429
+    let sendResult: { ok: boolean; data: any; status?: number } | null = null;
+    let lastError = "";
 
-    try {
-      const resp = await fetch("https://messenger360/api/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": Deno.env.get("MESSENGER360_API_KEY")!,
-        },
-        body: JSON.stringify({
-          to: recipient_phone,
-          message,
-        }),
-      })
-      if (!resp.ok) {
-        status = "error"
-        error_message = `HTTP ${resp.status}`
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      try {
+        sendResult = await sendViaMessenger360(normalized, message, MESSENGER360_API_KEY);
+        if (sendResult.ok) break;
+
+        lastError = sendResult.data?.message || JSON.stringify(sendResult.data);
+
+        if (sendResult.status === 429 && attempt < 2) {
+          const wait = 2000 * (attempt + 1);
+          console.log(`[retry] 429 for ${normalized}, waiting ${wait}ms`);
+          await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
+        break;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "Request failed";
+        sendResult = { ok: false, data: { message: lastError } };
+        break;
       }
-    } catch (err) {
-      status = "error"
-      error_message = err?.toString?.() ?? "send error"
     }
 
-    // Log dans work_notification_logs
-    await supabase.from("work_notification_logs").insert([{ 
+    const status = sendResult?.ok ? "success" : "error";
+    const errorMessage = sendResult?.ok ? "" : lastError;
+
+    console.log(`[${status}] ${normalized}: ${errorMessage || "OK"}`);
+
+    await supabase.from("work_notification_logs").insert([{
       event_type,
       recipient_user_id: user.id,
-      recipient_phone,
+      recipient_phone: normalized,
       message,
       link,
       status,
-      error_message,
-      provider: "messenger360"
-    }])
+      error_message: errorMessage,
+      provider: "messenger360",
+    }]);
+
+    if (sendResult?.ok) sent++;
+    else failed++;
+
+    // Throttle 200ms between sends
+    await new Promise((r) => setTimeout(r, 200));
   }
-  return new Response("OK", { status: 200 })
-})
+
+  console.log(`[send-work-notification] Done: ${sent} sent, ${failed} failed`);
+
+  return new Response(JSON.stringify({ sent, failed }), {
+    status: 200,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
+});
