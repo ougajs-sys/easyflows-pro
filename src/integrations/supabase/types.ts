@@ -1626,6 +1626,45 @@ export type Database = {
           },
         ]
       }
+      work_notification_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          link: string | null
+          message: string | null
+          provider: string | null
+          recipient_phone: string | null
+          recipient_user_id: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          link?: string | null
+          message?: string | null
+          provider?: string | null
+          recipient_phone?: string | null
+          recipient_user_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          link?: string | null
+          message?: string | null
+          provider?: string | null
+          recipient_phone?: string | null
+          recipient_user_id?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       admin_role_requests_view: {
