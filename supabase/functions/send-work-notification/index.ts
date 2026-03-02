@@ -12,12 +12,12 @@ function normalizeCIPhone(raw: string): { valid: boolean; normalized: string; er
   let cleaned = raw.replace(/[\s\-\(\)\.]/g, "");
   cleaned = cleaned.replace(/^\+/, "").replace(/^00/, "");
 
-  // 0XXXXXXXXX (10 digits local) -> 225XXXXXXXXX
+  // 0XXXXXXXXX (10 digits local) -> 2250XXXXXXXXX
   if (/^0\d{9}$/.test(cleaned)) {
-    cleaned = "225" + cleaned.substring(1);
+    cleaned = "225" + cleaned;
   }
 
-  // 10 digits without prefix -> add 225
+  // 10 digits without leading 0 and without prefix -> add 225
   if (!cleaned.startsWith("225") && /^\d{10}$/.test(cleaned)) {
     cleaned = "225" + cleaned;
   }
