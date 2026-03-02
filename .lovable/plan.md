@@ -1,45 +1,64 @@
 
 
-# Integration sms8.io pour SMS + Messenger360 pour WhatsApp
+# Notifications metier WhatsApp obligatoires via Messenger360
 
-## Architecture cible
+## Principe
 
-- **SMS** (campagnes + notifications) : sms8.io API (`https://app.sms8.io/services/send.php`)
-- **WhatsApp** (campagnes uniquement) : Messenger360 API (inchange)
+Chaque evenement metier important envoie automatiquement un WhatsApp au(x) concerne(s) via Messenger360. WhatsApp active par defaut pour tous, pas de preference a gerer. Les triggers SQL existants (`orders_push_notify`, `messages_push_notify`) seront modifies pour appeler la nouvelle Edge Function `send-work-notification` en plus du push FCM actuel.
 
-## Secrets necessaires
+## Implementation
 
-Deux nouveaux secrets Supabase a ajouter :
-- `SMS8_API_KEY` : cle API sms8.io
-- `SMS8_DEVICE_ID` : identifiant appareil Android au format `deviceID|simSlot`
+### 1. Migration SQL
 
-## Modifications
+- Creer table `work_notification_logs` (id, event_type, recipient_user_id, recipient_phone, message, link, status, error_message, provider, created_at)
+- RLS: insert via service role (true), select pour admins/superviseurs + propres logs
+- Modifier `orders_push_notify()` pour ajouter un appel a `send-work-notification` (via `http_post_with_service_role`) apres chaque cas (nouvelle commande, assignation livreur, assignation appelant, changement statut)
+- Modifier `messages_push_notify()` pour ajouter un appel a `send-work-notification` pour les DMs
+- Ajouter trigger sur `revenue_deposits` (INSERT) pour notifier superviseurs/admins
+- Ajouter trigger sur `stock_movements` ou `delivery_person_stock` (UPDATE) pour notifier le livreur concerne
 
-### 1. Edge Function `send-campaign/index.ts`
-- Ajouter routage par `campaign.type` :
-  - Si `type === 'sms'` : appeler sms8.io (`GET https://app.sms8.io/services/send.php?key=...&number=...&message=...&devices=[...]&type=sms`)
-  - Si `type === 'whatsapp'` : garder Messenger360 (inchange)
-- Charger `SMS8_API_KEY` et `SMS8_DEVICE_ID` depuis les secrets
-- Adapter le delai anti-throttling (sms8.io n'a pas les memes limites que Messenger360)
+### 2. Edge Function `send-work-notification`
 
-### 2. Edge Function `send-sms/index.ts`
-- Meme routage par `type` :
-  - `sms` -> sms8.io
-  - `whatsapp` -> Messenger360
+Nouvelle fonction qui :
+- Recoit `{ event_type, title, body, target_user_ids, link }`
+- Pour chaque user_id : recupere `phone` depuis `profiles`
+- Normalise le numero CI, envoie via Messenger360 WhatsApp
+- Log dans `work_notification_logs`
+- Protection anti-spam : deduplication 60s (meme event_type + meme user_id)
+- `verify_jwt = false` (appele par SQL trigger)
 
-### 3. Edge Function `send-notification-sms/index.ts`
-- Router par `channel` :
-  - `sms` -> sms8.io
-  - `whatsapp` -> Messenger360
+Format du message WhatsApp :
+```
+EasyFlows: Commande CMD-000123 assignee.
+Client: Jean Dupont
+Consultez: https://easyflows-pro.lovable.app/caller
+```
 
-### 4. Format du numero pour sms8.io
-- sms8.io attend le numero au format international avec `+` (ex: `+2250712345678`)
-- Adapter `normalizeCIPhone` pour retourner le format `+225...` pour sms8.io
+### 3. Config
 
-### 5. UI `SmsTestPanel.tsx`
-- Mettre a jour la description pour indiquer le double fournisseur (SMS via sms8.io, WhatsApp via Messenger360)
+- Ajouter `[functions.send-work-notification]` avec `verify_jwt = false` dans `supabase/config.toml`
 
-### 6. Deploiement
-- Ajouter les 2 secrets via l'outil secrets
-- Redeployer les 3 Edge Functions
+### 4. Evenements couverts
+
+| Evenement | Destinataires | Lien |
+|---|---|---|
+| Nouvelle commande | Admins + Superviseurs | /orders |
+| Assignation appelant | L'appelant | /caller |
+| Assignation livreur | Le livreur | /delivery |
+| Changement statut commande | Createur + Admin | /orders |
+| Nouveau message DM | Destinataire | /chat |
+| Versement en attente | Superviseurs + Admins | /supervisor |
+
+### Fichiers concernes
+
+- **Creer** : `supabase/functions/send-work-notification/index.ts`
+- **Modifier** : `supabase/config.toml` (ajouter la fonction)
+- **Migration SQL** : table `work_notification_logs` + triggers modifies
+
+### Section technique
+
+- Les triggers existants appellent deja `http_post_with_service_role` avec des arguments positionnels (url, body) -- on reutilise le meme pattern
+- Messenger360 utilise le format `225XXXXXXXXXX` (sans `+`) -- deja gere par `normalizeCIPhone`
+- Le secret `MESSENGER360_API_KEY` est deja configure dans les fonctions existantes
+- La deduplication se fait par query sur `work_notification_logs` (meme event_type + recipient + < 60s)
 
