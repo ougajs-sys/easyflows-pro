@@ -1,74 +1,39 @@
 
 
-# Page "Landing Pages" — Editeur style Lovable (config + preview)
+# Probleme : le HTML colle ne s'affiche pas correctement
 
-## Concept
+## Cause
 
-Creer une page dediee `/landing-pages` avec un editeur pleine page inspire de Lovable : panneau de configuration a gauche, apercu en temps reel a droite. Accessible directement depuis la sidebar.
+Le code HTML colle est une **page complete** (avec `<html>`, `<head>`, `<script>`, Tailwind CDN, Font Awesome, animations CSS, etc.). Or le systeme actuel utilise `dangerouslySetInnerHTML` qui :
 
-## Architecture de l'editeur
+1. **Ignore les balises `<html>`, `<head>`, `<script>`** — donc Tailwind CDN et Font Awesome ne chargent jamais
+2. **Les styles CSS du `<style>` entrent en conflit** avec les styles de l'application
+3. **Les scripts inline (countdown, modal, scroll reveal) ne s'executent pas**
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│  ← Retour aux landing pages    [Copier le lien] [Sauv] │
-├────────────────────────┬────────────────────────────────┤
-│  CONFIGURATION         │  APERCU EN DIRECT              │
-│                        │                                │
-│  Produit: [Select ▼]   │  [📱 Mobile] [🖥 Desktop]      │
-│  Prix: auto            │                                │
-│  Slug: [auto-genere]   │  ┌────────────────────────┐   │
-│                        │  │                        │   │
-│  Titre: [...]          │  │  Rendu HTML / Template  │   │
-│  Description: [...]    │  │                        │   │
-│  Image URL: [...]      │  │  ─────────────────────  │   │
-│  Couleur: [picker]     │  │  Formulaire commande   │   │
-│  Pixel ID: [...]       │  │                        │   │
-│                        │  └────────────────────────┘   │
-│  ── Code HTML ──       │                                │
-│  [textarea grand]      │                                │
-│  mono, colore          │                                │
-│                        │                                │
-└────────────────────────┴────────────────────────────────┘
-```
+## Solution : utiliser un `<iframe srcdoc>` au lieu de `dangerouslySetInnerHTML`
 
-L'apercu se met a jour en temps reel a chaque modification de champ. Toggle mobile/desktop change la largeur de l'iframe d'apercu.
+Remplacer le rendu par un `<iframe>` avec l'attribut `srcdoc` qui isole completement le HTML dans un contexte sandboxe. Cela permet de charger les CDN, les styles, les scripts — exactement comme une page web independante.
 
-## Fichiers a creer / modifier
+## Modifications
 
-### 1. `src/pages/LandingPages.tsx` — Page principale
+### 1. `src/components/landing/LandingPageEditor.tsx` — Apercu editeur
 
-- **Vue liste** : cards des landing pages existantes (produits avec slug), bouton "Creer une landing page"
-- **Vue editeur** : panneau split gauche/droite avec `ResizablePanelGroup`
-- Charge les produits depuis `useProducts`, filtre ceux avec slug pour la liste
+Remplacer le `dangerouslySetInnerHTML` du panneau droit par un `<iframe srcdoc={previewHtml}>` :
+- Si HTML custom → `srcdoc` contient le HTML complet tel quel
+- Si pas de HTML custom → `srcdoc` contient le template par defaut genere
+- L'iframe s'adapte au toggle mobile (375px) / desktop (100%)
+- Style : `border: none`, largeur/hauteur 100%
 
-### 2. `src/components/landing/LandingPageEditor.tsx` — Editeur split
+### 2. `src/pages/ProductLanding.tsx` — Page publique
 
-- Panneau gauche : formulaire (select produit, slug, headline, description, image, HTML, couleur, pixel ID)
-- Panneau droit : iframe ou div avec rendu en temps reel du HTML + formulaire commande
-- Toggle mobile (375px) / desktop (100%) pour l'apercu
-- Bouton "Copier le lien" toujours visible dans la barre superieure
-- Bouton "Sauvegarder" qui appelle `updateProduct` du hook existant
+Meme changement : si `landing_html` existe, le rendre dans un `<iframe srcdoc>` pleine page au lieu de `dangerouslySetInnerHTML`. Les boutons "Commander" dans le HTML custom peuvent cibler `#order-form` via `window.parent` ou un lien ancre.
 
-### 3. `src/components/landing/LandingPageCard.tsx` — Card pour la liste
+**Approche pour le formulaire de commande** : injecter automatiquement le formulaire de commande a l'interieur du `srcdoc` en bas du HTML, ou garder le formulaire en dehors de l'iframe avec un bouton qui scroll vers lui.
 
-- Miniature visuelle, nom produit, URL, badge actif/inactif
-- Actions : editer, copier le lien, supprimer la landing
+### 3. Fichiers concernes
 
-### 4. `src/components/layout/Sidebar.tsx` — Nouvel item
-
-- Label : "Landing Pages", icone `Globe`, path `/landing-pages`
-- Roles : `["superviseur", "administrateur"]`
-- Position : apres "Formulaires Embed" (id 12)
-
-### 5. `src/App.tsx` — Route
-
-- `/landing-pages` → `LandingPages` (protegee superviseur + administrateur)
-
-## Details techniques
-
-- L'apercu utilise `dangerouslySetInnerHTML` dans un conteneur avec styles scopes (meme rendu que `ProductLanding.tsx`)
-- Si pas de HTML custom, l'apercu montre le template par defaut (hero + prix)
-- Le select produit lie automatiquement le prix et le stock
-- Le slug est auto-genere depuis le nom du produit selectionne
-- Les composants `ResizablePanel` existants sont reutilises pour le split
+| Fichier | Changement |
+|---------|-----------|
+| `src/components/landing/LandingPageEditor.tsx` | `dangerouslySetInnerHTML` → `<iframe srcdoc>` pour l'apercu |
+| `src/pages/ProductLanding.tsx` | `dangerouslySetInnerHTML` → `<iframe srcdoc>` pour le rendu public + auto-resize iframe |
 
