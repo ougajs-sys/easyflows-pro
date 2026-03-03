@@ -4,8 +4,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { LandingPageEditor } from "@/components/landing/LandingPageEditor";
 import { LandingPageCard } from "@/components/landing/LandingPageCard";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft, Globe } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { Plus, Zap, Loader2, Code } from "lucide-react";
 
 export default function LandingPages() {
   const { products, loading, updateProduct } = useProducts();
@@ -22,8 +21,8 @@ export default function LandingPages() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <div className="flex items-center justify-center h-96 bg-[#0d1117]">
+          <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -51,59 +50,67 @@ export default function LandingPages() {
     );
   }
 
-  // List view
+  // Dashboard view — Pipeline dark theme
   return (
     <DashboardLayout>
-      <div className="space-y-6 p-4 md:p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Globe className="w-6 h-6 text-primary" />
-              Landing Pages
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Créez et gérez vos pages de destination produit
-            </p>
+      <div className="min-h-screen bg-[#14181f]">
+        {/* Header bar */}
+        <div className="h-16 border-b border-gray-800 flex items-center justify-between px-8 bg-[#0d1117]">
+          <h1 className="font-bold text-white text-lg">Tableau de bord</h1>
+          <div className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+            Cloud Actif
           </div>
-          <Button onClick={() => setCreating(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Créer une landing page
-          </Button>
         </div>
 
-        {landingPages.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-border rounded-xl">
-            <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              Aucune landing page
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              Créez votre première page de destination pour vos produits
-            </p>
-            <Button onClick={() => setCreating(true)} className="gap-2">
-              <Plus className="w-4 h-4" />
-              Créer une landing page
-            </Button>
+        <div className="p-10 space-y-8">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-white">Vos Pages Importées</h2>
+            <button
+              onClick={() => setCreating(true)}
+              className="bg-[#10b981] text-black px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/10"
+            >
+              <Plus size={18} /> Importer une page
+            </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {landingPages.map((product) => (
-              <LandingPageCard
-                key={product.id}
-                product={product}
-                onEdit={() => setEditingProductId(product.id)}
-                onRemoveLanding={async () => {
-                  await updateProduct(product.id, {
-                    slug: null,
-                    landing_headline: null,
-                    landing_description: null,
-                    landing_html: null,
-                  });
-                }}
-              />
-            ))}
-          </div>
-        )}
+
+          {landingPages.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="w-20 h-20 mx-auto mb-6 bg-gray-800 rounded-3xl flex items-center justify-center">
+                <Code className="text-gray-600" size={40} />
+              </div>
+              <h3 className="text-lg font-medium text-white mb-2">
+                Aucune landing page
+              </h3>
+              <p className="text-gray-500 mb-6">
+                Créez votre première page de destination pour vos produits
+              </p>
+              <button
+                onClick={() => setCreating(true)}
+                className="bg-[#10b981] text-black px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 mx-auto hover:bg-emerald-400 transition-colors"
+              >
+                <Plus size={18} /> Importer une page
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {landingPages.map((product) => (
+                <LandingPageCard
+                  key={product.id}
+                  product={product}
+                  onEdit={() => setEditingProductId(product.id)}
+                  onRemoveLanding={async () => {
+                    await updateProduct(product.id, {
+                      slug: null,
+                      landing_headline: null,
+                      landing_description: null,
+                      landing_html: null,
+                    });
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -1,15 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { Product, ProductUpdate } from "@/hooks/useProducts";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Copy, Save, Smartphone, Monitor, Loader2, ShoppingCart } from "lucide-react";
+import { ChevronLeft, Copy, Save, Smartphone, Monitor, Loader2, Target } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface LandingPageEditorProps {
   product: Product | null;
@@ -46,18 +42,17 @@ export function LandingPageEditor({
   const [headline, setHeadline] = useState(product?.landing_headline || "");
   const [description, setDescription] = useState(product?.landing_description || "");
   const [imageUrl, setImageUrl] = useState(product?.image_url || "");
-  const [brandColor, setBrandColor] = useState(product?.brand_color || "#2563eb");
+  const [brandColor, setBrandColor] = useState(product?.brand_color || "#10b981");
   const [pixelId, setPixelId] = useState(product?.facebook_pixel_id || "");
   const [htmlContent, setHtmlContent] = useState(product?.landing_html || "");
 
   const selectedProduct = allProducts.find((p) => p.id === selectedProductId);
 
-  // Auto-generate slug when product changes (only in create mode)
   useEffect(() => {
     if (!product && selectedProduct) {
       setSlug(slugify(selectedProduct.name));
       setImageUrl(selectedProduct.image_url || "");
-      setBrandColor(selectedProduct.brand_color || "#2563eb");
+      setBrandColor(selectedProduct.brand_color || "#10b981");
     }
   }, [selectedProductId, product]);
 
@@ -82,7 +77,6 @@ export function LandingPageEditor({
       toast({ title: "Erreur", description: "Le slug est requis", variant: "destructive" });
       return;
     }
-
     setSaving(true);
     try {
       await onSave(targetId, {
@@ -108,11 +102,9 @@ export function LandingPageEditor({
   // Preview HTML — full document for iframe srcdoc
   const previewHtml = useMemo(() => {
     if (htmlContent) {
-      // If it's already a full HTML document, use as-is
-      if (htmlContent.trim().toLowerCase().startsWith('<!doctype') || htmlContent.trim().toLowerCase().startsWith('<html')) {
+      if (htmlContent.trim().toLowerCase().startsWith("<!doctype") || htmlContent.trim().toLowerCase().startsWith("<html")) {
         return htmlContent;
       }
-      // Otherwise wrap in a basic document
       return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="margin:0">${htmlContent}</body></html>`;
     }
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="margin:0;font-family:system-ui,sans-serif">
@@ -133,212 +125,222 @@ export function LandingPageEditor({
     </body></html>`;
   }, [htmlContent, brandColor, imageUrl, headline, description, previewPrice, previewName]);
 
-  const configPanel = (
-    <ScrollArea className="h-full">
-      <div className="p-4 space-y-5">
-        {/* Product selector (create mode only) */}
-        {!product && (
-          <div className="space-y-2">
-            <Label>Produit</Label>
-            <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choisir un produit..." />
-              </SelectTrigger>
-              <SelectContent>
-                {productsWithoutLanding.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} — {formatPrice(Number(p.price))}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Slug */}
-        <div className="space-y-2">
-          <Label>Slug (URL)</Label>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">/p/</span>
-            <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="mon-produit" />
-          </div>
-        </div>
-
-        {/* Prix (auto) */}
-        {(selectedProduct || product) && (
-          <div className="space-y-2">
-            <Label>Prix</Label>
-            <div className="px-3 py-2 bg-muted rounded-md text-sm text-foreground">
-              {formatPrice(previewPrice)} <span className="text-muted-foreground">(automatique)</span>
-            </div>
-          </div>
-        )}
-
-        {/* Headline */}
-        <div className="space-y-2">
-          <Label>Titre marketing</Label>
-          <Input
-            value={headline}
-            onChange={(e) => setHeadline(e.target.value)}
-            placeholder={previewName}
-          />
-        </div>
-
-        {/* Description */}
-        <div className="space-y-2">
-          <Label>Description</Label>
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Décrivez votre produit..."
-            rows={3}
-          />
-        </div>
-
-        {/* Image */}
-        <div className="space-y-2">
-          <Label>Image URL</Label>
-          <Input
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
-
-        {/* Color */}
-        <div className="space-y-2">
-          <Label>Couleur de marque</Label>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={brandColor}
-              onChange={(e) => setBrandColor(e.target.value)}
-              className="w-10 h-10 rounded-md border border-border cursor-pointer"
-            />
-            <Input
-              value={brandColor}
-              onChange={(e) => setBrandColor(e.target.value)}
-              className="flex-1"
-            />
-          </div>
-        </div>
-
-        {/* Pixel ID */}
-        <div className="space-y-2">
-          <Label>Facebook Pixel ID</Label>
-          <Input
-            value={pixelId}
-            onChange={(e) => setPixelId(e.target.value)}
-            placeholder="123456789"
-          />
-        </div>
-
-        {/* HTML Custom */}
-        <div className="space-y-2">
-          <Label>Code HTML personnalisé</Label>
-          <Textarea
-            value={htmlContent}
-            onChange={(e) => setHtmlContent(e.target.value)}
-            placeholder="<div>Votre HTML ici...</div>"
-            rows={10}
-            className="font-mono text-xs"
-          />
-          <p className="text-xs text-muted-foreground">
-            Si renseigné, remplace le template par défaut (hero). Le formulaire de commande reste toujours affiché en dessous.
-          </p>
-        </div>
-      </div>
-    </ScrollArea>
-  );
-
-  const previewPanel = (
-    <div className="h-full flex flex-col bg-muted/30">
-      {/* Preview toolbar */}
-      <div className="flex items-center justify-center gap-2 p-2 border-b border-border bg-background">
-        <Button
-          size="sm"
-          variant={previewMode === "mobile" ? "default" : "ghost"}
-          onClick={() => setPreviewMode("mobile")}
-          className="gap-1"
-        >
-          <Smartphone className="w-4 h-4" /> Mobile
-        </Button>
-        <Button
-          size="sm"
-          variant={previewMode === "desktop" ? "default" : "ghost"}
-          onClick={() => setPreviewMode("desktop")}
-          className="gap-1"
-        >
-          <Monitor className="w-4 h-4" /> Desktop
-        </Button>
-      </div>
-
-      {/* Preview frame */}
-      <div className="flex-1 flex items-start justify-center overflow-auto p-4">
-        <div
-          className="bg-white rounded-lg shadow-lg overflow-auto border border-border transition-all duration-300"
-          style={{
-            width: previewMode === "mobile" ? 375 : "100%",
-            maxWidth: "100%",
-            minHeight: 500,
-          }}
-        >
-          <iframe
-            srcDoc={previewHtml}
-            title="Aperçu landing page"
-            className="w-full h-full border-none"
-            style={{ minHeight: 500 }}
-            sandbox="allow-scripts allow-same-origin"
-          />
-        </div>
-      </div>
-    </div>
-  );
+  const emptyPreview = `<body style="background:#1a1f2e;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#555;font-size:14px">Collez votre code HTML pour voir l'aperçu...</body>`;
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-[#0d1117]">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background">
+      <div className="h-14 flex items-center justify-between px-4 border-b border-gray-800 bg-[#0d1117]">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1">
-            <ArrowLeft className="w-4 h-4" /> Retour
-          </Button>
-          <span className="text-sm font-medium text-foreground truncate">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-gray-400 hover:text-white text-sm transition-colors"
+          >
+            <ChevronLeft size={18} /> Retour
+          </button>
+          <span className="text-sm font-medium text-white truncate">
             {product ? product.name : "Nouvelle landing page"}
           </span>
         </div>
         <div className="flex items-center gap-2">
           {landingUrl && (
-            <Button variant="outline" size="sm" onClick={copyLink} className="gap-1">
-              <Copy className="w-4 h-4" /> Copier le lien
-            </Button>
+            <button
+              onClick={copyLink}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Copy size={14} /> Copier le lien
+            </button>
           )}
-          <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Sauvegarder
-          </Button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-[#10b981] text-black px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 hover:bg-emerald-400 transition-colors disabled:opacity-50 shadow-lg shadow-emerald-500/10"
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            Enregistrer
+          </button>
         </div>
       </div>
 
       {/* Editor body */}
-      {isMobile ? (
-        <div className="flex-1 overflow-auto">
-          {configPanel}
-          <div className="border-t border-border" style={{ height: 500 }}>
-            {previewPanel}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: Config */}
+        <div className={`${isMobile ? "w-full" : "w-[420px]"} border-r border-gray-800 flex flex-col bg-[#0d1117] overflow-y-auto`}>
+          <div className="p-6 space-y-5">
+            {/* Product selector (create mode) */}
+            {!product && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Produit</label>
+                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                  <SelectTrigger className="bg-gray-800 border-none rounded-xl text-sm text-gray-300 focus:ring-1 focus:ring-emerald-500">
+                    <SelectValue placeholder="Choisir un produit..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {productsWithoutLanding.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} — {formatPrice(Number(p.price))}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Slug */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Slug (URL)</label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 whitespace-nowrap">/p/</span>
+                <input
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="mon-produit"
+                  className="w-full bg-gray-800 border-none rounded-xl p-3 text-sm text-gray-300 focus:ring-1 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Prix */}
+            {(selectedProduct || product) && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Prix</label>
+                <div className="px-3 py-2.5 bg-gray-800 rounded-xl text-sm text-gray-400">
+                  {formatPrice(previewPrice)} <span className="text-gray-600">(automatique)</span>
+                </div>
+              </div>
+            )}
+
+            {/* Titre */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Titre de la page</label>
+              <input
+                value={headline}
+                onChange={(e) => setHeadline(e.target.value)}
+                placeholder={previewName}
+                className="w-full bg-gray-800 border-none rounded-xl p-3 text-sm text-gray-300 focus:ring-1 focus:ring-emerald-500 outline-none"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Décrivez votre produit..."
+                rows={3}
+                className="w-full bg-gray-800 border-none rounded-xl p-3 text-sm text-gray-300 focus:ring-1 focus:ring-emerald-500 outline-none resize-none"
+              />
+            </div>
+
+            {/* Image */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Image URL</label>
+              <input
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full bg-gray-800 border-none rounded-xl p-3 text-sm text-gray-300 focus:ring-1 focus:ring-emerald-500 outline-none"
+              />
+            </div>
+
+            {/* Color */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Couleur de marque</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={brandColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="w-10 h-10 rounded-lg border-none cursor-pointer bg-transparent"
+                />
+                <input
+                  value={brandColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="flex-1 bg-gray-800 border-none rounded-xl p-3 text-sm text-gray-300 focus:ring-1 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Pixel ID */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                <Target size={12} /> Facebook Pixel ID
+              </label>
+              <input
+                value={pixelId}
+                onChange={(e) => setPixelId(e.target.value)}
+                placeholder="123456789"
+                className="w-full bg-gray-800 border-none rounded-xl p-3 text-sm text-gray-300 focus:ring-1 focus:ring-emerald-500 outline-none"
+              />
+            </div>
+
+            {/* HTML Custom */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Code HTML Source</label>
+              <textarea
+                value={htmlContent}
+                onChange={(e) => setHtmlContent(e.target.value)}
+                placeholder="Collez votre code HTML complet ici..."
+                rows={12}
+                className="w-full bg-black border-none rounded-xl p-4 text-[11px] font-mono text-blue-300 resize-none focus:ring-1 focus:ring-emerald-500 outline-none"
+              />
+              <p className="text-[10px] text-gray-600">
+                Collez une page HTML complète (avec {"<html>"}, styles, scripts). L'aperçu s'affiche en isolation totale via iframe.
+              </p>
+            </div>
+
+            {/* Save button (mobile) */}
+            {isMobile && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full bg-[#10b981] text-black py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
+              >
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                Enregistrer et Publier
+              </button>
+            )}
           </div>
         </div>
-      ) : (
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
-          <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
-            {configPanel}
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={65}>
-            {previewPanel}
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      )}
+
+        {/* Right: Preview */}
+        {!isMobile && (
+          <div className="flex-1 flex flex-col items-center bg-black/20 p-6">
+            {/* Preview toggle */}
+            <div className="flex bg-gray-800 p-1 rounded-xl mb-6">
+              <button
+                onClick={() => setPreviewMode("mobile")}
+                className={`p-2 rounded-lg transition-colors ${previewMode === "mobile" ? "bg-emerald-500 text-black" : "text-gray-400 hover:text-white"}`}
+              >
+                <Smartphone size={16} />
+              </button>
+              <button
+                onClick={() => setPreviewMode("desktop")}
+                className={`p-2 rounded-lg transition-colors ${previewMode === "desktop" ? "bg-emerald-500 text-black" : "text-gray-400 hover:text-white"}`}
+              >
+                <Monitor size={16} />
+              </button>
+            </div>
+
+            {/* Preview frame */}
+            <div
+              className={`bg-white shadow-2xl transition-all duration-500 ${
+                previewMode === "mobile"
+                  ? "w-[375px] h-[667px] rounded-[3rem] border-[12px] border-black overflow-hidden"
+                  : "w-full h-full rounded-2xl overflow-hidden"
+              }`}
+            >
+              <iframe
+                title="Aperçu"
+                srcDoc={htmlContent ? previewHtml : (previewPrice > 0 || headline ? previewHtml : emptyPreview)}
+                className="w-full h-full border-none"
+                sandbox="allow-scripts allow-same-origin"
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
