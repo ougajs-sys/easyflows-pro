@@ -42,6 +42,7 @@ const Chat = lazy(() => import("./pages/Chat"));
 const AIAgent = lazy(() => import("./pages/AIAgent"));
 const RevenueTracking = lazy(() => import("./pages/RevenueTracking"));
 const Install = lazy(() => import("./pages/Install"));
+const LandingPages = lazy(() => import("./pages/LandingPages"));
 const ProductLanding = lazy(() => import("./pages/ProductLanding"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -430,6 +431,14 @@ function AppContent() {
                         element={
                           <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
                             <RevenueTracking />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/landing-pages"
+                        element={
+                          <ProtectedRoute allowedRoles={['administrateur', 'superviseur']}>
+                            <LandingPages />
                           </ProtectedRoute>
                         }
                       />
