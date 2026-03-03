@@ -857,32 +857,53 @@ export type Database = {
       }
       products: {
         Row: {
+          brand_color: string | null
           created_at: string
           description: string | null
+          facebook_pixel_id: string | null
           id: string
+          image_url: string | null
           is_active: boolean
+          landing_description: string | null
+          landing_headline: string | null
+          landing_html: string | null
           name: string
           price: number
+          slug: string | null
           stock: number
           updated_at: string
         }
         Insert: {
+          brand_color?: string | null
           created_at?: string
           description?: string | null
+          facebook_pixel_id?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          landing_description?: string | null
+          landing_headline?: string | null
+          landing_html?: string | null
           name: string
           price: number
+          slug?: string | null
           stock?: number
           updated_at?: string
         }
         Update: {
+          brand_color?: string | null
           created_at?: string
           description?: string | null
+          facebook_pixel_id?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean
+          landing_description?: string | null
+          landing_headline?: string | null
+          landing_html?: string | null
           name?: string
           price?: number
+          slug?: string | null
           stock?: number
           updated_at?: string
         }
