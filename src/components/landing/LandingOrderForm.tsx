@@ -89,7 +89,7 @@ export function LandingOrderForm({
       }
 
       const result = await response.json();
-      onOrderSuccess(result.order_id || result.id || crypto.randomUUID(), total);
+      onOrderSuccess(result.order?.id || result.order_id || result.id || crypto.randomUUID(), total);
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue");
     } finally {
