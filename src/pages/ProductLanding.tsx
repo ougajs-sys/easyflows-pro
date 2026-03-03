@@ -207,13 +207,66 @@ function LandingWithCustomHtml({
   const srcDoc = useMemo(() => {
     let html = product.landing_html || "";
 
-    // Inject form before </body> or at the end
-    const bodyCloseIdx = html.toLowerCase().lastIndexOf("</body>");
-    if (bodyCloseIdx !== -1) {
-      html = html.slice(0, bodyCloseIdx) + injectedForm + html.slice(bodyCloseIdx);
-    } else {
-      html += injectedForm;
+    // Ensure responsive viewport for custom templates
+    if (!/<meta[^>]+name=["']viewport["']/i.test(html)) {
+      const headCloseIdx = html.toLowerCase().indexOf("</head>");
+      const viewportMeta = '<meta name="viewport" content="width=device-width, initial-scale=1" />';
+      if (headCloseIdx !== -1) {
+        html = html.slice(0, headCloseIdx) + viewportMeta + html.slice(headCloseIdx);
+      } else {
+        html = viewportMeta + html;
+      }
     }
+
+    // Fallback if cdn.tailwindcss.com is blocked in some production environments
+    const tailwindFallbackRuntime = `
+<script>
+(function () {
+  function hasTailwindApplied() {
+    try {
+      var probe = document.createElement('div');
+      probe.className = 'hidden';
+      probe.style.position = 'absolute';
+      probe.style.pointerEvents = 'none';
+      document.body.appendChild(probe);
+      var isHidden = window.getComputedStyle(probe).display === 'none';
+      probe.remove();
+      return isHidden;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function loadTailwindFallback() {
+    if (window.__tailwindFallbackLoaded) return;
+    window.__tailwindFallbackLoaded = true;
+    var script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4';
+    script.defer = true;
+    document.head.appendChild(script);
+  }
+
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (!hasTailwindApplied()) loadTailwindFallback();
+    }, 800);
+
+    setTimeout(function () {
+      if (!hasTailwindApplied()) loadTailwindFallback();
+    }, 2200);
+  });
+})();
+</script>`;
+
+    // Inject runtime fallback + form before </body> or at the end
+    const bodyCloseIdx = html.toLowerCase().lastIndexOf("</body>");
+    const injectedContent = tailwindFallbackRuntime + injectedForm;
+    if (bodyCloseIdx !== -1) {
+      html = html.slice(0, bodyCloseIdx) + injectedContent + html.slice(bodyCloseIdx);
+    } else {
+      html += injectedContent;
+    }
+
     return html;
   }, [product.landing_html, injectedForm]);
 
