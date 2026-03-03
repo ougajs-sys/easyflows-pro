@@ -144,9 +144,20 @@ export default function ProductLanding() {
       <div className="min-h-screen bg-gray-50">
         {/* Custom HTML or default template */}
         {product.landing_html ? (
-          <div
-            className="landing-custom-html"
-            dangerouslySetInnerHTML={{ __html: product.landing_html }}
+          <iframe
+            srcDoc={product.landing_html}
+            title={product.name}
+            className="w-full border-none"
+            style={{ minHeight: '100vh' }}
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            onLoad={(e) => {
+              // Auto-resize iframe to content height
+              try {
+                const iframe = e.currentTarget;
+                const height = iframe.contentDocument?.documentElement?.scrollHeight;
+                if (height) iframe.style.height = height + 'px';
+              } catch {}
+            }}
           />
         ) : (
           <div className="relative">
@@ -196,16 +207,6 @@ export default function ProductLanding() {
         </div>
       </div>
 
-      {/* Scoped styles for custom HTML */}
-      <style>{`
-        .landing-custom-html img {
-          max-width: 100%;
-          height: auto;
-        }
-        .landing-custom-html {
-          overflow: hidden;
-        }
-      `}</style>
     </>
   );
 }
