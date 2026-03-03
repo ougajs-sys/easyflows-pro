@@ -51,6 +51,8 @@ const isNonCriticalError = (error: Error): boolean => {
   const nonCriticalPatterns = [
     /ResizeObserver/i,
     /Loading chunk/i,
+    /ServiceWorker/i,
+    /SecurityError/i,
     /ChunkLoadError/i,
     /Failed to fetch dynamically imported module/i,
     /NetworkError/i,
