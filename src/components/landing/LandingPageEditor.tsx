@@ -105,15 +105,17 @@ export function LandingPageEditor({
   const previewPrice = selectedProduct ? Number(selectedProduct.price) : product ? Number(product.price) : 0;
   const previewName = selectedProduct?.name || product?.name || "Produit";
 
-  // Preview HTML
+  // Preview HTML — full document for iframe srcdoc
   const previewHtml = useMemo(() => {
     if (htmlContent) {
-      return `
-        <div class="landing-custom-html">${htmlContent}</div>
-        <style>.landing-custom-html img { max-width: 100%; height: auto; } .landing-custom-html { overflow: hidden; }</style>
-      `;
+      // If it's already a full HTML document, use as-is
+      if (htmlContent.trim().toLowerCase().startsWith('<!doctype') || htmlContent.trim().toLowerCase().startsWith('<html')) {
+        return htmlContent;
+      }
+      // Otherwise wrap in a basic document
+      return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="margin:0">${htmlContent}</body></html>`;
     }
-    return `
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="margin:0;font-family:system-ui,sans-serif">
       <div style="background: linear-gradient(135deg, ${brandColor}, ${brandColor}dd); padding: 4rem 1rem; text-align: center; color: white;">
         ${imageUrl ? `<img src="${imageUrl}" alt="${previewName}" style="width: 160px; height: 160px; object-fit: cover; border-radius: 1rem; margin: 0 auto 2rem; display: block; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);" />` : ""}
         <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1rem;">${headline || previewName}</h1>
@@ -128,7 +130,7 @@ export function LandingPageEditor({
           <p style="color: #6b7280; font-size: 0.875rem;">(Aperçu — le formulaire réel apparaîtra sur la page publique)</p>
         </div>
       </div>
-    `;
+    </body></html>`;
   }, [htmlContent, brandColor, imageUrl, headline, description, previewPrice, previewName]);
 
   const configPanel = (
@@ -281,7 +283,13 @@ export function LandingPageEditor({
             minHeight: 500,
           }}
         >
-          <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+          <iframe
+            srcDoc={previewHtml}
+            title="Aperçu landing page"
+            className="w-full h-full border-none"
+            style={{ minHeight: 500 }}
+            sandbox="allow-scripts allow-same-origin"
+          />
         </div>
       </div>
     </div>
