@@ -217,20 +217,34 @@ function LandingWithCustomHtml({
     return html;
   }, [product.landing_html, injectedForm]);
 
+  const iframeRef = useCallback((iframe: HTMLIFrameElement | null) => {
+    if (!iframe) return;
+    const adjustHeight = () => {
+      try {
+        const h = iframe.contentDocument?.documentElement?.scrollHeight;
+        if (h && h > 100) iframe.style.height = h + "px";
+      } catch {}
+    };
+    iframe.addEventListener("load", () => {
+      adjustHeight();
+      // Retry after CDN scripts (Tailwind) finish rendering
+      const intervals = [500, 1500, 3000, 5000];
+      intervals.forEach((ms) => setTimeout(adjustHeight, ms));
+      try {
+        const obs = new ResizeObserver(adjustHeight);
+        if (iframe.contentDocument?.body) obs.observe(iframe.contentDocument.body);
+      } catch {}
+    });
+  }, []);
+
   return (
     <iframe
+      ref={iframeRef}
       srcDoc={srcDoc}
       title={product.name}
       className="w-full border-none"
       style={{ minHeight: "100vh" }}
       sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-      onLoad={(e) => {
-        try {
-          const iframe = e.currentTarget;
-          const height = iframe.contentDocument?.documentElement?.scrollHeight;
-          if (height) iframe.style.height = height + "px";
-        } catch {}
-      }}
     />
   );
 }
