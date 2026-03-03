@@ -1,44 +1,66 @@
 
-# Fix: Formulaire de commande sur les landing pages publiées
 
-## Problèmes identifiés
+# Analyse : Page de destination cassee en production
 
-### 1. Réponse webhook mal parsée
-Le formulaire (`LandingOrderForm.tsx` ligne 92) lit `result.order_id || result.id` mais le webhook retourne `{ order: { id, order_number } }`. Résultat : `orderId` est `undefined`, donc `crypto.randomUUID()` est utilisé — la commande est bien créée mais la référence affichée est fausse.
+## Cause racine identifiee
 
-**Fix** : Lire `result.order?.id || result.order_id || result.id`
+Le probleme vient du **Content-Security-Policy (CSP)** dans `netlify.toml` (ligne 53).
 
-### 2. Formulaire invisible quand HTML custom est utilisé
-Quand `landing_html` existe, l'iframe occupe toute la page. Le formulaire React est rendu **en dessous** de l'iframe, mais :
-- L'iframe prend `minHeight: 100vh` donc le formulaire n'est pas visible sans scroller
-- Les boutons CTA dans le HTML custom (ex: "COMMANDER MAINTENANT") ne peuvent pas cibler `#order-form` dans le parent
+Le HTML custom stocke en base charge **Tailwind CSS** et **Lucide Icons** depuis des CDN externes :
+```html
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+```
 
-**Fix** : Injecter le formulaire de commande directement **dans** le `srcdoc` de l'iframe via `postMessage`. Concrètement :
-- Ajouter un script au bas du HTML custom qui écoute un message `postMessage` du parent pour recevoir les données produit
-- Le parent envoie `productId`, `productName`, `price`, `brandColor`, `pixelId` au chargement
-- Un formulaire HTML natif est injecté en bas du srcdoc
-- À la soumission, le formulaire envoie la commande via `fetch` au webhook et communique le succès au parent via `postMessage`
-- Le parent intercepte le message de succès et affiche la page de remerciement avec le Pixel Facebook
+Le CSP de production autorise `unpkg.com` mais **bloque `cdn.tailwindcss.com`** :
+```
+script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://esm.sh https://unpkg.com ...
+```
 
-### 3. Page de remerciement avec Pixel
-Déjà fonctionnelle (`LandingThankYou.tsx` + `FacebookPixel.tsx`). Le fix du parsing webhook (point 1) garantira que l'`orderId` correct est utilisé pour le tracking `Purchase`.
+**Resultat** : Tailwind ne se charge pas, toutes les classes CSS sont ignorees, la page est un texte brut sans style.
 
-## Fichiers modifiés
+**Pourquoi ca marche dans l'editeur** : L'apercu Lovable (preview) n'a pas ces headers CSP restrictifs, donc le CDN Tailwind se charge normalement.
+
+## Correction
+
+### 1. Ajouter une regle CSP permissive pour les landing pages `/p/*`
+
+Dans `netlify.toml`, ajouter un bloc `[[headers]]` specifique aux pages de destination **avant** la regle globale `/*`. Cette regle autorisera les scripts, styles et polices externes necessaires aux pages HTML custom :
+
+```toml
+[[headers]]
+  for = "/p/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com https://esm.sh https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; img-src * data: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; media-src * data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'self';"
+```
+
+Cela autorise :
+- `cdn.tailwindcss.com` (Tailwind CSS)
+- `unpkg.com` (Lucide icons)  
+- `cdnjs.cloudflare.com` (Font Awesome, autres librairies)
+- Images et medias depuis n'importe quelle source (necessaire pour les landing pages)
+
+### 2. Ameliorer le redimensionnement de l'iframe
+
+Dans `ProductLanding.tsx`, le `onLoad` actuel essaie de lire la hauteur une seule fois au chargement. Mais les scripts CDN (Tailwind) modifient le layout apres le chargement initial. Il faut utiliser un `ResizeObserver` ou un intervalle pour recalculer la hauteur apres que les scripts externes aient fini de s'executer.
+
+### 3. Ajouter un `<meta name="viewport">` dans l'injection si absent
+
+Le HTML custom a deja le viewport, mais l'injection `buildInjectedFormHtml.ts` ne verifie pas. Pour la robustesse, s'assurer que le viewport meta est present.
+
+## Fichiers modifies
 
 | Fichier | Changement |
 |---------|-----------|
-| `src/pages/ProductLanding.tsx` | Injecter un formulaire HTML dans le `srcdoc` + écouter `postMessage` pour le succès de commande |
-| `src/components/landing/LandingOrderForm.tsx` | Fix du parsing : `result.order?.id` |
-| `src/components/landing/LandingPageEditor.tsx` | Injecter un aperçu de formulaire dans le `previewHtml` quand HTML custom est présent |
+| `netlify.toml` | Ajouter bloc `[[headers]]` pour `/p/*` avec CSP permissive |
+| `src/pages/ProductLanding.tsx` | Ameliorer le redimensionnement iframe (ResizeObserver + retry) |
 
-## Approche technique pour l'injection du formulaire
+## Impact
 
-Au lieu de rendre le formulaire React en dehors de l'iframe (inaccessible), on :
+- Fix immediat pour toutes les landing pages utilisant du HTML custom avec CDN externes
+- L'editeur et la page publiee afficheront le meme resultat
+- Aucun impact sur la securite des autres pages (la regle ne s'applique qu'a `/p/*`)
 
-1. **Ajoute un `<div id="order-form">` + formulaire HTML** à la fin du `srcdoc` avant `</body>` ou après tout le contenu
-2. Le formulaire utilise un style cohérent avec `brandColor`
-3. À la soumission, un `fetch` vers `webhook-orders` est fait depuis l'iframe
-4. En cas de succès, `window.parent.postMessage({ type: 'order-success', orderId, total })` est envoyé
-5. Le parent (`ProductLanding.tsx`) écoute ce message et bascule vers `LandingThankYou` avec le Pixel
-
-Cela garantit que les ancres `#order-form` dans le HTML custom fonctionnent, et que le formulaire est visuellement intégré à la landing page.
