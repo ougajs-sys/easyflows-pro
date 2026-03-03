@@ -32,6 +32,7 @@ import {
   Code,
   Bot,
   Download,
+  Globe,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ const menuItems: MenuItem[] = [
   { id: 10, label: "Intégrations", icon: RefreshCw, path: "/utb", color: "text-cyan-400", allowedRoles: ["superviseur", "administrateur"] },
   { id: 11, label: "Campagnes SMS", icon: Send, path: "/campaigns", color: "text-violet-400", allowedRoles: ["superviseur", "administrateur"] },
   { id: 12, label: "Formulaires Embed", icon: Code, path: "/admin/embed-forms", color: "text-sky-400", allowedRoles: ["superviseur", "administrateur"] },
+  { id: 18, label: "Landing Pages", icon: Globe, path: "/landing-pages", color: "text-emerald-400", allowedRoles: ["superviseur", "administrateur"] },
   
   // Admin uniquement
   { id: 13, label: "Produits", icon: Package, path: "/products", color: "text-orange-400", allowedRoles: ["administrateur"] },
