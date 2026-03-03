@@ -29,7 +29,10 @@
         html { scroll-behavior: smooth; }
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:999; }
         .modal-overlay.active { display:flex; align-items:center; justify-content:center; }
-        .modal-content { background:#fff; border-radius:2rem; max-width:500px; width:90%; padding:2rem; box-shadow:0 20px 60px rgba(0,0,0,.3); animation:slideDown .4s ease-out; max-height:90vh; overflow-y:auto; }
+        .modal-content { background:#ffffff; border-radius:2rem; max-width:500px; width:90%; padding:0; box-shadow:0 20px 60px rgba(0,0,0,.3); animation:slideDown .4s ease-out; max-height:90vh; overflow-y:auto; overflow-x:hidden; border-top:5px solid #22c55e; }
+        .modal-content input, .modal-content textarea { background:#f9fafb; border:2px solid #f3f4f6; color:#111827; }
+        .modal-content input::placeholder, .modal-content textarea::placeholder { color:#9ca3af; }
+        .modal-content input:focus, .modal-content textarea:focus { border-color:#16a34a; outline:none; box-shadow:0 0 0 3px rgba(22,163,74,.15); }
         .video-wrapper { position:relative; background:linear-gradient(135deg,#1a5c2a,#2d8a3e,#f59e0b); overflow:hidden; }
         .video-wrapper video { width:100%; height:100%; object-fit:cover; }
     </style>
@@ -447,36 +450,51 @@
     <!-- Modal de Commande -->
     <div id="orderModal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
         <div class="modal-content">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-black text-gray-800">Commandez Votre Pack</h3>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            <!-- Header gradient -->
+            <div class="bg-gradient-to-b from-green-50 to-white px-6 pt-6 pb-2 rounded-t-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-black text-gray-800">Commandez Votre Pack</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+                </div>
+                <!-- Pack badge -->
+                <div class="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-bold mb-2">
+                    <i class="fas fa-box"></i>
+                    <span id="modal-pack-name">Pack Économique</span>
+                    <span class="font-black" id="modal-pack-price">19 500 FCFA</span>
+                </div>
             </div>
-            <div class="bg-gradient-to-r from-green-50 to-amber-50 rounded-2xl p-4 mb-6">
-                <p class="text-sm text-gray-500">Pack sélectionné :</p>
-                <p class="font-bold text-lg text-green-700" id="modal-pack-name">Pack Économique</p>
-                <p class="text-2xl font-black text-green-600" id="modal-pack-price">19 500 FCFA</p>
-            </div>
-            <form id="orderForm" class="space-y-4">
+            <form id="orderForm" class="space-y-4 px-6 pb-6 pt-4">
                 <div>
                     <label class="text-sm font-semibold text-gray-700 block mb-1">Nom complet *</label>
-                    <input type="text" name="full_name" required placeholder="Votre nom complet" class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-green-500 focus:outline-none transition-colors"/>
+                    <div class="relative">
+                        <i class="fas fa-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" name="full_name" required placeholder="Votre nom complet" class="w-full rounded-xl p-3 pl-10 transition-colors"/>
+                    </div>
                 </div>
                 <div>
                     <label class="text-sm font-semibold text-gray-700 block mb-1">Numéro de téléphone *</label>
-                    <input type="tel" name="phone" required placeholder="07 XX XX XX XX" class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-green-500 focus:outline-none transition-colors"/>
+                    <div class="relative">
+                        <i class="fas fa-phone absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="tel" name="phone" required placeholder="07 XX XX XX XX" class="w-full rounded-xl p-3 pl-10 transition-colors"/>
+                    </div>
                 </div>
                 <div>
                     <label class="text-sm font-semibold text-gray-700 block mb-1">Adresse de livraison *</label>
-                    <input type="text" name="address" required placeholder="Quartier, ville..." class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-green-500 focus:outline-none transition-colors"/>
+                    <div class="relative">
+                        <i class="fas fa-map-marker-alt absolute left-3 top-3.5 text-gray-400"></i>
+                        <input type="text" name="address" required placeholder="Quartier, ville..." class="w-full rounded-xl p-3 pl-10 transition-colors"/>
+                    </div>
                 </div>
                 <div>
                     <label class="text-sm font-semibold text-gray-700 block mb-1">Notes (optionnel)</label>
-                    <textarea name="notes" rows="2" placeholder="Instructions spéciales..." class="w-full border-2 border-gray-200 rounded-xl p-3 focus:border-green-500 focus:outline-none transition-colors resize-none"></textarea>
+                    <textarea name="notes" rows="2" placeholder="Instructions spéciales..." class="w-full rounded-xl p-3 transition-colors resize-none"></textarea>
                 </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-4 rounded-xl font-bold text-lg shadow-xl transition-all transform hover:scale-105">
+                <button type="submit" class="w-full text-white py-4 rounded-xl font-bold text-lg shadow-xl transition-all transform hover:scale-105" style="background-color:#16a34a;" onmouseover="this.style.backgroundColor='#15803d'" onmouseout="this.style.backgroundColor='#16a34a'">
                     ✅ CONFIRMER LA COMMANDE
                 </button>
-                <p class="text-center text-xs text-gray-500">🔒 Paiement à la livraison • Livraison gratuite</p>
+                <p class="text-center text-xs text-gray-500 flex items-center justify-center gap-2">
+                    <i class="fas fa-lock" style="color:#16a34a;"></i> Paiement à la livraison • Livraison gratuite
+                </p>
             </form>
         </div>
     </div>
