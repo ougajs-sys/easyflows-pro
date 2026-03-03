@@ -42,6 +42,7 @@ const Chat = lazy(() => import("./pages/Chat"));
 const AIAgent = lazy(() => import("./pages/AIAgent"));
 const RevenueTracking = lazy(() => import("./pages/RevenueTracking"));
 const Install = lazy(() => import("./pages/Install"));
+const ProductLanding = lazy(() => import("./pages/ProductLanding"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Helper function to check if error should be ignored (non-critical)
@@ -434,6 +435,8 @@ function AppContent() {
                       />
                       {/* Public embeddable order form - no auth required */}
                       <Route path="/embed/order" element={<EmbedOrderForm />} />
+                      {/* Public landing pages - no auth required */}
+                      <Route path="/p/:slug" element={<ProductLanding />} />
                       {/* PWA Install page - no auth required */}
                       <Route path="/install" element={<Install />} />
                       <Route path="*" element={<NotFound />} />

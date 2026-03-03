@@ -1,2 +1,5 @@
 [functions.send-work-notification]
 verify_jwt = false
+
+[functions.facebook-conversions]
+verify_jwt = false

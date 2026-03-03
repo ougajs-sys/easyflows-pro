@@ -34,8 +34,11 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  Link as LinkIcon,
+  Globe,
 } from "lucide-react";
 import type { Product } from "@/hooks/useProducts";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductsTableProps {
   products: Product[];
@@ -51,6 +54,13 @@ export function ProductsTable({
   onAdjustStock,
 }: ProductsTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const copyLandingLink = (slug: string) => {
+    const url = `${window.location.origin}/p/${slug}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: "Lien copié !", description: url });
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("fr-FR").format(price) + " FCFA";
@@ -139,15 +149,23 @@ export function ProductsTable({
                 </TableCell>
                 <TableCell>{getStockBadge(product.stock)}</TableCell>
                 <TableCell>
-                  {product.is_active ? (
-                    <Badge className="bg-success/20 text-success border-success/30">
-                      Actif
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-muted-foreground">
-                      Inactif
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {product.is_active ? (
+                      <Badge className="bg-success/20 text-success border-success/30">
+                        Actif
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-muted-foreground">
+                        Inactif
+                      </Badge>
+                    )}
+                    {(product as any).slug && (
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Globe className="w-3 h-3" />
+                        Landing
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -165,6 +183,12 @@ export function ProductsTable({
                         <Package className="w-4 h-4 mr-2" />
                         Ajuster le stock
                       </DropdownMenuItem>
+                      {(product as any).slug && (
+                        <DropdownMenuItem onClick={() => copyLandingLink((product as any).slug)}>
+                          <LinkIcon className="w-4 h-4 mr-2" />
+                          Copier le lien landing
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => setDeleteId(product.id)}
