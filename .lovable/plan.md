@@ -1,66 +1,70 @@
 
 
-# Analyse : Page de destination cassee en production
+# Diagnostic : Pourquoi le formulaire ne fonctionne pas
 
-## Cause racine identifiee
+## Probleme identifie
 
-Le probleme vient du **Content-Security-Policy (CSP)** dans `netlify.toml` (ligne 53).
+Le template HTML custom a **son propre formulaire modal** (`id="orderForm"`) avec ses propres boutons CTA (`openModal('Pack Economique','19 500')`). Quand un client clique "COMMANDER", la modale s'ouvre avec le formulaire du template.
 
-Le HTML custom stocke en base charge **Tailwind CSS** et **Lucide Icons** depuis des CDN externes :
-```html
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/lucide@latest"></script>
-```
+**Mais** ce formulaire ne fait qu'un `console.log` a la soumission (ligne 535 du template) — il n'envoie jamais la commande au webhook.
 
-Le CSP de production autorise `unpkg.com` mais **bloque `cdn.tailwindcss.com`** :
-```
-script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://esm.sh https://unpkg.com ...
-```
+Pendant ce temps, le formulaire injecte par `buildInjectedFormHtml` est ajoute **en bas de page**, invisible, car personne ne scrolle jusque-la — les utilisateurs interagissent avec la modale du template.
 
-**Resultat** : Tailwind ne se charge pas, toutes les classes CSS sont ignorees, la page est un texte brut sans style.
+En resume : **deux formulaires coexistent, celui visible ne soumet rien, celui fonctionnel est invisible.**
 
-**Pourquoi ca marche dans l'editeur** : L'apercu Lovable (preview) n'a pas ces headers CSP restrictifs, donc le CDN Tailwind se charge normalement.
+De plus, la page apparait blanche dans certains cas car le chargement des scripts CDN dans l'iframe peut echouer ou etre retarde.
 
-## Correction
+## Solution
 
-### 1. Ajouter une regle CSP permissive pour les landing pages `/p/*`
+### 1. Injecter un script qui intercepte le formulaire existant du template
 
-Dans `netlify.toml`, ajouter un bloc `[[headers]]` specifique aux pages de destination **avant** la regle globale `/*`. Cette regle autorisera les scripts, styles et polices externes necessaires aux pages HTML custom :
+Au lieu d'ajouter un formulaire HTML complet en bas de page, injecter un **script d'interception** qui :
+- Detecte si un formulaire avec `id="orderForm"` existe deja dans le HTML custom
+- Si oui, **remplace** son handler `submit` pour envoyer les donnees au webhook via `fetch`
+- Apres succes, notifie le parent via `postMessage` (pour la page de remerciement + Pixel)
+- Si non, garde le formulaire injecte actuel comme fallback
 
-```toml
-[[headers]]
-  for = "/p/*"
-  [headers.values]
-    X-Content-Type-Options = "nosniff"
-    X-XSS-Protection = "1; mode=block"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com https://esm.sh https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; img-src * data: blob:; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; media-src * data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'self';"
-```
+### 2. Modifier `buildInjectedFormHtml` pour inclure le script d'interception
 
-Cela autorise :
-- `cdn.tailwindcss.com` (Tailwind CSS)
-- `unpkg.com` (Lucide icons)  
-- `cdnjs.cloudflare.com` (Font Awesome, autres librairies)
-- Images et medias depuis n'importe quelle source (necessaire pour les landing pages)
+Ajouter une section dans le HTML injecte qui contient un script generique capable de :
+- Trouver le formulaire existant du template (`#orderForm` ou tout `form` dans une modale)
+- Intercepter sa soumission
+- Extraire les champs (`full_name`/`client_name`, `phone`, `address`/`delivery_address`, `notes`, quantite)
+- Poster au webhook avec le `product_id`, `product_name`, `unit_price` corrects
+- Afficher un etat de chargement sur le bouton submit
+- En cas de succes : fermer la modale et notifier le parent
 
-### 2. Ameliorer le redimensionnement de l'iframe
+### 3. Conserver le formulaire injecte comme fallback
 
-Dans `ProductLanding.tsx`, le `onLoad` actuel essaie de lire la hauteur une seule fois au chargement. Mais les scripts CDN (Tailwind) modifient le layout apres le chargement initial. Il faut utiliser un `ResizeObserver` ou un intervalle pour recalculer la hauteur apres que les scripts externes aient fini de s'executer.
-
-### 3. Ajouter un `<meta name="viewport">` dans l'injection si absent
-
-Le HTML custom a deja le viewport, mais l'injection `buildInjectedFormHtml.ts` ne verifie pas. Pour la robustesse, s'assurer que le viewport meta est present.
+Pour les templates qui n'ont PAS de formulaire integre, le formulaire actuel reste visible en bas de page.
 
 ## Fichiers modifies
 
 | Fichier | Changement |
 |---------|-----------|
-| `netlify.toml` | Ajouter bloc `[[headers]]` pour `/p/*` avec CSP permissive |
-| `src/pages/ProductLanding.tsx` | Ameliorer le redimensionnement iframe (ResizeObserver + retry) |
+| `src/components/landing/buildInjectedFormHtml.ts` | Ajouter un script d'interception qui hijack le formulaire existant du template + garder le formulaire injecte en fallback (cache si un formulaire existe deja) |
+| `src/pages/ProductLanding.tsx` | Aucun changement structurel necessaire — le script est deja injecte via `buildInjectedFormHtml` |
 
-## Impact
+## Detail technique du script d'interception
 
-- Fix immediat pour toutes les landing pages utilisant du HTML custom avec CDN externes
-- L'editeur et la page publiee afficheront le meme resultat
-- Aucun impact sur la securite des autres pages (la regle ne s'applique qu'a `/p/*`)
+```javascript
+// Injecte dans le srcdoc
+(function(){
+  var existingForm = document.getElementById('orderForm');
+  if (!existingForm) return; // pas de formulaire template, le fallback s'affiche
+  
+  // Cacher le formulaire injecte puisque le template a le sien
+  var injected = document.getElementById('order-form');
+  if (injected) injected.style.display = 'none';
+  
+  // Remplacer le handler submit
+  existingForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    // ... fetch vers webhook + postMessage au parent
+  }, true); // capture phase pour etre execute avant le handler original
+})();
+```
+
+Ce script s'execute **apres** le script original du template, et utilise la phase de capture pour intercepter avant le handler existant. Il extrait les champs du formulaire, envoie au webhook, et notifie le parent pour la page de remerciement.
 
