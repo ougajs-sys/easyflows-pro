@@ -126,6 +126,97 @@ export function buildInjectedFormHtml(opts: {
   });
 })();
 </script>
+
+<!-- Interception script: hijack existing template forms -->
+<script>
+(function(){
+  var PRODUCT_ID = "${productId}";
+  var PRODUCT_NAME = "${productName.replace(/"/g, '\\"')}";
+  var PRICE = ${price};
+  var WEBHOOK_URL = "${webhookUrl}";
+
+  function fmt(n){ return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA'; }
+
+  // Try to find existing template form (common IDs/selectors)
+  var templateForm = document.getElementById('orderForm')
+    || document.querySelector('.modal form')
+    || document.querySelector('[data-order-form]');
+
+  if (!templateForm) return; // No template form found, fallback form stays visible
+
+  // Hide the injected fallback form
+  var injected = document.getElementById('order-form');
+  if (injected) injected.style.display = 'none';
+
+  // Intercept submit on capture phase to beat original handlers
+  templateForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    var fd = new FormData(templateForm);
+    var submitBtn = templateForm.querySelector('button[type="submit"]') || templateForm.querySelector('input[type="submit"]') || templateForm.querySelector('button:last-of-type');
+    var originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+
+    // Extract fields with common name variations
+    var clientName = fd.get('full_name') || fd.get('client_name') || fd.get('name') || fd.get('nom') || '';
+    var phone = fd.get('phone') || fd.get('telephone') || fd.get('tel') || '';
+    var address = fd.get('delivery_address') || fd.get('address') || fd.get('adresse') || fd.get('ville') || '';
+    var notes = fd.get('notes') || fd.get('note') || fd.get('message') || '';
+    var qtyRaw = fd.get('quantity') || fd.get('quantite') || fd.get('qty') || '1';
+    var qty = Math.max(1, parseInt(qtyRaw) || 1);
+
+    // Try to get product name from modal title or hidden field
+    var modalProductName = fd.get('product_name') || fd.get('produit') || '';
+    var finalProductName = modalProductName || PRODUCT_NAME;
+
+    // Try to extract price from modal (some templates pass it)
+    var modalPrice = fd.get('price') || fd.get('prix') || '';
+    var unitPrice = modalPrice ? parseFloat(String(modalPrice).replace(/[^0-9.,]/g,'').replace(',','.')) || PRICE : PRICE;
+    var total = qty * unitPrice;
+
+    // Loading state
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span style="display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></span> Traitement...';
+    }
+
+    fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_name: clientName,
+        client_phone: phone,
+        product_id: PRODUCT_ID,
+        product_name: finalProductName,
+        quantity: qty,
+        unit_price: unitPrice,
+        total_amount: total,
+        delivery_address: address,
+        notes: notes,
+        source: 'landing_page'
+      })
+    })
+    .then(function(r){ if(!r.ok) throw new Error('Erreur serveur'); return r.json(); })
+    .then(function(result){
+      var orderId = (result.order && result.order.id) || result.order_id || result.id || '';
+      // Try to close the modal
+      var modal = templateForm.closest('.modal') || templateForm.closest('[id*="modal"]') || templateForm.closest('[class*="modal"]');
+      if (modal) modal.style.display = 'none';
+      var overlay = document.querySelector('.modal-overlay') || document.querySelector('[class*="overlay"]');
+      if (overlay) overlay.style.display = 'none';
+      // Notify parent for thank-you page + pixel
+      window.parent.postMessage({ type: 'order-success', orderId: orderId, total: total }, '*');
+    })
+    .catch(function(err){
+      alert(err.message || 'Une erreur est survenue. Veuillez réessayer.');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
+    });
+  }, true); // capture phase
+})();
+</script>
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 `;
 }
