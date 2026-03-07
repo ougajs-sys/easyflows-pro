@@ -36,10 +36,11 @@ export function RoleRequestsTable() {
           ? `L'utilisateur a été promu ${roleConfig[request.requested_role].label}.`
           : 'La demande a été refusée.',
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Role request review error:', error);
       toast({
         title: 'Erreur',
-        description: 'Impossible de traiter la demande.',
+        description: error?.message || 'Impossible de traiter la demande.',
         variant: 'destructive',
       });
     }
