@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -102,6 +102,13 @@ export function AIConversation({
   };
 
   const messages = getMessages();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }, [messages.length, isProcessing]);
 
   return (
     <div className="flex flex-col h-[600px] md:h-[700px]">
@@ -194,6 +201,7 @@ export function AIConversation({
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </ScrollArea>
