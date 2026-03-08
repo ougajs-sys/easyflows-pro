@@ -1,39 +1,23 @@
 import { useState } from 'react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Eye, Pencil, Trash2, Phone } from 'lucide-react';
+import { MoreHorizontal, Eye, Pencil, Trash2, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useClients } from '@/hooks/useClients';
 import { ClientForm } from './ClientForm';
 import { ClientOrderHistory } from './ClientOrderHistory';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 
 type Client = Database['public']['Tables']['clients']['Row'];
 type ClientSegment = Database['public']['Enums']['client_segment'];
@@ -41,6 +25,7 @@ type ClientSegment = Database['public']['Enums']['client_segment'];
 interface ClientsTableProps {
   searchQuery: string;
   segmentFilter: ClientSegment | 'all';
+  productFilter: string;
 }
 
 const segmentLabels: Record<ClientSegment, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -51,32 +36,26 @@ const segmentLabels: Record<ClientSegment, { label: string; variant: 'default' |
   problematic: { label: 'Problématique', variant: 'destructive' },
 };
 
-export function ClientsTable({ searchQuery, segmentFilter }: ClientsTableProps) {
-  const { clients, isLoading, deleteClient } = useClients();
+export function ClientsTable({ searchQuery, segmentFilter, productFilter }: ClientsTableProps) {
+  const [page, setPage] = useState(1);
+  const { clients, isLoading, deleteClient, totalCount, totalPages } = useClients({
+    page,
+    searchQuery,
+    segmentFilter,
+    productFilter,
+  });
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
 
-  const filteredClients = clients.filter((client) => {
-    const matchesSearch =
-      client.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.phone.includes(searchQuery) ||
-      client.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.zone?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesSegment = segmentFilter === 'all' || client.segment === segmentFilter;
-
-    return matchesSearch && matchesSegment;
-  });
-
+  // Reset page when filters change
   const handleDelete = async () => {
     if (!deletingClient) return;
-    
     try {
       await deleteClient.mutateAsync(deletingClient.id);
       toast.success('Client supprimé avec succès');
       setDeletingClient(null);
-    } catch (error) {
+    } catch {
       toast.error('Erreur lors de la suppression du client');
     }
   };
@@ -84,9 +63,7 @@ export function ClientsTable({ searchQuery, segmentFilter }: ClientsTableProps) 
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Liste des clients</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Base Clientèle</CardTitle></CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
             {[...Array(5)].map((_, i) => (
@@ -102,7 +79,7 @@ export function ClientsTable({ searchQuery, segmentFilter }: ClientsTableProps) 
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Liste des clients ({filteredClients.length})</CardTitle>
+          <CardTitle>Base Clientèle ({totalCount} clients)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -119,14 +96,14 @@ export function ClientsTable({ searchQuery, segmentFilter }: ClientsTableProps) 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredClients.length === 0 ? (
+                {clients.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Aucun client trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredClients.map((client) => (
+                  clients.map((client) => (
                     <TableRow key={client.id}>
                       <TableCell className="font-medium">{client.full_name}</TableCell>
                       <TableCell>
@@ -138,9 +115,7 @@ export function ClientsTable({ searchQuery, segmentFilter }: ClientsTableProps) 
                       <TableCell>
                         <div className="text-sm">
                           <div>{client.city || '-'}</div>
-                          {client.zone && (
-                            <div className="text-muted-foreground text-xs">{client.zone}</div>
-                          )}
+                          {client.zone && <div className="text-muted-foreground text-xs">{client.zone}</div>}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -161,19 +136,13 @@ export function ClientsTable({ searchQuery, segmentFilter }: ClientsTableProps) 
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setViewingClient(client)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Voir historique
+                              <Eye className="h-4 w-4 mr-2" /> Voir historique
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setEditingClient(client)}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Modifier
+                              <Pencil className="h-4 w-4 mr-2" /> Modifier
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setDeletingClient(client)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Supprimer
+                            <DropdownMenuItem onClick={() => setDeletingClient(client)} className="text-destructive">
+                              <Trash2 className="h-4 w-4 mr-2" /> Supprimer
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -184,31 +153,45 @@ export function ClientsTable({ searchQuery, segmentFilter }: ClientsTableProps) 
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Page {page} sur {totalPages} — {totalCount} clients au total
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Précédent
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  Suivant <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
-      <ClientForm
-        open={!!editingClient}
-        onOpenChange={(open) => !open && setEditingClient(null)}
-        client={editingClient}
-      />
+      <ClientForm open={!!editingClient} onOpenChange={(open) => !open && setEditingClient(null)} client={editingClient} />
+      <ClientOrderHistory open={!!viewingClient} onOpenChange={(open) => !open && setViewingClient(null)} client={viewingClient} />
 
-      {/* Order History Dialog */}
-      <ClientOrderHistory
-        open={!!viewingClient}
-        onOpenChange={(open) => !open && setViewingClient(null)}
-        client={viewingClient}
-      />
-
-      {/* Delete Confirmation */}
       <AlertDialog open={!!deletingClient} onOpenChange={(open) => !open && setDeletingClient(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer le client "{deletingClient?.full_name}" ?
-              Cette action est irréversible.
+              Êtes-vous sûr de vouloir supprimer le client "{deletingClient?.full_name}" ? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

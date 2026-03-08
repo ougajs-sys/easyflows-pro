@@ -9,6 +9,7 @@ import { ClientStats } from '@/components/clients/ClientStats';
 import { ClientImportDialog } from '@/components/clients/ClientImportDialog';
 import { Plus, Search, Upload } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
+import { useProducts } from '@/hooks/useProducts';
 
 type ClientSegment = Database['public']['Enums']['client_segment'];
 
@@ -17,15 +18,17 @@ export default function Clients() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [segmentFilter, setSegmentFilter] = useState<ClientSegment | 'all'>('all');
+  const [productFilter, setProductFilter] = useState<string>('all');
+  const { products } = useProducts();
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Base Clientèle</h1>
             <p className="text-muted-foreground">
-              Gérez vos clients et suivez leur historique
+              Gérez votre base de données clients et segmentez par produit pour le retargeting
             </p>
           </div>
           <div className="flex gap-2">
@@ -42,8 +45,8 @@ export default function Clients() {
 
         <ClientStats />
 
-        <div className="flex gap-4">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-wrap gap-4">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Rechercher un client..."
@@ -64,9 +67,20 @@ export default function Clients() {
               <SelectItem value="inactive">Inactifs</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={productFilter} onValueChange={setProductFilter}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Filtrer par produit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les produits</SelectItem>
+              {products.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <ClientsTable searchQuery={searchQuery} segmentFilter={segmentFilter} />
+        <ClientsTable searchQuery={searchQuery} segmentFilter={segmentFilter} productFilter={productFilter} />
 
         <ClientForm open={isFormOpen} onOpenChange={setIsFormOpen} />
         <ClientImportDialog open={isImportOpen} onOpenChange={setIsImportOpen} />

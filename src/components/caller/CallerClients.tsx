@@ -142,7 +142,7 @@ export function CallerClients() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Suivi Clients</h1>
+        <h1 className="text-2xl font-bold">Base Clientèle</h1>
         <p className="text-muted-foreground">Historique de vos interactions avec chaque client</p>
       </div>
 

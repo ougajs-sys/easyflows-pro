@@ -76,7 +76,7 @@ const typeOptions: { value: FollowUpType; label: string; description: string }[]
 
 export function FollowUpForm({ open, onOpenChange }: FollowUpFormProps) {
   const { createFollowUp } = useFollowUps();
-  const { clients } = useClients();
+  const { allClientsForDropdown: clients } = useClients();
   const { user } = useAuth();
   const [clientOpen, setClientOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -169,7 +169,7 @@ export function FollowUpForm({ open, onOpenChange }: FollowUpFormProps) {
                                 <div className="flex-1">
                                   <div className="font-medium">{client.full_name}</div>
                                   <div className="text-xs text-muted-foreground">
-                                    {client.phone} {client.city && `- ${client.city}`}
+                                    {client.phone}
                                   </div>
                                 </div>
                               </CommandItem>

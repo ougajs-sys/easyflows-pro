@@ -30,7 +30,7 @@ interface CallerLayoutProps {
 const menuItems = [
   { id: "dashboard", label: "Mon espace", icon: Home },
   { id: "orders", label: "Mes Commandes", icon: Package },
-  { id: "clients", label: "Suivi Clients", icon: Users },
+  { id: "clients", label: "Base Clientèle", icon: Users },
   { id: "training", label: "Formation", icon: GraduationCap },
   { id: "profile", label: "Mon Profil", icon: User },
 ];
