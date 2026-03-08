@@ -169,7 +169,7 @@ export function FollowUpForm({ open, onOpenChange }: FollowUpFormProps) {
                                 <div className="flex-1">
                                   <div className="font-medium">{client.full_name}</div>
                                   <div className="text-xs text-muted-foreground">
-                                    {client.phone} {client.city && `- ${client.city}`}
+                                    {client.phone}
                                   </div>
                                 </div>
                               </CommandItem>
