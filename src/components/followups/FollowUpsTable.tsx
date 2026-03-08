@@ -223,7 +223,7 @@ export function FollowUpsTable({ searchQuery, typeFilter, statusFilter }: Follow
                             </div>
                             {followUp.order.amount_due && Number(followUp.order.amount_due) > 0 && (
                               <div className="text-xs text-orange-500">
-                                Dû: {Number(followUp.order.amount_due).toLocaleString()} DH
+                                Dû: {Number(followUp.order.amount_due).toLocaleString()} FCFA
                               </div>
                             )}
                           </div>

@@ -5,7 +5,6 @@ import { CallerLayout } from "@/components/caller/CallerLayout";
 import { CallerDashboard } from "@/components/caller/CallerDashboard";
 import { CallerOrders } from "@/components/caller/CallerOrders";
 import { CallerClients } from "@/components/caller/CallerClients";
-import { CallerFollowUps } from "@/components/caller/CallerFollowUps";
 import { CallerTraining } from "@/components/caller/CallerTraining";
 import { InternalChat } from "@/components/chat/InternalChat";
 import { UserProfile } from "@/components/profile/UserProfile";
@@ -36,8 +35,6 @@ export default function Dashboard() {
         return <CallerOrders />;
       case "clients":
         return <CallerClients />;
-      case "followups":
-        return <CallerFollowUps />;
       case "training":
         return <CallerTraining />;
       case "chat":
