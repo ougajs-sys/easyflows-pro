@@ -11,8 +11,10 @@ interface SynthesisOverviewProps {
 }
 
 export function SynthesisOverview({ dateRange }: SynthesisOverviewProps) {
+  const { user } = useAuth();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["synthesis-overview", dateRange.from.toISOString(), dateRange.to.toISOString()],
+    enabled: !!user,
     queryFn: async () => {
       const fromISO = dateRange.from.toISOString();
       const toISO = new Date(dateRange.to.getTime() + 24 * 60 * 60 * 1000).toISOString();

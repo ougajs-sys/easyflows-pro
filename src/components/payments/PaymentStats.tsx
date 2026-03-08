@@ -41,7 +41,7 @@ export function PaymentStats() {
     },
     {
       title: 'Montant dû total',
-      value: `${stats.totalDue.toLocaleString()} DH`,
+      value: `${stats.totalDue.toLocaleString()} FCFA`,
       icon: AlertCircle,
       color: 'text-red-500',
       bgColor: 'bg-red-500/10',

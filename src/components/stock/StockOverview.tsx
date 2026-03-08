@@ -3,10 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Package, AlertTriangle, CheckCircle, XCircle, TrendingDown } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export function StockOverview() {
+  const { user } = useAuth();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["stock-overview"],
+    enabled: !!user,
     queryFn: async () => {
       const { data: products, error } = await supabase
         .from("products")

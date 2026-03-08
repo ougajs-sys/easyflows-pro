@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Truck, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 interface DeliveryPersonData {
   id: string;
@@ -14,8 +15,10 @@ interface DeliveryPersonData {
 }
 
 export function DeliveryStatus() {
+  const { user } = useAuth();
   const { data: deliveryPersons, isLoading } = useQuery({
     queryKey: ["active-delivery-persons"],
+    enabled: !!user,
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);

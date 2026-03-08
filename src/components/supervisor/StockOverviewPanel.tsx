@@ -27,8 +27,10 @@ interface StockData {
 }
 
 export function StockOverviewPanel() {
+  const { user } = useAuth();
   const { data: stockData, isLoading } = useQuery({
     queryKey: ["supervisor-stock-overview"],
+    enabled: !!user,
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
