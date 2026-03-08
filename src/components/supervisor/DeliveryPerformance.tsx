@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Truck, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { useAuth } from "@/hooks/useAuth";
 
 interface DeliveryPersonStats {
   id: string;
@@ -21,8 +22,10 @@ interface DeliveryPersonStats {
 }
 
 export function DeliveryPerformance() {
+  const { user } = useAuth();
   const { data: deliveryStats, isLoading } = useQuery({
     queryKey: ["delivery-performance"],
+    enabled: !!user,
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);

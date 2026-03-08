@@ -11,10 +11,13 @@ import {
 } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { useAuth } from "@/hooks/useAuth";
 
 export function SalesSummary() {
+  const { user } = useAuth();
   const { data: salesData, isLoading } = useQuery({
     queryKey: ["sales-summary"],
+    enabled: !!user,
     queryFn: async () => {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Phone, TrendingUp, Target, Users } from "lucide-react";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { useAuth } from "@/hooks/useAuth";
 
 interface CallerStats {
   id: string;
@@ -19,8 +20,10 @@ interface CallerStats {
 }
 
 export function CallerPerformance() {
+  const { user } = useAuth();
   const { data: callerStats, isLoading } = useQuery({
     queryKey: ["caller-performance"],
+    enabled: !!user,
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);

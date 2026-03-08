@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Package, 
   Warehouse, 
@@ -26,8 +27,10 @@ interface StockData {
 }
 
 export function StockOverviewPanel() {
+  const { user } = useAuth();
   const { data: stockData, isLoading } = useQuery({
     queryKey: ["supervisor-stock-overview"],
+    enabled: !!user,
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);

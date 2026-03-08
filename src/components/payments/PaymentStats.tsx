@@ -20,7 +20,7 @@ export function PaymentStats() {
   const statCards = [
     {
       title: 'Total reçu',
-      value: `${stats.totalReceived.toLocaleString()} DH`,
+      value: `${stats.totalReceived.toLocaleString()} FCFA`,
       icon: CreditCard,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
@@ -41,7 +41,7 @@ export function PaymentStats() {
     },
     {
       title: 'Montant dû total',
-      value: `${stats.totalDue.toLocaleString()} DH`,
+      value: `${stats.totalDue.toLocaleString()} FCFA`,
       icon: AlertCircle,
       color: 'text-red-500',
       bgColor: 'bg-red-500/10',

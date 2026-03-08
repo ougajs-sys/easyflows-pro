@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Package, Truck, CreditCard, Users, TrendingUp, Target, XCircle, Clock } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/formatCurrency";
 
 interface SynthesisOverviewProps {
@@ -10,8 +11,10 @@ interface SynthesisOverviewProps {
 }
 
 export function SynthesisOverview({ dateRange }: SynthesisOverviewProps) {
+  const { user } = useAuth();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["synthesis-overview", dateRange.from.toISOString(), dateRange.to.toISOString()],
+    enabled: !!user,
     queryFn: async () => {
       const fromISO = dateRange.from.toISOString();
       const toISO = new Date(dateRange.to.getTime() + 24 * 60 * 60 * 1000).toISOString();
