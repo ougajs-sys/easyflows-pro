@@ -115,16 +115,50 @@ export function useClients(options: UseClientsOptions = {}) {
     },
   });
 
-  // All clients for stats (lightweight count query)
+  // All clients for stats - fetch all segments with pagination to bypass 1000 limit
   const { data: allClientsStats = [] } = useQuery({
     queryKey: ['clients-stats'],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('segment, total_spent');
-      if (error) throw error;
-      return data;
+      const allData: { segment: string; total_spent: number }[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('segment, total_spent')
+          .range(from, from + batchSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < batchSize) break;
+        from += batchSize;
+      }
+      return allData;
+    },
+  });
+
+  // Lightweight dropdown list (id, name, phone) - all clients
+  const { data: allClientsForDropdown = [] } = useQuery({
+    queryKey: ['clients-dropdown'],
+    enabled: !!user,
+    queryFn: async () => {
+      const allData: { id: string; full_name: string; phone: string }[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('id, full_name, phone')
+          .order('full_name')
+          .range(from, from + batchSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData.push(...data);
+        if (data.length < batchSize) break;
+        from += batchSize;
+      }
+      return allData;
     },
   });
 
