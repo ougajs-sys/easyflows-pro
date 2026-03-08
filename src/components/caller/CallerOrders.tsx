@@ -34,7 +34,8 @@ import {
   Loader2,
   ExternalLink,
   User,
-  FileText
+  FileText,
+  RefreshCw
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
