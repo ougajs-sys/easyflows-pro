@@ -111,7 +111,6 @@ export function useRealtimeSync(options: RealtimeSyncOptions = {}) {
   const invalidateFollowUpQueries = useCallback(() => {
     log('Invalidating follow-up queries...');
     queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
-    queryClient.invalidateQueries({ queryKey: ['scheduled-followups'] });
   }, [queryClient, log]);
 
   useEffect(() => {
