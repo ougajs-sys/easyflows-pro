@@ -48,7 +48,7 @@ interface OrderFormProps {
 }
 
 export function OrderForm({ open, onOpenChange }: OrderFormProps) {
-  const { clients, createClient } = useClients();
+  const { allClientsForDropdown: clients, createClient } = useClients();
   const { products } = useProducts();
   const { createOrder } = useOrders();
   const { toast } = useToast();

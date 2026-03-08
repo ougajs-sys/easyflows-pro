@@ -76,7 +76,7 @@ const typeOptions: { value: FollowUpType; label: string; description: string }[]
 
 export function FollowUpForm({ open, onOpenChange }: FollowUpFormProps) {
   const { createFollowUp } = useFollowUps();
-  const { clients } = useClients();
+  const { allClientsForDropdown: clients } = useClients();
   const { user } = useAuth();
   const [clientOpen, setClientOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);

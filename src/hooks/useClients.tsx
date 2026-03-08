@@ -216,6 +216,7 @@ export function useClients(options: UseClientsOptions = {}) {
   return {
     clients,
     allClientsStats,
+    allClientsForDropdown,
     isLoading,
     error,
     totalCount: totalCount as number,
