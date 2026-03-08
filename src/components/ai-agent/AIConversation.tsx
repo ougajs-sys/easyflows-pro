@@ -201,6 +201,7 @@ export function AIConversation({
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </ScrollArea>
