@@ -62,8 +62,7 @@ const menuItems: MenuItem[] = [
   
   // Commandes - Accessible à tous sauf livreur
   { id: 3, label: "Commandes", icon: Package, path: "/orders", color: "text-blue-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
-  { id: 4, label: "Suivi Clients", icon: Clock, path: "/clients", color: "text-pink-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
-  { id: 5, label: "Relances Auto", icon: MessageSquare, path: "/retargeting", color: "text-indigo-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
+  { id: 4, label: "Base Clientèle", icon: Users, path: "/clients", color: "text-pink-400", allowedRoles: ["appelant", "superviseur", "administrateur"] },
   
   // Superviseur et Admin uniquement
   { id: 6, label: "Agent IA", icon: Bot, path: "/ai-agent", color: "text-purple-400", allowedRoles: ["superviseur", "administrateur"] },
