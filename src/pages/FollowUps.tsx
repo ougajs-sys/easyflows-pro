@@ -8,9 +8,7 @@ import { FollowUpsTable } from '@/components/followups/FollowUpsTable';
 import { FollowUpForm } from '@/components/followups/FollowUpForm';
 import { FollowUpStats } from '@/components/followups/FollowUpStats';
 import { useFollowUps } from '@/hooks/useFollowUps';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
-import { Plus, Search, RefreshCw, Zap } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Database } from '@/integrations/supabase/types';
 
 type FollowUpType = Database['public']['Enums']['followup_type'];
@@ -21,23 +19,6 @@ export default function FollowUps() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<FollowUpType | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<FollowUpStatus | 'all'>('pending');
-  const { generateAutoFollowUps } = useFollowUps();
-  const { user } = useAuth();
-
-  const handleGenerateFollowUps = async () => {
-    if (!user) return;
-    
-    try {
-      const result = await generateAutoFollowUps.mutateAsync(user.id);
-      if (result.created > 0) {
-        toast.success(`${result.created} relance(s) créée(s) automatiquement`);
-      } else {
-        toast.info('Aucune nouvelle relance à créer');
-      }
-    } catch (error) {
-      toast.error('Erreur lors de la génération des relances');
-    }
-  };
 
   return (
     <DashboardLayout>
@@ -49,20 +30,10 @@ export default function FollowUps() {
               Gérez les relances clients pour paiements partiels et commandes reportées
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleGenerateFollowUps}
-              disabled={generateAutoFollowUps.isPending}
-            >
-              <Zap className="h-4 w-4 mr-2" />
-              Générer auto
-            </Button>
-            <Button onClick={() => setIsFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouvelle relance
-            </Button>
-          </div>
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouvelle relance
+          </Button>
         </div>
 
         <FollowUpStats />

@@ -116,90 +116,6 @@ export function useFollowUps() {
     },
   });
 
-  // Generate follow-ups for orders with partial payments or reported status
-  const generateAutoFollowUps = useMutation({
-    mutationFn: async (userId: string) => {
-      // Get orders that need follow-up (partial with amount_due OR reported regardless of amount)
-      const { data: partialOrders, error: partialError } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          client_id,
-          order_number,
-          status,
-          amount_due,
-          scheduled_at
-        `)
-        .eq('status', 'partial')
-        .gt('amount_due', 0);
-
-      if (partialError) throw partialError;
-
-      const { data: reportedOrders, error: reportedError } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          client_id,
-          order_number,
-          status,
-          amount_due,
-          scheduled_at
-        `)
-        .eq('status', 'reported');
-
-      if (reportedError) throw reportedError;
-
-      const orders = [...(partialOrders || []), ...(reportedOrders || [])];
-
-      // Get existing pending follow-ups for these orders
-      const orderIds = orders.map(o => o.id);
-      const { data: existingFollowUps, error: followUpsError } = await supabase
-        .from('follow_ups')
-        .select('order_id')
-        .in('order_id', orderIds)
-        .in('status', ['pending', 'awaiting_validation']);
-
-      if (followUpsError) throw followUpsError;
-
-      const existingOrderIds = new Set(existingFollowUps?.map(f => f.order_id) || []);
-
-      // Create follow-ups for orders without pending follow-ups
-      const newFollowUps: FollowUpInsert[] = orders
-        .filter(order => !existingOrderIds.has(order.id))
-        .map(order => {
-          // Use scheduled_at from order if available (for reported orders), otherwise tomorrow
-          const followUpDate = order.scheduled_at 
-            ? new Date(order.scheduled_at).toISOString()
-            : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-          
-          return {
-            client_id: order.client_id,
-            order_id: order.id,
-            type: order.status === 'partial' ? 'partial_payment' as FollowUpType : 'rescheduled' as FollowUpType,
-            status: 'awaiting_validation' as FollowUpStatus,
-            scheduled_at: followUpDate,
-            created_by: userId,
-            notes: order.status === 'partial' 
-              ? `Relance automatique - Paiement partiel pour ${order.order_number}`
-              : `Relance automatique - Commande reportée ${order.order_number}`,
-          };
-        });
-
-      if (newFollowUps.length > 0) {
-        const { error: insertError } = await supabase
-          .from('follow_ups')
-          .insert(newFollowUps);
-
-        if (insertError) throw insertError;
-      }
-
-      return { created: newFollowUps.length };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
-    },
-  });
-
   // Stats
   const stats = {
     total: followUps.length,
@@ -225,6 +141,5 @@ export function useFollowUps() {
     completeFollowUp,
     cancelFollowUp,
     deleteFollowUp,
-    generateAutoFollowUps,
   };
 }
