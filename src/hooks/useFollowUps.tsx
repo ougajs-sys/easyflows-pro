@@ -141,6 +141,5 @@ export function useFollowUps() {
     completeFollowUp,
     cancelFollowUp,
     deleteFollowUp,
-    generateAutoFollowUps,
   };
 }

@@ -30,20 +30,10 @@ export default function FollowUps() {
               Gérez les relances clients pour paiements partiels et commandes reportées
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleGenerateFollowUps}
-              disabled={generateAutoFollowUps.isPending}
-            >
-              <Zap className="h-4 w-4 mr-2" />
-              Générer auto
-            </Button>
-            <Button onClick={() => setIsFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Nouvelle relance
-            </Button>
-          </div>
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nouvelle relance
+          </Button>
         </div>
 
         <FollowUpStats />

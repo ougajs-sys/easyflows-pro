@@ -216,7 +216,6 @@ export function useDeliveryPerson() {
       queryClient.invalidateQueries({ queryKey: ['delivery-cancelled'] });
       queryClient.invalidateQueries({ queryKey: ['delivery-person'] });
       queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
-      queryClient.invalidateQueries({ queryKey: ['scheduled-followups'] });
     },
   });
 
