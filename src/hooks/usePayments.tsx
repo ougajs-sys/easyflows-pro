@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
+import { useAuth } from './useAuth';
 
 type Payment = Database['public']['Tables']['payments']['Row'];
 type PaymentInsert = Database['public']['Tables']['payments']['Insert'];
@@ -8,9 +9,11 @@ type PaymentUpdate = Database['public']['Tables']['payments']['Update'];
 
 export function usePayments() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: payments = [], isLoading, error } = useQuery({
     queryKey: ['payments'],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payments')
@@ -111,6 +114,7 @@ export function usePayments() {
   // Get orders with pending payments
   const { data: pendingOrders = [], isLoading: pendingOrdersLoading } = useQuery({
     queryKey: ['orders-pending-payment'],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')

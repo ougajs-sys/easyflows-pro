@@ -24,6 +24,7 @@ export function useOrders() {
 
   const { data: ordersData = [], isLoading, error } = useQuery({
     queryKey: ['orders'],
+    enabled: !!user,
     queryFn: async () => {
       // Étape 1: Récupérer les commandes avec delivery_persons (sans profiles)
       const { data: rawOrders, error } = await supabase
