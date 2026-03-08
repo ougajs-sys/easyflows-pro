@@ -1925,6 +1925,7 @@ export type Database = {
         Args: { p_request_id: string; p_reviewer_id: string }
         Returns: undefined
       }
+      auto_cancel_stale_reported_orders: { Args: never; Returns: number }
       backfill_payments_received_by: { Args: never; Returns: number }
       can_chat: {
         Args: { receiver_id: string; sender_id: string }
