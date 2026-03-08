@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
+import { useAuth } from './useAuth';
 
 type FollowUp = Database['public']['Tables']['follow_ups']['Row'];
 type FollowUpInsert = Database['public']['Tables']['follow_ups']['Insert'];
@@ -10,9 +11,11 @@ type FollowUpStatus = Database['public']['Enums']['followup_status'];
 
 export function useFollowUps() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: followUps = [], isLoading, error } = useQuery({
     queryKey: ['follow-ups'],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('follow_ups')

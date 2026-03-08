@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
+import { useAuth } from './useAuth';
 
 type Client = Database['public']['Tables']['clients']['Row'];
 type ClientInsert = Database['public']['Tables']['clients']['Insert'];
@@ -8,9 +9,11 @@ type ClientUpdate = Database['public']['Tables']['clients']['Update'];
 
 export function useClients() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: clients = [], isLoading, error } = useQuery({
     queryKey: ['clients'],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')

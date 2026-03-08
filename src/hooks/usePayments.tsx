@@ -114,6 +114,7 @@ export function usePayments() {
   // Get orders with pending payments
   const { data: pendingOrders = [], isLoading: pendingOrdersLoading } = useQuery({
     queryKey: ['orders-pending-payment'],
+    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
