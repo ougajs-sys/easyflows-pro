@@ -4,10 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Package, Truck, Users, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { useAuth } from "@/hooks/useAuth";
 
 export function SupervisorStats() {
+  const { user } = useAuth();
+
   const { data: stats } = useQuery({
     queryKey: ["supervisor-stats"],
+    enabled: !!user,
     queryFn: async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
