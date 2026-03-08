@@ -102,6 +102,13 @@ export function AIConversation({
   };
 
   const messages = getMessages();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }, [messages.length, isProcessing]);
 
   return (
     <div className="flex flex-col h-[600px] md:h-[700px]">
