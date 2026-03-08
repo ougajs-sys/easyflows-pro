@@ -64,7 +64,8 @@ export function ValidateFollowUpDialog({ open, onOpenChange, followUpIds }: Vali
 
     setIsValidating(true);
     try {
-      const { error } = await supabase
+      // 1. Update follow-ups: validate and assign
+      const { data: updatedFollowUps, error } = await supabase
         .from('follow_ups')
         .update({
           status: 'pending' as any,
@@ -72,12 +73,32 @@ export function ValidateFollowUpDialog({ open, onOpenChange, followUpIds }: Vali
           validated_by: user.id,
           validated_at: new Date().toISOString(),
         })
-        .in('id', followUpIds);
+        .in('id', followUpIds)
+        .select('order_id');
 
       if (error) throw error;
 
+      // 2. Also assign the related orders to the caller so they appear in "Mes Commandes"
+      const orderIds = updatedFollowUps
+        ?.map(f => f.order_id)
+        .filter((id): id is string => !!id) || [];
+
+      if (orderIds.length > 0) {
+        const { error: orderError } = await supabase
+          .from('orders')
+          .update({ assigned_to: selectedCaller })
+          .in('id', orderIds);
+
+        if (orderError) {
+          console.error('Error assigning orders:', orderError);
+          // Non-blocking: follow-ups are already validated
+        }
+      }
+
       toast.success(`${followUpIds.length} relance(s) validée(s) et assignée(s)`);
       queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['caller-orders'] });
       onOpenChange(false);
       setSelectedCaller('');
     } catch (error) {

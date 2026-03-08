@@ -361,11 +361,16 @@ export function CallerOrders() {
                 <p className="font-mono text-sm text-primary">{order.order_number}</p>
                 <p className="font-medium">{order.client?.full_name || "Client inconnu"}</p>
               </div>
-              {isAssigned && (
+              {isAssigned && (order.status === 'reported' || order.status === 'partial') ? (
+                <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-xs">
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  {order.status === 'reported' ? 'Relance - Reportée' : 'Relance - Paiement'}
+                </Badge>
+              ) : isAssigned ? (
                 <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30 text-xs">
                   Assignée
                 </Badge>
-              )}
+              ) : null}
             </div>
             <Badge className={cn("border", statusConfig[order.status]?.class)}>
               <StatusIcon className="w-3 h-3 mr-1" />
