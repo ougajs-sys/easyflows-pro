@@ -65,6 +65,8 @@ export function OrdersTable() {
           amount_due,
           quantity,
           created_at,
+          scheduled_at,
+          report_reason,
           delivery_address,
           delivery_notes,
           client:clients (full_name, phone, phone_secondary, address, zone),
