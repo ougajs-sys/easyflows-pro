@@ -44,6 +44,8 @@ interface DeliveryOrderCardProps {
     delivery_notes: string | null;
     status: OrderStatus;
     created_at: string;
+    scheduled_at?: string | null;
+    report_reason?: string | null;
     client_phone?: string | null;
     client_phone_secondary?: string | null;
     client: {
