@@ -144,6 +144,12 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
                 <Clock className="w-3 h-3 inline mr-1" />
                 {format(new Date(order.created_at), "d MMM, HH:mm", { locale: fr })}
               </p>
+              {order.status === "reported" && order.scheduled_at && (
+                <p className="text-xs text-blue-500 mt-1 font-medium">
+                  <Clock className="w-3 h-3 inline mr-1" />
+                  Report: {format(new Date(order.scheduled_at), "d MMM à HH:mm", { locale: fr })}
+                </p>
+              )}
             </div>
             <Button
               variant="ghost"
