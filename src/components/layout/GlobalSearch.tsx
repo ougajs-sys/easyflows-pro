@@ -59,7 +59,7 @@ export function GlobalSearch() {
   const [detailType, setDetailType] = useState<"order" | "client">("order");
   const [detailId, setDetailId] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMobile = useIsMobile();
 
   const search = useCallback(async (q: string) => {
