@@ -51,6 +51,8 @@ interface Order {
   amount_due: number | null;
   quantity: number;
   created_at: string;
+  scheduled_at?: string | null;
+  report_reason?: string | null;
   delivery_address: string | null;
   delivery_notes: string | null;
   client: {
