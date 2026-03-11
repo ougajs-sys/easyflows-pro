@@ -167,14 +167,22 @@ export function OrdersTable() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <span
-                      className={cn(
-                        "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border",
-                        statusMap[order.status]?.class || "bg-secondary"
+                    <div className="space-y-1">
+                      <span
+                        className={cn(
+                          "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border",
+                          statusMap[order.status]?.class || "bg-secondary"
+                        )}
+                      >
+                        {statusMap[order.status]?.label || order.status}
+                      </span>
+                      {order.status === "reported" && order.scheduled_at && (
+                        <p className="text-xs text-blue-500 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {format(new Date(order.scheduled_at), "d MMM à HH:mm", { locale: fr })}
+                        </p>
                       )}
-                    >
-                      {statusMap[order.status]?.label || order.status}
-                    </span>
+                    </div>
                   </td>
                   <td className="p-4">
                     <span className="text-sm text-muted-foreground">
