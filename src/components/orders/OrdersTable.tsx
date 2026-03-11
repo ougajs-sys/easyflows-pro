@@ -26,6 +26,15 @@ interface OrdersTableProps {
   statusFilter: OrderStatus | 'all';
 }
 
+const formatScheduledDate = (dateStr: string | null) => {
+  if (!dateStr) return null;
+  try {
+    return format(new Date(dateStr), 'dd MMM yyyy à HH:mm', { locale: fr });
+  } catch {
+    return null;
+  }
+};
+
 export function OrdersTable({ searchQuery, statusFilter }: OrdersTableProps) {
   const { orders, isLoading, updateOrderStatus } = useOrders();
   const { toast } = useToast();
@@ -114,10 +123,23 @@ export function OrdersTable({ searchQuery, statusFilter }: OrdersTableProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={status.variant} className="gap-1">
-                      {status.icon}
-                      {status.label}
-                    </Badge>
+                    <div className="space-y-1">
+                      <Badge variant={status.variant} className="gap-1">
+                        {status.icon}
+                        {status.label}
+                      </Badge>
+                      {order.status === 'reported' && order.scheduled_at && (
+                        <div className="flex items-center gap-1 text-xs text-blue-500">
+                          <Clock className="h-3 w-3" />
+                          {formatScheduledDate(order.scheduled_at)}
+                        </div>
+                      )}
+                      {order.status === 'reported' && order.report_reason && (
+                        <p className="text-xs text-muted-foreground truncate max-w-[150px]" title={order.report_reason}>
+                          {order.report_reason}
+                        </p>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {order.delivery_profile || (

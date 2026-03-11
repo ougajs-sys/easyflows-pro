@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { Eye, Loader2, Package } from "lucide-react";
+import { Eye, Loader2, Package, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { OrderDetailPopup } from "./OrderDetailPopup";
 import { Database } from "@/integrations/supabase/types";
@@ -21,6 +21,8 @@ interface Order {
   amount_due: number | null;
   quantity: number;
   created_at: string;
+  scheduled_at: string | null;
+  report_reason: string | null;
   delivery_address: string | null;
   delivery_notes: string | null;
   client: {
@@ -63,6 +65,8 @@ export function OrdersTable() {
           amount_due,
           quantity,
           created_at,
+          scheduled_at,
+          report_reason,
           delivery_address,
           delivery_notes,
           client:clients (full_name, phone, phone_secondary, address, zone),
@@ -163,14 +167,22 @@ export function OrdersTable() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <span
-                      className={cn(
-                        "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border",
-                        statusMap[order.status]?.class || "bg-secondary"
+                    <div className="space-y-1">
+                      <span
+                        className={cn(
+                          "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border",
+                          statusMap[order.status]?.class || "bg-secondary"
+                        )}
+                      >
+                        {statusMap[order.status]?.label || order.status}
+                      </span>
+                      {order.status === "reported" && order.scheduled_at && (
+                        <p className="text-xs text-blue-500 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {format(new Date(order.scheduled_at), "d MMM à HH:mm", { locale: fr })}
+                        </p>
                       )}
-                    >
-                      {statusMap[order.status]?.label || order.status}
-                    </span>
+                    </div>
                   </td>
                   <td className="p-4">
                     <span className="text-sm text-muted-foreground">
