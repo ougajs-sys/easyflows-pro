@@ -26,6 +26,15 @@ interface OrdersTableProps {
   statusFilter: OrderStatus | 'all';
 }
 
+const formatScheduledDate = (dateStr: string | null) => {
+  if (!dateStr) return null;
+  try {
+    return format(new Date(dateStr), 'dd MMM yyyy à HH:mm', { locale: fr });
+  } catch {
+    return null;
+  }
+};
+
 export function OrdersTable({ searchQuery, statusFilter }: OrdersTableProps) {
   const { orders, isLoading, updateOrderStatus } = useOrders();
   const { toast } = useToast();
