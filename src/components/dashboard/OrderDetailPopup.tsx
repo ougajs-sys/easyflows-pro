@@ -594,6 +594,30 @@ export function OrderDetailPopup({ order, isOpen, onClose }: OrderDetailPopupPro
             </div>
           )}
 
+          {/* Report Info */}
+          {order.status === 'reported' && (order.scheduled_at || order.report_reason) && (
+            <div className="p-4 rounded-lg border border-blue-500/20 bg-blue-500/5 space-y-2">
+              <h4 className="font-semibold flex items-center gap-2 text-blue-500">
+                <AlertCircle className="w-4 h-4" />
+                Informations de report
+              </h4>
+              {order.scheduled_at && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Date prévue:</span>
+                  <span className="font-medium text-blue-500">
+                    {safeFormatDate(order.scheduled_at, "d MMMM yyyy 'à' HH:mm")}
+                  </span>
+                </div>
+              )}
+              {order.report_reason && (
+                <div>
+                  <span className="text-sm text-muted-foreground">Raison: </span>
+                  <span className="text-sm">{order.report_reason}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Notes */}
           {order.delivery_notes && (
             <div className="p-4 rounded-lg border space-y-2">
