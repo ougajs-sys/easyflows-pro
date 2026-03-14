@@ -1,12 +1,12 @@
 import React from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { DeliveryPerformance } from "@/components/supervisor/DeliveryPerformance";
 import { CallerPerformance } from "@/components/supervisor/CallerPerformance";
 import { SalesSummary } from "@/components/supervisor/SalesSummary";
 import { SupervisorStats } from "@/components/supervisor/SupervisorStats";
 import { DeliveryStatus } from "@/components/dashboard/DeliveryStatus";
-import { StockOverviewPanel } from "@/components/supervisor/StockOverviewPanel";
 import { ConnectedWorkers } from "@/components/supervisor/ConnectedWorkers";
+import { DailyReportPanel } from "@/components/supervisor/DailyReportPanel";
+import { DeliveryDailyReport } from "@/components/supervisor/DeliveryDailyReport";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function SupervisorDashboard() {
@@ -36,14 +36,18 @@ export default function SupervisorDashboard() {
         <ConnectedWorkers />
       </div>
 
-      {/* Vue Stock */}
+      {/* Rapport Journalier */}
       <div className="mt-6">
-        <StockOverviewPanel />
+        <DailyReportPanel />
+      </div>
+
+      {/* Rapport Détaillé Livreurs */}
+      <div className="mt-6">
+        <DeliveryDailyReport />
       </div>
 
       {/* Grille Performances */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <DeliveryPerformance />
         <DeliveryStatus />
       </div>
 
