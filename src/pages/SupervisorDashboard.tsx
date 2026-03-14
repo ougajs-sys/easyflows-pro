@@ -1,12 +1,12 @@
 import React from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { DeliveryPerformance } from "@/components/supervisor/DeliveryPerformance";
 import { CallerPerformance } from "@/components/supervisor/CallerPerformance";
 import { SalesSummary } from "@/components/supervisor/SalesSummary";
 import { SupervisorStats } from "@/components/supervisor/SupervisorStats";
 import { DeliveryStatus } from "@/components/dashboard/DeliveryStatus";
-import { StockOverviewPanel } from "@/components/supervisor/StockOverviewPanel";
 import { ConnectedWorkers } from "@/components/supervisor/ConnectedWorkers";
+import { DailyReportPanel } from "@/components/supervisor/DailyReportPanel";
+import { DeliveryDailyReport } from "@/components/supervisor/DeliveryDailyReport";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function SupervisorDashboard() {
