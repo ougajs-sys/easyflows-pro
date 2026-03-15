@@ -44,7 +44,7 @@ const Campaigns = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showSegmentSelector, setShowSegmentSelector] = useState(false);
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates' | 'test'>('campaigns');
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates' | 'test' | 'quick'>('campaigns');
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
