@@ -198,11 +198,15 @@ const Campaigns = () => {
             <p className="text-muted-foreground mt-1">Gérez vos campagnes marketing via MESSENGER360</p>
           </div>
           <div className="flex gap-2">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates' | 'test')}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates' | 'test' | 'quick')}>
               <TabsList>
                 <TabsTrigger value="campaigns" className="gap-2">
                   <MessageSquare className="h-4 w-4" />
                   Campagnes
+                </TabsTrigger>
+                <TabsTrigger value="quick" className="gap-2">
+                  <Send className="h-4 w-4" />
+                  Envoi rapide
                 </TabsTrigger>
                 <TabsTrigger value="templates" className="gap-2">
                   <FileText className="h-4 w-4" />
