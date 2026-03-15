@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SmsTemplatesManager } from "@/components/campaigns/SmsTemplatesManager";
 import { CampaignSegmentSelector } from "@/components/campaigns/CampaignSegmentSelector";
 import { SmsTestPanel } from "@/components/sms/SmsTestPanel";
+import { QuickSendPanel } from "@/components/campaigns/QuickSendPanel";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { 
