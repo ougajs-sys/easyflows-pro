@@ -152,6 +152,10 @@ serve(async (req) => {
 
     const results = { sent: 0, failed: 0, errors: [] as string[] };
     const throttleMs = isSms ? 100 : 200;
+    // WhatsApp batch throttling: pause 20s every 20 messages to avoid bans
+    const WA_BATCH_SIZE = 20;
+    const WA_BATCH_PAUSE_MS = 20_000;
+    let waBatchCount = 0;
 
     for (const phone of phones) {
       try {
@@ -228,6 +232,16 @@ serve(async (req) => {
       }
 
       await new Promise(resolve => setTimeout(resolve, throttleMs));
+
+      // WhatsApp batch pause: every 20 messages, wait 20 seconds
+      if (!isSms) {
+        waBatchCount++;
+        if (waBatchCount >= WA_BATCH_SIZE) {
+          console.log(`WhatsApp batch pause: ${results.sent + results.failed}/${phones.length} processed, waiting ${WA_BATCH_PAUSE_MS / 1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, WA_BATCH_PAUSE_MS));
+          waBatchCount = 0;
+        }
+      }
     }
 
     console.log(`Completed: ${results.sent} sent, ${results.failed} failed via ${isSms ? 'sms8.io' : 'Messenger360'}`);

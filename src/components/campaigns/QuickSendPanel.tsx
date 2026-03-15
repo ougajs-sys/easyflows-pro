@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SmsTemplatesManager } from "@/components/campaigns/SmsTemplatesManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 import { Send, FileText, CheckCircle, XCircle, Loader2, Phone } from "lucide-react";
 
 const VALID_CI_PREFIXES = ["01", "05", "07", "21", "22", "23", "24", "25", "27"];
@@ -38,6 +40,8 @@ export const QuickSendPanel = () => {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number; errors: string[] } | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const phones = parsePhones(phonesRaw);
   const ciCount = phones.filter(looksIvorian).length;
@@ -56,11 +60,42 @@ export const QuickSendPanel = () => {
     setSending(true);
     setResult(null);
     try {
+      // Create a campaign record for tracking
+      const { data: campaign, error: campaignError } = await supabase
+        .from("campaigns")
+        .insert({
+          name: `Envoi rapide — ${phones.length} numéros`,
+          type,
+          category: "custom",
+          message,
+          segment: "quick_send",
+          status: "sending",
+          total_recipients: phones.length,
+          created_by: user?.id || null,
+        })
+        .select()
+        .single();
+
+      if (campaignError) throw campaignError;
+
       const { data, error } = await supabase.functions.invoke("send-sms", {
-        body: { phones, message, type },
+        body: { phones, message, type, campaign_id: campaign.id },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // Update campaign with results
+      await supabase
+        .from("campaigns")
+        .update({
+          status: "completed",
+          sent_count: data.sent || 0,
+          failed_count: data.failed || 0,
+          sent_at: new Date().toISOString(),
+        })
+        .eq("id", campaign.id);
+
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
 
       setResult({ sent: data.sent || 0, failed: data.failed || 0, errors: data.errors || [] });
       toast({
