@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SmsTemplatesManager } from "@/components/campaigns/SmsTemplatesManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 import { Send, FileText, CheckCircle, XCircle, Loader2, Phone } from "lucide-react";
 
 const VALID_CI_PREFIXES = ["01", "05", "07", "21", "22", "23", "24", "25", "27"];
