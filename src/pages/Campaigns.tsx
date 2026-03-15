@@ -435,6 +435,8 @@ const Campaigns = () => {
 
         {activeTab === 'templates' ? (
           <SmsTemplatesManager />
+        ) : activeTab === 'quick' ? (
+          <QuickSendPanel />
         ) : activeTab === 'test' ? (
           <SmsTestPanel />
         ) : (
