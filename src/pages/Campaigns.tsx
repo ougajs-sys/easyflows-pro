@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SmsTemplatesManager } from "@/components/campaigns/SmsTemplatesManager";
 import { CampaignSegmentSelector } from "@/components/campaigns/CampaignSegmentSelector";
 import { SmsTestPanel } from "@/components/sms/SmsTestPanel";
+import { QuickSendPanel } from "@/components/campaigns/QuickSendPanel";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { 
@@ -43,7 +44,7 @@ const Campaigns = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showSegmentSelector, setShowSegmentSelector] = useState(false);
-  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates' | 'test'>('campaigns');
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'templates' | 'test' | 'quick'>('campaigns');
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -197,11 +198,15 @@ const Campaigns = () => {
             <p className="text-muted-foreground mt-1">Gérez vos campagnes marketing via MESSENGER360</p>
           </div>
           <div className="flex gap-2">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates' | 'test')}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'campaigns' | 'templates' | 'test' | 'quick')}>
               <TabsList>
                 <TabsTrigger value="campaigns" className="gap-2">
                   <MessageSquare className="h-4 w-4" />
                   Campagnes
+                </TabsTrigger>
+                <TabsTrigger value="quick" className="gap-2">
+                  <Send className="h-4 w-4" />
+                  Envoi rapide
                 </TabsTrigger>
                 <TabsTrigger value="templates" className="gap-2">
                   <FileText className="h-4 w-4" />
@@ -430,6 +435,8 @@ const Campaigns = () => {
 
         {activeTab === 'templates' ? (
           <SmsTemplatesManager />
+        ) : activeTab === 'quick' ? (
+          <QuickSendPanel />
         ) : activeTab === 'test' ? (
           <SmsTestPanel />
         ) : (
