@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
-import { Send, FileText, CheckCircle, XCircle, Loader2, Phone } from "lucide-react";
+import { Send, FileText, CheckCircle, XCircle, Loader2, Phone, Upload, X } from "lucide-react";
+import * as XLSX from "xlsx";
 
 const VALID_CI_PREFIXES = ["01", "05", "07", "21", "22", "23", "24", "25", "27"];
 
@@ -32,6 +33,22 @@ function looksIvorian(phone: string): boolean {
   return false;
 }
 
+function extractPhonesFromSheet(data: any[][]): string[] {
+  const phones: string[] = [];
+  for (const row of data) {
+    for (const cell of row) {
+      if (cell == null) continue;
+      const val = String(cell).trim();
+      // Extract anything that looks like a phone number
+      const cleaned = val.replace(/[^0-9+]/g, "");
+      if (cleaned.length >= 8) {
+        phones.push(cleaned);
+      }
+    }
+  }
+  return phones;
+}
+
 export const QuickSendPanel = () => {
   const [phonesRaw, setPhonesRaw] = useState("");
   const [message, setMessage] = useState("");
@@ -39,6 +56,8 @@ export const QuickSendPanel = () => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number; errors: string[] } | null>(null);
+  const [importedFile, setImportedFile] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -46,6 +65,62 @@ export const QuickSendPanel = () => {
   const phones = parsePhones(phonesRaw);
   const ciCount = phones.filter(looksIvorian).length;
   const nonCiCount = phones.length - ciCount;
+
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast({ title: "Erreur", description: "Le fichier ne doit pas dépasser 5 Mo", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+
+      if (ext === "csv" || ext === "txt") {
+        const text = await file.text();
+        const extracted = parsePhones(text);
+        if (extracted.length === 0) {
+          toast({ title: "Aucun numéro trouvé", description: "Le fichier ne contient aucun numéro valide", variant: "destructive" });
+          return;
+        }
+        const existing = phonesRaw.trim();
+        setPhonesRaw((existing ? existing + "\n" : "") + extracted.join("\n"));
+        setImportedFile(file.name);
+        setResult(null);
+        toast({ title: "Import réussi", description: `${extracted.length} numéro(s) importé(s) depuis ${file.name}` });
+      } else if (ext === "xlsx" || ext === "xls") {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const allPhones: string[] = [];
+
+        for (const sheetName of workbook.SheetNames) {
+          const sheet = workbook.Sheets[sheetName];
+          const data: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          allPhones.push(...extractPhonesFromSheet(data));
+        }
+
+        if (allPhones.length === 0) {
+          toast({ title: "Aucun numéro trouvé", description: "Le fichier Excel ne contient aucun numéro valide", variant: "destructive" });
+          return;
+        }
+        const existing = phonesRaw.trim();
+        setPhonesRaw((existing ? existing + "\n" : "") + allPhones.join("\n"));
+        setImportedFile(file.name);
+        setResult(null);
+        toast({ title: "Import réussi", description: `${allPhones.length} numéro(s) importé(s) depuis ${file.name}` });
+      } else {
+        toast({ title: "Format non supporté", description: "Veuillez importer un fichier CSV, TXT, XLS ou XLSX", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Erreur d'import", description: err.message || "Impossible de lire le fichier", variant: "destructive" });
+    }
+
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleSend = async () => {
     if (phones.length === 0) {
@@ -60,7 +135,6 @@ export const QuickSendPanel = () => {
     setSending(true);
     setResult(null);
     try {
-      // Create a campaign record for tracking
       const { data: campaign, error: campaignError } = await supabase
         .from("campaigns")
         .insert({
@@ -84,7 +158,6 @@ export const QuickSendPanel = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Update campaign with results
       await supabase
         .from("campaigns")
         .update({
@@ -115,15 +188,45 @@ export const QuickSendPanel = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Phone className="h-5 w-5 text-primary" />
-            Envoi rapide — Coller les numéros
+            Envoi rapide — Coller ou importer les numéros
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Phone numbers */}
           <div className="space-y-2">
-            <Label>Numéros de téléphone</Label>
+            <div className="flex items-center justify-between">
+              <Label>Numéros de téléphone</Label>
+              <div className="flex items-center gap-2">
+                {importedFile && (
+                  <Badge variant="outline" className="gap-1 text-xs">
+                    <FileText className="h-3 w-3" />
+                    {importedFile}
+                    <button onClick={() => setImportedFile(null)} className="ml-1 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-1"
+                >
+                  <Upload className="h-3 w-3" />
+                  Importer CSV/Excel
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.txt,.xlsx,.xls"
+                  onChange={handleFileImport}
+                  className="hidden"
+                />
+              </div>
+            </div>
             <Textarea
-              placeholder={"+2250102030405\n+2250506070809\n0708091011\n..."}
+              placeholder={"+2250102030405\n+2250506070809\n0708091011\n...\n\nOu importez un fichier CSV / Excel"}
               rows={6}
               value={phonesRaw}
               onChange={(e) => { setPhonesRaw(e.target.value); setResult(null); }}
