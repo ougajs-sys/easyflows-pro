@@ -40,6 +40,8 @@ export const QuickSendPanel = () => {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number; errors: string[] } | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const phones = parsePhones(phonesRaw);
   const ciCount = phones.filter(looksIvorian).length;
