@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
-import { Send, FileText, CheckCircle, XCircle, Loader2, Phone, Upload, X } from "lucide-react";
+import { Send, FileText, CheckCircle, XCircle, Loader2, Phone, Upload, X, Clock, Zap } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const VALID_CI_PREFIXES = ["01", "05", "07", "21", "22", "23", "24", "25", "27"];
@@ -57,6 +57,8 @@ export const QuickSendPanel = () => {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: number; errors: string[] } | null>(null);
   const [importedFile, setImportedFile] = useState<string | null>(null);
+  const [sendMode, setSendMode] = useState<"instant" | "queue">("queue");
+  const [queued, setQueued] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -70,7 +72,7 @@ export const QuickSendPanel = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       toast({ title: "Erreur", description: "Le fichier ne doit pas dépasser 5 Mo", variant: "destructive" });
       return;
@@ -118,7 +120,6 @@ export const QuickSendPanel = () => {
       toast({ title: "Erreur d'import", description: err.message || "Impossible de lire le fichier", variant: "destructive" });
     }
 
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -134,7 +135,10 @@ export const QuickSendPanel = () => {
 
     setSending(true);
     setResult(null);
+    setQueued(false);
+
     try {
+      // Create campaign record
       const { data: campaign, error: campaignError } = await supabase
         .from("campaigns")
         .insert({
@@ -143,7 +147,7 @@ export const QuickSendPanel = () => {
           category: "custom",
           message,
           segment: "all",
-          status: "sending",
+          status: sendMode === "queue" ? "queued" : "sending",
           total_recipients: phones.length,
           created_by: user?.id || null,
         })
@@ -152,29 +156,66 @@ export const QuickSendPanel = () => {
 
       if (campaignError) throw campaignError;
 
-      const { data, error } = await supabase.functions.invoke("send-sms", {
-        body: { phones, message, type, campaign_id: campaign.id },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (sendMode === "queue") {
+        // Insert all messages into the queue
+        const queueItems = phones.map((phone) => ({
+          campaign_id: campaign.id,
+          phone,
+          message,
+          type,
+          status: "pending",
+          scheduled_after: new Date().toISOString(),
+        }));
 
-      await supabase
-        .from("campaigns")
-        .update({
-          status: "completed",
-          sent_count: data.sent || 0,
-          failed_count: data.failed || 0,
-          sent_at: new Date().toISOString(),
-        })
-        .eq("id", campaign.id);
+        // Insert in chunks of 500
+        for (let i = 0; i < queueItems.length; i += 500) {
+          const chunk = queueItems.slice(i, i + 500);
+          const { error: queueError } = await supabase.from("campaign_queue").insert(chunk);
+          if (queueError) throw queueError;
+        }
 
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+        // Create queue control entry
+        const { error: controlError } = await supabase.from("campaign_queue_control").insert({
+          campaign_id: campaign.id,
+          next_batch_at: new Date().toISOString(),
+          batch_size: Math.floor(Math.random() * 6) + 15, // 15-20
+          total_queued: phones.length,
+          total_sent: 0,
+          total_failed: 0,
+        });
+        if (controlError) throw controlError;
 
-      setResult({ sent: data.sent || 0, failed: data.failed || 0, errors: data.errors || [] });
-      toast({
-        title: "Envoi terminé",
-        description: `${data.sent || 0} envoyé(s), ${data.failed || 0} échoué(s)`,
-      });
+        setQueued(true);
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+        toast({
+          title: "📬 Messages mis en file d'attente",
+          description: `${phones.length} messages seront envoyés progressivement par lots de 15-20, avec des pauses de 10 à 60 min entre chaque lot pour éviter le spam.`,
+        });
+      } else {
+        // Instant send (original behavior)
+        const { data, error } = await supabase.functions.invoke("send-sms", {
+          body: { phones, message, type, campaign_id: campaign.id },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        await supabase
+          .from("campaigns")
+          .update({
+            status: "completed",
+            sent_count: data.sent || 0,
+            failed_count: data.failed || 0,
+            sent_at: new Date().toISOString(),
+          })
+          .eq("id", campaign.id);
+
+        queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+        setResult({ sent: data.sent || 0, failed: data.failed || 0, errors: data.errors || [] });
+        toast({
+          title: "Envoi terminé",
+          description: `${data.sent || 0} envoyé(s), ${data.failed || 0} échoué(s)`,
+        });
+      }
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
     } finally {
@@ -253,6 +294,42 @@ export const QuickSendPanel = () => {
             </div>
           </div>
 
+          {/* Send mode */}
+          <div className="space-y-2">
+            <Label>Mode d'envoi</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={sendMode === "queue" ? "default" : "outline"}
+                onClick={() => setSendMode("queue")}
+                className="gap-2 justify-start h-auto py-2"
+              >
+                <Clock className="h-4 w-4" />
+                <div className="text-left">
+                  <div className="text-sm font-medium">Progressif</div>
+                  <div className="text-xs opacity-70">Anti-spam (recommandé)</div>
+                </div>
+              </Button>
+              <Button
+                type="button"
+                variant={sendMode === "instant" ? "default" : "outline"}
+                onClick={() => setSendMode("instant")}
+                className="gap-2 justify-start h-auto py-2"
+              >
+                <Zap className="h-4 w-4" />
+                <div className="text-left">
+                  <div className="text-sm font-medium">Instantané</div>
+                  <div className="text-xs opacity-70">Tout d'un coup</div>
+                </div>
+              </Button>
+            </div>
+            {sendMode === "queue" && (
+              <p className="text-xs text-muted-foreground">
+                ⏱ Les messages seront envoyés par lots de 15-20 avec des pauses aléatoires de 10 à 60 min entre chaque lot pour protéger votre numéro.
+              </p>
+            )}
+          </div>
+
           {/* Channel */}
           <div className="space-y-2">
             <Label>Canal</Label>
@@ -312,17 +389,37 @@ export const QuickSendPanel = () => {
             {sending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Envoi en cours... ({phones.length} destinataires)
+                {sendMode === "queue" ? "Mise en file d'attente..." : `Envoi en cours... (${phones.length} destinataires)`}
               </>
             ) : (
               <>
-                <Send className="h-4 w-4" />
-                Envoyer à {phones.length} numéro{phones.length !== 1 ? "s" : ""}
+                {sendMode === "queue" ? <Clock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                {sendMode === "queue"
+                  ? `Programmer l'envoi progressif (${phones.length} msg)`
+                  : `Envoyer à ${phones.length} numéro${phones.length !== 1 ? "s" : ""}`
+                }
               </>
             )}
           </Button>
 
-          {/* Results */}
+          {/* Queued success */}
+          {queued && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <Clock className="h-5 w-5" />
+                  <span className="font-semibold">Messages en file d'attente !</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Vos {phones.length} messages seront envoyés progressivement par lots de 15-20, 
+                  avec des pauses aléatoires de 10 à 60 minutes entre chaque lot. 
+                  Suivez la progression dans l'historique des campagnes.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Instant results */}
           {result && (
             <Card className="border-border">
               <CardContent className="p-4 space-y-2">
