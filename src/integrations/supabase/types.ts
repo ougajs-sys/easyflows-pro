@@ -214,6 +214,100 @@ export type Database = {
           },
         ]
       }
+      campaign_queue: {
+        Row: {
+          batch_number: number | null
+          campaign_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          message: string
+          phone: string
+          scheduled_after: string
+          sent_at: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          batch_number?: number | null
+          campaign_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message: string
+          phone: string
+          scheduled_after?: string
+          sent_at?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          batch_number?: number | null
+          campaign_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message?: string
+          phone?: string
+          scheduled_after?: string
+          sent_at?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_queue_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_queue_control: {
+        Row: {
+          batch_size: number
+          campaign_id: string | null
+          created_at: string
+          id: string
+          next_batch_at: string
+          total_failed: number
+          total_queued: number
+          total_sent: number
+          updated_at: string
+        }
+        Insert: {
+          batch_size?: number
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          next_batch_at?: string
+          total_failed?: number
+          total_queued?: number
+          total_sent?: number
+          updated_at?: string
+        }
+        Update: {
+          batch_size?: number
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          next_batch_at?: string
+          total_failed?: number
+          total_queued?: number
+          total_sent?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_queue_control_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           category: string
