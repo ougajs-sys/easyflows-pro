@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
-import { Send, FileText, CheckCircle, XCircle, Loader2, Phone, Upload, X } from "lucide-react";
+import { Send, FileText, CheckCircle, XCircle, Loader2, Phone, Upload, X, Clock, Zap } from "lucide-react";
 import * as XLSX from "xlsx";
 
 const VALID_CI_PREFIXES = ["01", "05", "07", "21", "22", "23", "24", "25", "27"];
