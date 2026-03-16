@@ -294,6 +294,42 @@ export const QuickSendPanel = () => {
             </div>
           </div>
 
+          {/* Send mode */}
+          <div className="space-y-2">
+            <Label>Mode d'envoi</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={sendMode === "queue" ? "default" : "outline"}
+                onClick={() => setSendMode("queue")}
+                className="gap-2 justify-start h-auto py-2"
+              >
+                <Clock className="h-4 w-4" />
+                <div className="text-left">
+                  <div className="text-sm font-medium">Progressif</div>
+                  <div className="text-xs opacity-70">Anti-spam (recommandé)</div>
+                </div>
+              </Button>
+              <Button
+                type="button"
+                variant={sendMode === "instant" ? "default" : "outline"}
+                onClick={() => setSendMode("instant")}
+                className="gap-2 justify-start h-auto py-2"
+              >
+                <Zap className="h-4 w-4" />
+                <div className="text-left">
+                  <div className="text-sm font-medium">Instantané</div>
+                  <div className="text-xs opacity-70">Tout d'un coup</div>
+                </div>
+              </Button>
+            </div>
+            {sendMode === "queue" && (
+              <p className="text-xs text-muted-foreground">
+                ⏱ Les messages seront envoyés par lots de 15-20 avec des pauses aléatoires de 10 à 60 min entre chaque lot pour protéger votre numéro.
+              </p>
+            )}
+          </div>
+
           {/* Channel */}
           <div className="space-y-2">
             <Label>Canal</Label>
@@ -353,17 +389,37 @@ export const QuickSendPanel = () => {
             {sending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Envoi en cours... ({phones.length} destinataires)
+                {sendMode === "queue" ? "Mise en file d'attente..." : `Envoi en cours... (${phones.length} destinataires)`}
               </>
             ) : (
               <>
-                <Send className="h-4 w-4" />
-                Envoyer à {phones.length} numéro{phones.length !== 1 ? "s" : ""}
+                {sendMode === "queue" ? <Clock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                {sendMode === "queue"
+                  ? `Programmer l'envoi progressif (${phones.length} msg)`
+                  : `Envoyer à ${phones.length} numéro${phones.length !== 1 ? "s" : ""}`
+                }
               </>
             )}
           </Button>
 
-          {/* Results */}
+          {/* Queued success */}
+          {queued && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <Clock className="h-5 w-5" />
+                  <span className="font-semibold">Messages en file d'attente !</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Vos {phones.length} messages seront envoyés progressivement par lots de 15-20, 
+                  avec des pauses aléatoires de 10 à 60 minutes entre chaque lot. 
+                  Suivez la progression dans l'historique des campagnes.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Instant results */}
           {result && (
             <Card className="border-border">
               <CardContent className="p-4 space-y-2">
