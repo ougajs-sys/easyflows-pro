@@ -142,7 +142,7 @@ export const QuickSendPanel = () => {
           type,
           category: "custom",
           message,
-          segment: "quick_send",
+          segment: "all",
           status: "sending",
           total_recipients: phones.length,
           created_by: user?.id || null,
