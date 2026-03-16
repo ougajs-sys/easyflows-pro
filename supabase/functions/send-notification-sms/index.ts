@@ -11,7 +11,7 @@ const VALID_CI_PREFIXES = ["01", "05", "07", "21", "22", "23", "24", "25", "27"]
 function normalizeCIPhone(phone: string): { valid: boolean; normalized: string; error?: string } {
   let cleaned = phone.replace(/[\s\-\(\)\.]/g, "");
   cleaned = cleaned.replace(/^\+/, "").replace(/^00/, "");
-  if (/^0\d{9}$/.test(cleaned)) cleaned = "225" + cleaned.substring(1);
+  if (/^0\d{9}$/.test(cleaned)) cleaned = "225" + cleaned;
   if (!cleaned.startsWith("225") && /^\d{10}$/.test(cleaned)) cleaned = "225" + cleaned;
   if (!/^225\d{10}$/.test(cleaned)) {
     return { valid: false, normalized: cleaned, error: `Format invalide: ${phone} -> ${cleaned}` };
