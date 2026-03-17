@@ -142,30 +142,28 @@ export default function EmbedOrderForm() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-green-50 to-emerald-100">
-        <Card className="w-full h-full sm:h-auto sm:max-w-md text-center shadow-xl border-0 sm:rounded-lg rounded-none">
-          <CardContent className="pt-12 pb-8">
-            <div 
-              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-              style={{ backgroundColor: `${brandColor}20` }}
-            >
-              <CheckCircle2 className="w-12 h-12" style={{ color: brandColor }} />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">
-              Commande confirmée !
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Merci pour votre commande. Vous recevrez un SMS de confirmation sous peu.
-            </p>
-            <Button 
-              onClick={() => setIsSuccess(false)}
-              style={{ backgroundColor: brandColor }}
-              className="hover:opacity-90"
-            >
-              Passer une autre commande
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: '#faf9f7' }}>
+        <div className="w-full sm:max-w-md text-center bg-white rounded-2xl shadow-sm border border-gray-100 p-8 sm:p-10">
+          <div 
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
+            style={{ backgroundColor: `${brandColor}12` }}
+          >
+            <CheckCircle2 className="w-9 h-9" style={{ color: brandColor }} />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            Commande confirmée !
+          </h2>
+          <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+            Merci pour votre commande. Vous recevrez un SMS de confirmation sous peu.
+          </p>
+          <Button 
+            onClick={() => setIsSuccess(false)}
+            className="rounded-xl px-6 h-11 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: brandColor }}
+          >
+            Passer une autre commande
+          </Button>
+        </div>
       </div>
     );
   }
