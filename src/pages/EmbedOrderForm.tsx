@@ -201,8 +201,8 @@ export default function EmbedOrderForm() {
               </Label>
               {preselectedProduct ? (
                 <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <p className="font-medium text-gray-700 text-sm">{preselectedProduct}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="font-medium text-gray-800 text-[15px]">{preselectedProduct}</p>
+                  <p className="text-[13px] text-gray-500 mt-0.5">
                     {price?.toLocaleString()} FCFA / unité
                   </p>
                 </div>
