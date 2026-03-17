@@ -142,123 +142,120 @@ export default function EmbedOrderForm() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-green-50 to-emerald-100">
-        <Card className="w-full h-full sm:h-auto sm:max-w-md text-center shadow-xl border-0 sm:rounded-lg rounded-none">
-          <CardContent className="pt-12 pb-8">
-            <div 
-              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-              style={{ backgroundColor: `${brandColor}20` }}
-            >
-              <CheckCircle2 className="w-12 h-12" style={{ color: brandColor }} />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">
-              Commande confirmée !
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Merci pour votre commande. Vous recevrez un SMS de confirmation sous peu.
-            </p>
-            <Button 
-              onClick={() => setIsSuccess(false)}
-              style={{ backgroundColor: brandColor }}
-              className="hover:opacity-90"
-            >
-              Passer une autre commande
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: '#faf9f7' }}>
+        <div className="w-full sm:max-w-md text-center bg-white rounded-2xl shadow-sm border border-gray-100 p-8 sm:p-10">
+          <div 
+            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
+            style={{ backgroundColor: `${brandColor}12` }}
+          >
+            <CheckCircle2 className="w-9 h-9" style={{ color: brandColor }} />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            Commande confirmée !
+          </h2>
+          <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+            Merci pour votre commande. Vous recevrez un SMS de confirmation sous peu.
+          </p>
+          <Button 
+            onClick={() => setIsSuccess(false)}
+            className="rounded-xl px-6 h-11 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: brandColor }}
+          >
+            Passer une autre commande
+          </Button>
+        </div>
       </div>
     );
   }
 
+  const inputClasses = "h-11 sm:h-12 rounded-xl border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-sm";
+  const labelClasses = "flex items-center gap-1.5 text-xs font-medium text-gray-500 tracking-wide uppercase";
+
   return (
-    <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-slate-50 to-slate-100">
-      <Card className="w-full h-full sm:h-auto sm:max-w-lg shadow-xl border-0 sm:rounded-lg rounded-none overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <div 
-          className="h-2 w-full" 
-          style={{ backgroundColor: brandColor }}
-        />
-        <CardHeader className="space-y-0.5 pb-2 sm:pb-4 pt-4 sm:pt-6">
+    <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-3 sm:p-6" style={{ backgroundColor: '#faf9f7' }}>
+      <div className="w-full sm:max-w-lg bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* Subtle top accent */}
+        <div className="h-1 w-full opacity-80" style={{ backgroundColor: brandColor }} />
+        
+        <div className="px-5 sm:px-7 pt-5 sm:pt-7 pb-1 sm:pb-2">
           {brandName && (
-            <p className="text-xs sm:text-sm font-medium" style={{ color: brandColor }}>
+            <p className="text-[11px] font-semibold tracking-widest uppercase mb-1" style={{ color: brandColor }}>
               {brandName}
             </p>
           )}
-          <CardTitle className="text-xl sm:text-2xl font-bold">
+          <h1 className="text-lg sm:text-xl font-semibold text-gray-800">
             Commander maintenant
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
             Remplissez le formulaire pour passer votre commande
-          </CardDescription>
-        </CardHeader>
+          </p>
+        </div>
 
-        <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4" autoComplete="off">
+        <div className="px-5 sm:px-7 pb-5 sm:pb-7 pt-3 sm:pt-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
             {/* Product Selection */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
-                <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
+            <div className="space-y-1.5">
+              <Label className={labelClasses}>
+                <Package className="w-3.5 h-3.5" style={{ color: brandColor }} />
                 Produit
               </Label>
               {preselectedProduct ? (
-                <div className="p-3 rounded-lg bg-muted/50 border">
-                  <p className="font-medium">{preselectedProduct}</p>
-                  <p className="text-sm text-muted-foreground">
+                <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                  <p className="font-medium text-gray-700 text-sm">{preselectedProduct}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
                     {price?.toLocaleString()} FCFA / unité
                   </p>
                 </div>
               ) : (
-                <Select
-                  value={selectedProductName}
-                  onValueChange={handleProductChange}
-                >
-                  <SelectTrigger className="h-10 sm:h-12">
+                <Select value={selectedProductName} onValueChange={handleProductChange}>
+                  <SelectTrigger className={inputClasses}>
                     <SelectValue placeholder="Sélectionner un produit" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-xl border-gray-200">
                     {products.map((product) => (
-                      <SelectItem key={product.id} value={product.name}>
-                        {product.name} - {product.price.toLocaleString()} FCFA
+                      <SelectItem key={product.id} value={product.name} className="text-sm">
+                        {product.name} — {product.price.toLocaleString()} FCFA
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
               {errors.product_name && (
-                <p className="text-sm text-destructive">{errors.product_name.message}</p>
+                <p className="text-xs text-red-400">{errors.product_name.message}</p>
               )}
             </div>
 
             {/* Customer Name */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
-                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
+            <div className="space-y-1.5">
+              <Label className={labelClasses}>
+                <User className="w-3.5 h-3.5" style={{ color: brandColor }} />
                 Nom complet
               </Label>
               <Input
                 {...register('client_name')}
                 placeholder="Votre nom"
-                className="h-10 sm:h-12"
+                className={inputClasses}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck="false"
               />
               {errors.client_name && (
-                <p className="text-sm text-destructive">{errors.client_name.message}</p>
+                <p className="text-xs text-red-400">{errors.client_name.message}</p>
               )}
             </div>
 
             {/* Phone */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
-                <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
+            <div className="space-y-1.5">
+              <Label className={labelClasses}>
+                <Phone className="w-3.5 h-3.5" style={{ color: brandColor }} />
                 Téléphone
               </Label>
               <Input
                 {...register('phone')}
                 type="tel"
                 placeholder="+225 XX XX XX XX"
-                className="h-10 sm:h-12"
+                className={inputClasses}
                 autoComplete="new-password"
                 autoCorrect="off"
                 inputMode="numeric"
@@ -266,62 +263,55 @@ export default function EmbedOrderForm() {
                 data-lpignore="true"
               />
               {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone.message}</p>
+                <p className="text-xs text-red-400">{errors.phone.message}</p>
               )}
             </div>
 
             {/* Quantity */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
-                <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
+            <div className="space-y-1.5">
+              <Label className={labelClasses}>
+                <Hash className="w-3.5 h-3.5" style={{ color: brandColor }} />
                 Quantité
               </Label>
               <Input
                 {...register('quantity', { valueAsNumber: true })}
                 type="number"
                 min="1"
-                className="h-10 sm:h-12"
+                className={inputClasses}
                 autoComplete="off"
               />
               {errors.quantity && (
-                <p className="text-sm text-destructive">{errors.quantity.message}</p>
+                <p className="text-xs text-red-400">{errors.quantity.message}</p>
               )}
             </div>
 
             {/* Address */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
-                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: brandColor }} />
+            <div className="space-y-1.5">
+              <Label className={labelClasses}>
+                <MapPin className="w-3.5 h-3.5" style={{ color: brandColor }} />
                 Adresse de livraison
               </Label>
               <Textarea
                 {...register('address')}
                 placeholder="Votre adresse complète"
-                className="min-h-[60px] sm:min-h-[80px] resize-none"
+                className="min-h-[70px] sm:min-h-[80px] resize-none rounded-xl border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-sm"
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
               />
               {errors.address && (
-                <p className="text-sm text-destructive">{errors.address.message}</p>
+                <p className="text-xs text-red-400">{errors.address.message}</p>
               )}
             </div>
-
 
             {/* Hidden price field */}
             <input type="hidden" {...register('price', { valueAsNumber: true })} />
 
             {/* Total */}
-            <div 
-              className="p-3 sm:p-4 rounded-xl"
-              style={{ backgroundColor: `${brandColor}10` }}
-            >
+            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total à payer</span>
-                <span 
-                  className="text-xl sm:text-2xl font-bold"
-                  style={{ color: brandColor }}
-                >
+                <span className="text-sm text-gray-500">Total à payer</span>
+                <span className="text-lg sm:text-xl font-bold" style={{ color: brandColor }}>
                   {totalAmount.toLocaleString()} FCFA
                 </span>
               </div>
@@ -329,7 +319,7 @@ export default function EmbedOrderForm() {
 
             {/* Error message */}
             {error && (
-              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+              <div className="p-3 rounded-xl bg-red-50 text-red-500 text-sm border border-red-100">
                 {error}
               </div>
             )}
@@ -338,12 +328,12 @@ export default function EmbedOrderForm() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-12 sm:h-14 text-base sm:text-lg font-semibold hover:opacity-90 transition-opacity"
+              className="w-full h-12 sm:h-13 text-sm sm:text-base font-semibold rounded-xl text-white hover:opacity-90 transition-all shadow-sm"
               style={{ backgroundColor: brandColor }}
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   Envoi en cours...
                 </>
               ) : (
@@ -351,13 +341,13 @@ export default function EmbedOrderForm() {
               )}
             </Button>
 
-            <p className="text-xs text-center text-muted-foreground leading-tight">
+            <p className="text-[11px] text-center text-gray-400 leading-relaxed">
               En confirmant, vous acceptez nos conditions de vente.
               <br />Paiement à la livraison.
             </p>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
