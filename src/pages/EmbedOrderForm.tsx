@@ -168,11 +168,11 @@ export default function EmbedOrderForm() {
     );
   }
 
-  const inputClasses = "h-11 sm:h-12 rounded-xl border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-sm";
-  const labelClasses = "flex items-center gap-1.5 text-xs font-medium text-gray-500 tracking-wide uppercase";
+  const inputClasses = "h-11 sm:h-12 rounded-xl border-gray-200 bg-white text-gray-800 placeholder:text-gray-350 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-[15px] font-normal";
+  const labelClasses = "flex items-center gap-1.5 text-[13px] font-medium text-gray-600 tracking-normal";
 
   return (
-    <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-3 sm:p-6" style={{ backgroundColor: '#faf9f7' }}>
+    <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-3 sm:p-6" style={{ backgroundColor: '#faf9f7', fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" }}>
       <div className="w-full sm:max-w-lg bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Subtle top accent */}
         <div className="h-1 w-full opacity-80" style={{ backgroundColor: brandColor }} />
@@ -183,10 +183,10 @@ export default function EmbedOrderForm() {
               {brandName}
             </p>
           )}
-          <h1 className="text-lg sm:text-xl font-semibold text-gray-800">
+          <h1 className="text-lg sm:text-xl font-semibold text-gray-800 tracking-tight">
             Commander maintenant
           </h1>
-          <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
+          <p className="text-[13px] sm:text-sm text-gray-500 mt-0.5">
             Remplissez le formulaire pour passer votre commande
           </p>
         </div>
@@ -201,8 +201,8 @@ export default function EmbedOrderForm() {
               </Label>
               {preselectedProduct ? (
                 <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <p className="font-medium text-gray-700 text-sm">{preselectedProduct}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="font-medium text-gray-800 text-[15px]">{preselectedProduct}</p>
+                  <p className="text-[13px] text-gray-500 mt-0.5">
                     {price?.toLocaleString()} FCFA / unité
                   </p>
                 </div>
@@ -213,7 +213,7 @@ export default function EmbedOrderForm() {
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-gray-200">
                     {products.map((product) => (
-                      <SelectItem key={product.id} value={product.name} className="text-sm">
+                      <SelectItem key={product.id} value={product.name} className="text-[14px] text-gray-700">
                         {product.name} — {product.price.toLocaleString()} FCFA
                       </SelectItem>
                     ))}
@@ -294,7 +294,7 @@ export default function EmbedOrderForm() {
               <Textarea
                 {...register('address')}
                 placeholder="Votre adresse complète"
-                className="min-h-[70px] sm:min-h-[80px] resize-none rounded-xl border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-sm"
+                className="min-h-[70px] sm:min-h-[80px] resize-none rounded-xl border-gray-200 bg-white text-gray-800 placeholder:text-gray-350 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-[15px]"
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
@@ -310,7 +310,7 @@ export default function EmbedOrderForm() {
             {/* Total */}
             <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Total à payer</span>
+                <span className="text-[14px] text-gray-600">Total à payer</span>
                 <span className="text-lg sm:text-xl font-bold" style={{ color: brandColor }}>
                   {totalAmount.toLocaleString()} FCFA
                 </span>
@@ -341,7 +341,7 @@ export default function EmbedOrderForm() {
               )}
             </Button>
 
-            <p className="text-[11px] text-center text-gray-400 leading-relaxed">
+            <p className="text-[11px] text-center text-gray-500 leading-relaxed">
               En confirmant, vous acceptez nos conditions de vente.
               <br />Paiement à la livraison.
             </p>
