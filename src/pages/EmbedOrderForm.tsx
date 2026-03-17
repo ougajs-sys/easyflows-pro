@@ -310,7 +310,7 @@ export default function EmbedOrderForm() {
             {/* Total */}
             <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Total à payer</span>
+                <span className="text-[14px] text-gray-600">Total à payer</span>
                 <span className="text-lg sm:text-xl font-bold" style={{ color: brandColor }}>
                   {totalAmount.toLocaleString()} FCFA
                 </span>
