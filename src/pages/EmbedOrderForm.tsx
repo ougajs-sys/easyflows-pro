@@ -168,8 +168,8 @@ export default function EmbedOrderForm() {
     );
   }
 
-  const inputClasses = "h-11 sm:h-12 rounded-xl border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-sm";
-  const labelClasses = "flex items-center gap-1.5 text-xs font-medium text-gray-500 tracking-wide uppercase";
+  const inputClasses = "h-11 sm:h-12 rounded-xl border-gray-200 bg-white text-gray-800 placeholder:text-gray-350 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-[15px] font-normal";
+  const labelClasses = "flex items-center gap-1.5 text-[13px] font-medium text-gray-600 tracking-normal";
 
   return (
     <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-3 sm:p-6" style={{ backgroundColor: '#faf9f7' }}>
