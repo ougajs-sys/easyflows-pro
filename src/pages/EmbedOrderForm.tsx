@@ -213,7 +213,7 @@ export default function EmbedOrderForm() {
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-gray-200">
                     {products.map((product) => (
-                      <SelectItem key={product.id} value={product.name} className="text-sm">
+                      <SelectItem key={product.id} value={product.name} className="text-[14px] text-gray-700">
                         {product.name} — {product.price.toLocaleString()} FCFA
                       </SelectItem>
                     ))}
