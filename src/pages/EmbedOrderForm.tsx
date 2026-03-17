@@ -183,10 +183,10 @@ export default function EmbedOrderForm() {
               {brandName}
             </p>
           )}
-          <h1 className="text-lg sm:text-xl font-semibold text-gray-800">
+          <h1 className="text-lg sm:text-xl font-semibold text-gray-800 tracking-tight">
             Commander maintenant
           </h1>
-          <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
+          <p className="text-[13px] sm:text-sm text-gray-500 mt-0.5">
             Remplissez le formulaire pour passer votre commande
           </p>
         </div>
