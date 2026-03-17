@@ -147,7 +147,7 @@ export const QuickSendPanel = () => {
           category: "custom",
           message,
           segment: "all",
-          status: sendMode === "queue" ? "queued" : "sending",
+          status: sendMode === "queue" ? "scheduled" : "sending",
           total_recipients: phones.length,
           created_by: user?.id || null,
         })
