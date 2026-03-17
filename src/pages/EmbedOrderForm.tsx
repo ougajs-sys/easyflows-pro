@@ -294,7 +294,7 @@ export default function EmbedOrderForm() {
               <Textarea
                 {...register('address')}
                 placeholder="Votre adresse complète"
-                className="min-h-[70px] sm:min-h-[80px] resize-none rounded-xl border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-sm"
+                className="min-h-[70px] sm:min-h-[80px] resize-none rounded-xl border-gray-200 bg-white text-gray-800 placeholder:text-gray-350 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-[15px]"
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
