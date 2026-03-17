@@ -341,7 +341,7 @@ export default function EmbedOrderForm() {
               )}
             </Button>
 
-            <p className="text-[11px] text-center text-gray-400 leading-relaxed">
+            <p className="text-[11px] text-center text-gray-500 leading-relaxed">
               En confirmant, vous acceptez nos conditions de vente.
               <br />Paiement à la livraison.
             </p>
