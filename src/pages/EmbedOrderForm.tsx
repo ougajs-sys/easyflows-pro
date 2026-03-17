@@ -172,7 +172,7 @@ export default function EmbedOrderForm() {
   const labelClasses = "flex items-center gap-1.5 text-[13px] font-medium text-gray-600 tracking-normal";
 
   return (
-    <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-3 sm:p-6" style={{ backgroundColor: '#faf9f7' }}>
+    <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-3 sm:p-6" style={{ backgroundColor: '#faf9f7', fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" }}>
       <div className="w-full sm:max-w-lg bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Subtle top accent */}
         <div className="h-1 w-full opacity-80" style={{ backgroundColor: brandColor }} />
