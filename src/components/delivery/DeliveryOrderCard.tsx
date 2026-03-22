@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote, XCircle, MessageSquare } from "lucide-react";
+import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote, XCircle, MessageSquare, FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
