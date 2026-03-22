@@ -1,70 +1,67 @@
 
 
-# Diagnostic : Pourquoi le formulaire ne fonctionne pas
+# Plan : Affichage complet des informations sur les cartes livreur
 
 ## Probleme identifie
 
-Le template HTML custom a **son propre formulaire modal** (`id="orderForm"`) avec ses propres boutons CTA (`openModal('Pack Economique','19 500')`). Quand un client clique "COMMANDER", la modale s'ouvre avec le formulaire du template.
+Les cartes de commande des livreurs (`DeliveryOrderCard`) n'affichent pas :
+1. Les **notes client** (`client.notes`) ajoutees par les appelants avec les precisions du client
+2. Le nom du client peut apparaitre vide si les donnees ne passent pas correctement dans les types
 
-**Mais** ce formulaire ne fait qu'un `console.log` a la soumission (ligne 535 du template) — il n'envoie jamais la commande au webhook.
+Le champ `client.notes` existe dans la table `clients` et est recupere par la requete (`clients(*)`) mais n'est **jamais transmis ni affiche** dans la carte livreur car :
+- L'interface `Order` dans `DeliveryOrdersList` ne declare pas `notes` dans le type `client`
+- Le `DeliveryOrderCard` ne l'affiche pas non plus
 
-Pendant ce temps, le formulaire injecte par `buildInjectedFormHtml` est ajoute **en bas de page**, invisible, car personne ne scrolle jusque-la — les utilisateurs interagissent avec la modale du template.
+## Modifications prevues
 
-En resume : **deux formulaires coexistent, celui visible ne soumet rien, celui fonctionnel est invisible.**
+### 1. Ajouter `notes` au type client dans DeliveryOrdersList et DeliveryOrderCard
 
-De plus, la page apparait blanche dans certains cas car le chargement des scripts CDN dans l'iframe peut echouer ou etre retarde.
+Mettre a jour les interfaces pour inclure `notes: string | null` dans le type `client`.
 
-## Solution
+### 2. Ajouter `notes` au type client dans DeliveryOrders
 
-### 1. Injecter un script qui intercepte le formulaire existant du template
+Meme mise a jour dans le composant parent `DeliveryOrders.tsx`.
 
-Au lieu d'ajouter un formulaire HTML complet en bas de page, injecter un **script d'interception** qui :
-- Detecte si un formulaire avec `id="orderForm"` existe deja dans le HTML custom
-- Si oui, **remplace** son handler `submit` pour envoyer les donnees au webhook via `fetch`
-- Apres succes, notifie le parent via `postMessage` (pour la page de remerciement + Pixel)
-- Si non, garde le formulaire injecte actuel comme fallback
+### 3. Afficher les notes client sur la carte livreur
 
-### 2. Modifier `buildInjectedFormHtml` pour inclure le script d'interception
+Dans `DeliveryOrderCard`, ajouter une section **toujours visible** (comme `delivery_notes`) qui affiche `client.notes` avec un style distinct :
+- Icone bloc-notes
+- Fond bleu clair pour distinguer des `delivery_notes` (qui sont en jaune/ambre)
+- Titre "Notes appelant" pour que le livreur comprenne l'origine
 
-Ajouter une section dans le HTML injecte qui contient un script generique capable de :
-- Trouver le formulaire existant du template (`#orderForm` ou tout `form` dans une modale)
-- Intercepter sa soumission
-- Extraire les champs (`full_name`/`client_name`, `phone`, `address`/`delivery_address`, `notes`, quantite)
-- Poster au webhook avec le `product_id`, `product_name`, `unit_price` corrects
-- Afficher un etat de chargement sur le bouton submit
-- En cas de succes : fermer la modale et notifier le parent
+### 4. Ameliorer la visibilite du nom client
 
-### 3. Conserver le formulaire injecte comme fallback
+S'assurer que le nom du client est bien visible meme si `client` est null : afficher "Client inconnu" comme fallback au lieu de rien.
 
-Pour les templates qui n'ont PAS de formulaire integre, le formulaire actuel reste visible en bas de page.
+## Rendu visuel prevu
+
+```text
+┌─────────────────────────────────┐
+│ #CMD-123         [Confirmee]    │
+│ 📅 22 mars, 14:30               │
+│                                 │
+│ 👤 Amadou Diallo  (gras, grand) │
+│ 📞 +225 07 XX XX XX             │
+│ 📍 Cocody, Riviera 3  [Zone]    │
+│                                 │
+│ 📝 Notes appelant:              │  ← NOUVEAU (bleu)
+│ "Le client veut etre appele     │
+│  avant la livraison"            │
+│                                 │
+│ 💬 Instructions livraison:      │  ← Existant (ambre)  
+│ "Sonner 2 fois au portail"      │
+│                                 │
+│ 📦 Serum x2          12 000 F   │
+│                      Reste: 6000│
+│ [Demarrer la livraison]    [X]  │
+└─────────────────────────────────┘
+```
 
 ## Fichiers modifies
 
-| Fichier | Changement |
-|---------|-----------|
-| `src/components/landing/buildInjectedFormHtml.ts` | Ajouter un script d'interception qui hijack le formulaire existant du template + garder le formulaire injecte en fallback (cache si un formulaire existe deja) |
-| `src/pages/ProductLanding.tsx` | Aucun changement structurel necessaire — le script est deja injecte via `buildInjectedFormHtml` |
+- `src/components/delivery/DeliveryOrderCard.tsx` — ajouter affichage `client.notes` + fallback nom
+- `src/components/delivery/DeliveryOrdersList.tsx` — ajouter `notes` au type client
+- `src/components/delivery/DeliveryOrders.tsx` — ajouter `notes` au type client
 
-## Detail technique du script d'interception
-
-```javascript
-// Injecte dans le srcdoc
-(function(){
-  var existingForm = document.getElementById('orderForm');
-  if (!existingForm) return; // pas de formulaire template, le fallback s'affiche
-  
-  // Cacher le formulaire injecte puisque le template a le sien
-  var injected = document.getElementById('order-form');
-  if (injected) injected.style.display = 'none';
-  
-  // Remplacer le handler submit
-  existingForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    // ... fetch vers webhook + postMessage au parent
-  }, true); // capture phase pour etre execute avant le handler original
-})();
-```
-
-Ce script s'execute **apres** le script original du template, et utilise la phase de capture pour intercepter avant le handler existant. Il extrait les champs du formulaire, envoie au webhook, et notifie le parent pour la page de remerciement.
+Aucune modification base de donnees requise : `clients.notes` existe deja et la requete `clients(*)` le recupere deja.
 
