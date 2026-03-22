@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote, XCircle, MessageSquare } from "lucide-react";
+import { MapPin, Phone, Package, User, Clock, ChevronDown, ChevronUp, Banknote, XCircle, MessageSquare, FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,7 @@ interface DeliveryOrderCardProps {
       phone_secondary: string | null;
       address: string | null;
       zone: string | null;
+      notes: string | null;
     } | null;
     product: {
       name: string;
@@ -165,7 +166,7 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
           <div className="space-y-2 mb-3">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-muted-foreground" />
-              <span className="text-base font-semibold text-foreground">{order.client?.full_name}</span>
+              <span className="text-base font-semibold text-foreground">{order.client?.full_name || "Client inconnu"}</span>
             </div>
             <div className="flex items-center gap-2">
               <Phone className="w-4 h-4 text-muted-foreground" />
@@ -196,6 +197,17 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
               </span>
             </div>
             </div>
+
+          {/* Caller Notes - Always visible */}
+          {order.client?.notes && (
+            <div className="mt-3 flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
+              <FileText className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-0.5">Notes appelant</p>
+                <p className="text-sm text-blue-900 dark:text-blue-200">{order.client.notes}</p>
+              </div>
+            </div>
+          )}
 
           {/* Delivery Notes - Always visible */}
           {order.delivery_notes && (
