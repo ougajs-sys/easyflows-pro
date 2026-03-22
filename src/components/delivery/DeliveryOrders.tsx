@@ -26,6 +26,7 @@ interface Order {
     phone_secondary: string | null;
     address: string | null;
     zone: string | null;
+    notes: string | null;
   } | null;
   product: {
     name: string;

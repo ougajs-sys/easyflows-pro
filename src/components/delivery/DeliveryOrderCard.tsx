@@ -198,6 +198,17 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
             </div>
             </div>
 
+          {/* Caller Notes - Always visible */}
+          {order.client?.notes && (
+            <div className="mt-3 flex gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
+              <FileText className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-0.5">Notes appelant</p>
+                <p className="text-sm text-blue-900 dark:text-blue-200">{order.client.notes}</p>
+              </div>
+            </div>
+          )}
+
           {/* Delivery Notes - Always visible */}
           {order.delivery_notes && (
             <div className="mt-3 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
