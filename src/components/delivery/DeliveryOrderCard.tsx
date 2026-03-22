@@ -166,7 +166,7 @@ export function DeliveryOrderCard({ order, onUpdateStatus, onReturnToRedistribut
           <div className="space-y-2 mb-3">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-muted-foreground" />
-              <span className="text-base font-semibold text-foreground">{order.client?.full_name}</span>
+              <span className="text-base font-semibold text-foreground">{order.client?.full_name || "Client inconnu"}</span>
             </div>
             <div className="flex items-center gap-2">
               <Phone className="w-4 h-4 text-muted-foreground" />
