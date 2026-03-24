@@ -55,7 +55,7 @@ export function useOrders(options: UseOrdersOptions = {}) {
         query = query.eq('status', statusFilter);
       }
       if (searchQuery.trim()) {
-        query = query.or(`order_number.ilike.%${searchQuery}%,client.full_name.ilike.%${searchQuery}%`);
+        query = query.ilike('order_number', `%${searchQuery}%`);
       }
 
       const { data: rawOrders, error, count } = await query;
