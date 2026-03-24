@@ -6,8 +6,18 @@ import { useAuth } from './useAuth';
 
 type Order = Database['public']['Tables']['orders']['Row'];
 type OrderInsert = Database['public']['Tables']['orders']['Insert'];
+type OrderStatus = Database['public']['Enums']['order_status'];
 
-export function useOrders() {
+const PAGE_SIZE = 50;
+
+interface UseOrdersOptions {
+  page?: number;
+  searchQuery?: string;
+  statusFilter?: OrderStatus | 'all';
+}
+
+export function useOrders(options: UseOrdersOptions = {}) {
+  const { page = 1, searchQuery = '', statusFilter = 'all' } = options;
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -22,25 +32,38 @@ export function useOrders() {
     } | null;
   };
 
-  const { data: ordersData = [], isLoading, error } = useQuery({
-    queryKey: ['orders'],
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  const { data: result, isLoading, error } = useQuery({
+    queryKey: ['orders', page, searchQuery, statusFilter],
     enabled: !!user,
     queryFn: async () => {
-      // Étape 1: Récupérer les commandes avec delivery_persons (sans profiles)
-      const { data: rawOrders, error } = await supabase
+      let query = supabase
         .from('orders')
         .select(`
           *,
           client:clients(id, full_name, phone),
           product:products(id, name, price),
           delivery_person:delivery_persons(id, user_id, status)
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      // Server-side filters
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+      if (searchQuery.trim()) {
+        query = query.or(`order_number.ilike.%${searchQuery}%,client.full_name.ilike.%${searchQuery}%`);
+      }
+
+      const { data: rawOrders, error, count } = await query;
 
       if (error) throw error;
-      if (!rawOrders) return [];
+      if (!rawOrders) return { orders: [], totalCount: 0 };
 
-      // Étape 2: Récupérer les profils des livreurs séparément
+      // Fetch delivery person profiles
       const deliveryUserIds = rawOrders
         .filter(o => o.delivery_person?.user_id)
         .map(o => o.delivery_person!.user_id);
@@ -58,8 +81,7 @@ export function useOrders() {
         }, {} as Record<string, string>);
       }
 
-      // Étape 3: Fusionner les données
-      return rawOrders.map(order => ({
+      const orders = rawOrders.map(order => ({
         ...order,
         delivery_person: order.delivery_person ? {
           ...order.delivery_person,
@@ -68,22 +90,25 @@ export function useOrders() {
             : null
         } : null
       })) as OrderWithRelations[];
+
+      return { orders, totalCount: count || 0 };
     },
   });
 
-  // Map orders to flatten the delivery_person.profile structure for UI compatibility
   const orders = useMemo(
     () =>
-      ordersData.map((order) => ({
+      (result?.orders || []).map((order) => ({
         ...order,
         delivery_profile: order.delivery_person?.profile?.full_name || null,
       })),
-    [ordersData]
+    [result?.orders]
   );
+
+  const totalCount = result?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const createOrder = useMutation({
     mutationFn: async (order: Omit<OrderInsert, 'created_by'>) => {
-      // Auto-assign delivery person (first available one)
       const { data: availableDelivery } = await supabase
         .from('delivery_persons')
         .select('id')
@@ -107,11 +132,12 @@ export function useOrders() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order-stats'] });
     },
   });
 
   const updateOrderStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: Database['public']['Enums']['order_status'] }) => {
+    mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
       const updateData: Partial<Order> = { status };
       if (status === 'delivered') {
         updateData.delivered_at = new Date().toISOString();
@@ -129,23 +155,17 @@ export function useOrders() {
     },
     onSuccess: (updatedOrder) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order-stats'] });
       
-      // Trigger WordPress webhook sync when order is confirmed
       if (updatedOrder.status === 'confirmed') {
         supabase.functions
           .invoke('sync-order-elementor', {
             body: { order_id: updatedOrder.id }
           })
-          .then(({ data, error }) => {
-            if (error) {
-              console.error('Error invoking sync-order-elementor:', error);
-            } else {
-              console.log('Webhook sync result:', data);
-            }
+          .then(({ error }) => {
+            if (error) console.error('Error invoking sync-order-elementor:', error);
           })
-          .catch((err) => {
-            console.error('Failed to invoke sync-order-elementor:', err);
-          });
+          .catch((err) => console.error('Failed to invoke sync-order-elementor:', err));
       }
     },
   });
@@ -154,6 +174,9 @@ export function useOrders() {
     orders,
     isLoading,
     error,
+    totalCount,
+    totalPages,
+    pageSize: PAGE_SIZE,
     createOrder,
     updateOrderStatus,
   };
