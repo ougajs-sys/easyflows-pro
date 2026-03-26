@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { getDailyWindow, formatWindowLabel } from "@/lib/dailyWindow";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { DailyReportOrderCard } from "./DailyReportOrderCard";
 import {
   ClipboardList,
   CheckCircle2,
@@ -17,10 +18,6 @@ import {
   TrendingUp,
   Banknote,
   Clock,
-  User,
-  MapPin,
-  Phone,
-  Package,
 } from "lucide-react";
 
 type FilterKey = "received" | "confirmed" | "delivered" | "pending" | "cancelled" | "reported";
