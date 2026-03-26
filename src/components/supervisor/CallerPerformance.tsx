@@ -25,9 +25,10 @@ export function CallerPerformance() {
     queryKey: ["caller-performance"],
     enabled: !!user,
     queryFn: async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayISO = today.toISOString();
+      // Use midnight local time properly
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const todayISO = todayStart.toISOString();
 
       // Get all users with caller role
       const { data: callerRoles, error: rolesError } = await supabase
@@ -38,6 +39,7 @@ export function CallerPerformance() {
       if (rolesError) throw rolesError;
 
       const callerIds = callerRoles?.map(r => r.user_id) || [];
+      if (callerIds.length === 0) return [];
 
       // Get profiles for callers
       const { data: profiles, error: profilesError } = await supabase
@@ -47,28 +49,40 @@ export function CallerPerformance() {
 
       if (profilesError) throw profilesError;
 
-      // Get orders created by callers today
-      const { data: orders, error: ordersError } = await supabase
+      // Get orders created by OR assigned to callers today
+      const { data: ordersCreated } = await supabase
         .from("orders")
-        .select("id, status, created_by, total_amount")
+        .select("id, status, created_by, assigned_to, total_amount")
         .in("created_by", callerIds)
         .gte("created_at", todayISO);
 
-      if (ordersError) throw ordersError;
+      const { data: ordersAssigned } = await supabase
+        .from("orders")
+        .select("id, status, created_by, assigned_to, total_amount")
+        .in("assigned_to", callerIds)
+        .gte("created_at", todayISO);
+
+      // Merge and deduplicate orders
+      const allOrdersMap = new Map<string, typeof ordersCreated extends (infer T)[] | null ? T : never>();
+      [...(ordersCreated || []), ...(ordersAssigned || [])].forEach(o => {
+        if (!allOrdersMap.has(o.id)) allOrdersMap.set(o.id, o);
+      });
+      const allOrders = Array.from(allOrdersMap.values());
 
       // Get clients created by callers today
-      const { data: clients, error: clientsError } = await supabase
+      const { data: clients } = await supabase
         .from("clients")
         .select("id, created_by")
         .in("created_by", callerIds)
         .gte("created_at", todayISO);
 
-      if (clientsError) throw clientsError;
-
       const stats: CallerStats[] = profiles?.map(profile => {
-        const callerOrders = orders?.filter(o => o.created_by === profile.id) || [];
+        const callerOrders = allOrders.filter(
+          o => o.created_by === profile.id || o.assigned_to === profile.id
+        );
         const callerClients = clients?.filter(c => c.created_by === profile.id) || [];
         const delivered = callerOrders.filter(o => o.status === "delivered");
+        const confirmed = callerOrders.filter(o => o.status === "confirmed" || o.status === "delivered");
         const cancelled = callerOrders.filter(o => o.status === "cancelled");
 
         return {
@@ -79,7 +93,7 @@ export function CallerPerformance() {
           cancelledOrders: cancelled.length,
           totalRevenue: delivered.reduce((sum, o) => sum + Number(o.total_amount || 0), 0),
           conversionRate: callerOrders.length > 0 
-            ? Math.round((delivered.length / callerOrders.length) * 100) 
+            ? Math.round((confirmed.length / callerOrders.length) * 100) 
             : 0,
           clientsCreated: callerClients.length,
         };
@@ -87,7 +101,7 @@ export function CallerPerformance() {
 
       return stats.sort((a, b) => b.totalRevenue - a.totalRevenue);
     },
-    refetchInterval: 30000, // 30 seconds
+    refetchInterval: 15000,
     refetchOnWindowFocus: true,
   });
 
