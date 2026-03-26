@@ -129,18 +129,8 @@ export function DailyReportPanel() {
     },
   });
 
-  const statusBadge = (status: string) => {
-    const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-      pending: { label: "En attente", variant: "outline" },
-      confirmed: { label: "Confirmée", variant: "secondary" },
-      in_transit: { label: "En livraison", variant: "default" },
-      delivered: { label: "Livrée", variant: "default" },
-      cancelled: { label: "Annulée", variant: "destructive" },
-      reported: { label: "Reportée", variant: "outline" },
-    };
-    const s = map[status] || { label: status, variant: "outline" as const };
-    return <Badge variant={s.variant}>{s.label}</Badge>;
-  };
+
+
 
   const kpis: { label: string; value: number | string; icon: any; color: string; filter?: FilterKey }[] = [
     { label: "Reçues", value: stats?.received ?? 0, icon: ClipboardList, color: "text-primary", filter: "received" },
@@ -244,45 +234,7 @@ export function DailyReportPanel() {
             ) : (
               <div className="space-y-3 p-1">
                 {detailOrders.map((order: any) => (
-                  <div key={order.id} className="border rounded-lg p-4 space-y-2 bg-card">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-sm">
-                        #{order.order_number || order.id.slice(0, 8)}
-                      </span>
-                      {statusBadge(order.status)}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <User className="w-3.5 h-3.5" />
-                        <span>{order.client?.full_name || "—"}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Phone className="w-3.5 h-3.5" />
-                        <span>{order.client?.phone || "—"}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <Package className="w-3.5 h-3.5" />
-                        <span>{order.product?.name || "—"} × {order.quantity}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>{order.delivery_address || order.client?.city || "—"}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-sm pt-1 border-t">
-                      <span className="font-medium">
-                        {formatCurrency(order.total_amount)} FCFA
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        Payé: {formatCurrency(order.amount_paid)} FCFA
-                      </span>
-                    </div>
-                    {order.delivery_notes && (
-                      <p className="text-xs bg-muted/50 p-2 rounded text-muted-foreground">
-                        📝 {order.delivery_notes}
-                      </p>
-                    )}
-                  </div>
+                  <DailyReportOrderCard key={order.id} order={order} />
                 ))}
               </div>
             )}
