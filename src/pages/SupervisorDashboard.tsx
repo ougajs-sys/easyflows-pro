@@ -3,8 +3,6 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CallerPerformance } from "@/components/supervisor/CallerPerformance";
 import { SalesSummary } from "@/components/supervisor/SalesSummary";
 import { SupervisorStats } from "@/components/supervisor/SupervisorStats";
-import { DeliveryStatus } from "@/components/dashboard/DeliveryStatus";
-import { ConnectedWorkers } from "@/components/supervisor/ConnectedWorkers";
 import { DailyReportPanel } from "@/components/supervisor/DailyReportPanel";
 import { DeliveryDailyReport } from "@/components/supervisor/DeliveryDailyReport";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
@@ -31,11 +29,6 @@ export default function SupervisorDashboard() {
       {/* Statistiques */}
       <SupervisorStats />
 
-      {/* Travailleurs connectés */}
-      <div className="mt-6">
-        <ConnectedWorkers />
-      </div>
-
       {/* Rapport Journalier */}
       <div className="mt-6">
         <DailyReportPanel />
@@ -44,11 +37,6 @@ export default function SupervisorDashboard() {
       {/* Rapport Détaillé Livreurs */}
       <div className="mt-6">
         <DeliveryDailyReport />
-      </div>
-
-      {/* Grille Performances */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <DeliveryStatus />
       </div>
 
       {/* Performance Appelants */}
