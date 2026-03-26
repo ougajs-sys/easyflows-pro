@@ -2,7 +2,7 @@ import React from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CallerPerformance } from "@/components/supervisor/CallerPerformance";
 import { SalesSummary } from "@/components/supervisor/SalesSummary";
-import { SupervisorStats } from "@/components/supervisor/SupervisorStats";
+
 import { DailyReportPanel } from "@/components/supervisor/DailyReportPanel";
 import { DeliveryDailyReport } from "@/components/supervisor/DeliveryDailyReport";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
@@ -26,8 +26,6 @@ export default function SupervisorDashboard() {
         </p>
       </div>
 
-      {/* Statistiques */}
-      <SupervisorStats />
 
       {/* Rapport Journalier */}
       <div className="mt-6">
