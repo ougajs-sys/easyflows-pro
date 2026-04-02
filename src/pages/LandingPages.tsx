@@ -3,8 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useProducts } from "@/hooks/useProducts";
 import { LandingPageEditor } from "@/components/landing/LandingPageEditor";
 import { LandingPageCard } from "@/components/landing/LandingPageCard";
-import { Button } from "@/components/ui/button";
-import { Plus, Zap, Loader2, Code } from "lucide-react";
+import { Plus, Loader2, Code } from "lucide-react";
 
 export default function LandingPages() {
   const { products, loading, updateProduct } = useProducts();
@@ -21,7 +20,7 @@ export default function LandingPages() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96 bg-[#0d1117]">
+        <div className="-m-4 md:-m-6 min-h-[calc(100vh-4rem)] bg-[#14181f] flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
         </div>
       </DashboardLayout>
@@ -32,7 +31,7 @@ export default function LandingPages() {
   if (editingProduct || creating) {
     return (
       <DashboardLayout>
-        <div className="h-[calc(100vh-2rem)]">
+        <div className="-m-4 md:-m-6 h-[calc(100vh-4rem)]">
           <LandingPageEditor
             product={editingProduct}
             allProducts={products}
@@ -53,16 +52,8 @@ export default function LandingPages() {
   // Dashboard view — Pipeline dark theme
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#14181f]">
-        {/* Header bar */}
-        <div className="h-16 border-b border-gray-800 flex items-center justify-between px-8 bg-[#0d1117]">
-          <h1 className="font-bold text-white text-lg">Tableau de bord</h1>
-          <div className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-            Cloud Actif
-          </div>
-        </div>
-
-        <div className="p-10 space-y-8">
+      <div className="-m-4 md:-m-6 min-h-[calc(100vh-4rem)] bg-[#14181f]">
+        <div className="p-6 md:p-10 space-y-8">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-white">Vos Pages Importées</h2>
             <button
