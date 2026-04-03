@@ -451,10 +451,6 @@ function AppContent() {
                           </ProtectedRoute>
                         }
                       />
-                      {/* Public embeddable order form - no auth required */}
-                      <Route path="/embed/order" element={<EmbedOrderForm />} />
-                      {/* Public landing pages - no auth required */}
-                      <Route path="/p/:slug" element={<ProductLanding />} />
                       {/* PWA Install page - no auth required */}
                       <Route path="/install" element={<Install />} />
                       <Route path="*" element={<NotFound />} />
