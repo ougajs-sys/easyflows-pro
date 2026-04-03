@@ -43,7 +43,6 @@ const AIAgent = lazy(() => import("./pages/AIAgent"));
 const RevenueTracking = lazy(() => import("./pages/RevenueTracking"));
 const Install = lazy(() => import("./pages/Install"));
 const LandingPages = lazy(() => import("./pages/LandingPages"));
-const ProductLanding = lazy(() => import("./pages/ProductLanding"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Helper function to check if error should be ignored (non-critical)
