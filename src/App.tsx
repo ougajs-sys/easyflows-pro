@@ -38,7 +38,6 @@ const Planning = lazy(() => import("./pages/Planning"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Roles = lazy(() => import("./pages/Roles"));
 const WebhookTest = lazy(() => import("./pages/WebhookTest"));
-const EmbedOrderForm = lazy(() => import("./pages/EmbedOrderForm"));
 const EmbedFormsAdmin = lazy(() => import("./pages/EmbedFormsAdmin"));
 const Chat = lazy(() => import("./pages/Chat"));
 const AIAgent = lazy(() => import("./pages/AIAgent"));
