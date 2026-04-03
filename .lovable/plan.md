@@ -1,35 +1,51 @@
 
 
-# Plan : Corriger le lien de domaine et supprimer le blocage d'authentification
+# Plan : Corriger l'affichage des Landing Pages (Mobile + Desktop)
 
 ## Problemes identifies
 
-1. **Lien landing page** : Le code utilise `window.location.origin` pour generer les liens. En preview, cela donne `id-preview--xxx.lovable.app` au lieu du domaine de production `https://easyflow-pro.site`. Les liens copies et affiches ne pointent donc pas vers le bon domaine.
+### 1. Mobile : page bloquee sur le spinner de chargement
+La route `/p/:slug` est a l'interieur de `AppContent` qui est enveloppe par `AuthProvider` > `NotificationsProvider` > `Suspense`. Sur mobile 4G en Afrique :
+- `AuthProvider` fait des appels Supabase (auth, profiles, user_roles) avant que quoi que ce soit s'affiche
+- `NotificationsProvider` initialise des subscriptions Realtime
+- `useInitializePushNotifications()` essaie de s'enregistrer
+- Le `Suspense` fallback reste affiche tant que le chunk JS n'est pas telecharge
 
-2. **Ecran d'authentification Lovable** : Les URLs de preview (`id-preview--*.lovable.app`) necessitent un compte Lovable pour y acceder. Si vous partagez ces liens a vos clients, ils voient un ecran de connexion Lovable. La solution : les liens doivent pointer vers le domaine publie (`easyflow-pro.site`).
+**Resultat** : le client voit un spinner pendant 10-30 secondes (ou indefiniment sur connexion instable).
 
-## Corrections
+### 2. Desktop : contenu qui deborde / layout casse
+L'iframe du HTML custom est enveloppee dans un `<div className="min-h-screen bg-gray-50">` qui applique les styles de l'app (fond gris, padding potentiel). Le contenu HTML custom peut deborder hors de l'iframe ou etre mal positionne a cause du conteneur parent.
 
-### Fichiers modifies
+## Solution
+
+### Fichier 1 : `src/App.tsx` — Isoler les routes publiques
+
+Restructurer l'App pour que les routes publiques (`/p/:slug`, `/embed/order`) soient rendues **en dehors** de la chaine lourde `AuthProvider > NotificationsProvider > AppContent` :
+
+```
+BrowserRouter
+├── Routes
+│   ├── /p/:slug → ProductLanding (leger, pas de providers lourds)
+│   ├── /embed/order → EmbedOrderForm (leger)
+│   └── /* → AppContent (avec AuthProvider, Notifications, etc.)
+```
+
+Concretement :
+- Creer un composant `AppRouter` dans le `BrowserRouter`
+- Les routes `/p/` et `/embed/` rendent directement leurs composants avec juste `QueryClientProvider` et `ThemeProvider` (pas d'auth, pas de notifications)
+- Les autres routes continuent via `AppContent` avec tous les providers
+
+### Fichier 2 : `src/pages/ProductLanding.tsx` — Layout plein ecran
+
+- Supprimer le wrapper `<div className="min-h-screen bg-gray-50">` autour de l'iframe custom (l'iframe prend 100% de la viewport)
+- Pour l'iframe custom : `width:100%; min-height:100vh; border:none; display:block;` sans conteneur parasite
+- Garder le wrapper bg-gray-50 uniquement pour le hero par defaut (sans HTML custom)
+- Ajouter `margin:0; padding:0; overflow:hidden` au body via style inline sur le conteneur pour eviter tout espace blanc
+
+### Resume des fichiers modifies
 
 | Fichier | Modification |
 |---|---|
-| `src/components/landing/LandingPageCard.tsx` | Remplacer `window.location.origin` par `https://easyflow-pro.site` |
-| `src/components/landing/LandingPageEditor.tsx` | Idem — lien copie et affiche utilise le domaine de production |
-
-### Detail technique
-
-Creer une constante partagee pour le domaine de production :
-
-```typescript
-const PRODUCTION_DOMAIN = "https://easyflow-pro.site";
-const landingUrl = `${PRODUCTION_DOMAIN}/p/${product.slug}`;
-```
-
-Cela garantit que :
-- Les liens copies par l'admin pointent directement vers le site public
-- Les clients n'ont jamais a passer par un ecran d'authentification Lovable
-- Le lien affiche montre clairement le domaine de votre marque
-
-> **Note** : Votre site est deja publie en mode public. Le probleme vient uniquement du fait que les liens generes utilisaient l'URL de preview au lieu du domaine de production.
+| `src/App.tsx` | Isoler routes publiques hors des providers lourds (AuthProvider, NotificationsProvider, push notifications) |
+| `src/pages/ProductLanding.tsx` | Iframe plein ecran sans wrapper parasite, layout corrige |
 
