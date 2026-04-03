@@ -452,8 +452,8 @@ function AppContent() {
                       <Route path="/install" element={<Install />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
-                    {/* Floating Chat - visible on all pages */}
-                    <FloatingChat />
+                    {/* Floating Chat - hidden on public pages */}
+                    <FloatingChatGuard />
                   </>
   );
 }

@@ -5,7 +5,7 @@ import { FacebookPixel, usePixelTrack } from "@/components/landing/FacebookPixel
 import { LandingOrderForm } from "@/components/landing/LandingOrderForm";
 import { LandingThankYou } from "@/components/landing/LandingThankYou";
 import { buildInjectedFormHtml } from "@/components/landing/buildInjectedFormHtml";
-import { Loader2, ShoppingCart } from "lucide-react";
+import { Loader2, ShoppingCart, ChevronDown } from "lucide-react";
 
 interface LandingProduct {
   id: string;
@@ -66,7 +66,6 @@ export default function ProductLanding() {
     fetchProduct();
   }, [slug]);
 
-  // Listen for postMessage from iframe (custom HTML form submission)
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
       if (event.data?.type === "order-success") {
@@ -81,7 +80,6 @@ export default function ProductLanding() {
   const handleOrderSuccess = useCallback(
     async (orderId: string, total: number) => {
       if (!product) return;
-      // Fire CAPI server-side
       if (product.facebook_pixel_id) {
         try {
           const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -120,10 +118,10 @@ export default function ProductLanding() {
 
   if (notFound || !product) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Produit introuvable</h1>
-          <p className="text-gray-500">Ce produit n'existe pas ou n'est plus disponible.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Produit introuvable</h1>
+          <p className="text-gray-500 text-sm sm:text-base">Ce produit n'existe pas ou n'est plus disponible.</p>
         </div>
       </div>
     );
@@ -160,20 +158,19 @@ export default function ProductLanding() {
         {product.landing_html ? (
           <LandingWithCustomHtml product={product} brandColor={brandColor} />
         ) : (
-          <DefaultLandingHero product={product} brandColor={brandColor} formatPrice={formatPrice} />
-        )}
-
-        {/* Order form — only shown for default template (no custom HTML) */}
-        {!product.landing_html && (
-          <div className="py-12 px-4" id="order-form">
-            <LandingOrderForm
-              productId={product.id}
-              productName={product.name}
-              price={Number(product.price)}
-              brandColor={brandColor}
-              onOrderSuccess={handleOrderSuccess}
-            />
-          </div>
+          <>
+            <DefaultLandingHero product={product} brandColor={brandColor} formatPrice={formatPrice} />
+            {/* Order form */}
+            <div className="py-6 sm:py-10 md:py-12 px-4" id="order-form">
+              <LandingOrderForm
+                productId={product.id}
+                productName={product.name}
+                price={Number(product.price)}
+                brandColor={brandColor}
+                onOrderSuccess={handleOrderSuccess}
+              />
+            </div>
+          </>
         )}
       </div>
     </>
@@ -191,7 +188,6 @@ function LandingWithCustomHtml({
   const webhookUrl = (() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     if (projectId) return `https://${projectId}.supabase.co/functions/v1/webhook-orders`;
-    // Fallback: use supabase client URL
     const url = (supabase as any).supabaseUrl || "";
     return `${url}/functions/v1/webhook-orders`;
   })();
@@ -207,10 +203,9 @@ function LandingWithCustomHtml({
   const srcDoc = useMemo(() => {
     let html = product.landing_html || "";
 
-    // Ensure responsive viewport for custom templates
     if (!/<meta[^>]+name=["']viewport["']/i.test(html)) {
       const headCloseIdx = html.toLowerCase().indexOf("</head>");
-      const viewportMeta = '<meta name="viewport" content="width=device-width, initial-scale=1" />';
+      const viewportMeta = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />';
       if (headCloseIdx !== -1) {
         html = html.slice(0, headCloseIdx) + viewportMeta + html.slice(headCloseIdx);
       } else {
@@ -218,7 +213,6 @@ function LandingWithCustomHtml({
       }
     }
 
-    // Fallback if cdn.tailwindcss.com is blocked in some production environments
     const tailwindFallbackRuntime = `
 <script>
 (function () {
@@ -258,7 +252,6 @@ function LandingWithCustomHtml({
 })();
 </script>`;
 
-    // Inject runtime fallback + form before </body> or at the end
     const bodyCloseIdx = html.toLowerCase().lastIndexOf("</body>");
     const injectedContent = tailwindFallbackRuntime + injectedForm;
     if (bodyCloseIdx !== -1) {
@@ -280,7 +273,6 @@ function LandingWithCustomHtml({
     };
     iframe.addEventListener("load", () => {
       adjustHeight();
-      // Retry after CDN scripts (Tailwind) finish rendering
       const intervals = [500, 1500, 3000, 5000];
       intervals.forEach((ms) => setTimeout(adjustHeight, ms));
       try {
@@ -302,7 +294,7 @@ function LandingWithCustomHtml({
   );
 }
 
-/** Default hero section when no custom HTML */
+/** Default hero section when no custom HTML — mobile-first */
 function DefaultLandingHero({
   product,
   brandColor,
@@ -312,10 +304,14 @@ function DefaultLandingHero({
   brandColor: string;
   formatPrice: (p: number) => string;
 }) {
+  const scrollToForm = () => {
+    document.getElementById("order-form")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="relative">
       <div
-        className="relative py-16 sm:py-24 px-4"
+        className="relative py-10 px-4 sm:py-16 md:py-24"
         style={{
           background: `linear-gradient(135deg, ${brandColor}, ${brandColor}dd)`,
         }}
@@ -325,22 +321,35 @@ function DefaultLandingHero({
             <img
               src={product.image_url}
               alt={product.name}
-              className="w-48 h-48 sm:w-64 sm:h-64 object-cover rounded-2xl mx-auto mb-8 shadow-2xl"
+              className="w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 object-cover rounded-2xl mx-auto mb-6 sm:mb-8 shadow-2xl"
             />
           )}
-          <h1 className="text-3xl sm:text-5xl font-bold mb-4">
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 sm:mb-4 leading-tight">
             {product.landing_headline || product.name}
           </h1>
           {product.landing_description && (
-            <p className="text-lg sm:text-xl opacity-90 max-w-2xl mx-auto mb-6">
+            <p className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto mb-4 sm:mb-6 leading-relaxed">
               {product.landing_description}
             </p>
           )}
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-6 py-3">
-            <ShoppingCart className="w-5 h-5" />
-            <span className="text-2xl font-bold">
+          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-5 py-2.5 sm:px-6 sm:py-3 mb-6 sm:mb-8">
+            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-xl sm:text-2xl font-bold">
               {formatPrice(Number(product.price))}
             </span>
+          </div>
+
+          {/* CTA scroll to form */}
+          <div>
+            <button
+              onClick={scrollToForm}
+              className="inline-flex items-center gap-2 bg-white text-gray-900 font-bold px-8 py-3.5 sm:py-4 rounded-xl text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all active:scale-95 min-h-[48px]"
+              style={{ color: brandColor }}
+            >
+              <ShoppingCart className="w-5 h-5" />
+              Commander maintenant
+              <ChevronDown className="w-4 h-4 animate-bounce" />
+            </button>
           </div>
         </div>
       </div>

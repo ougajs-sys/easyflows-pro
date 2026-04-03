@@ -14,7 +14,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Loader2, ShoppingCart } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 
 const orderSchema = z.object({
   full_name: z.string().min(2, "Le nom est requis"),
@@ -101,13 +100,13 @@ export function LandingOrderForm({
     new Intl.NumberFormat("fr-FR").format(p) + " FCFA";
 
   return (
-    <div className="w-full max-w-lg mx-auto">
-      <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border">
-        <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+    <div className="w-full max-w-lg mx-auto px-1">
+      <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 border">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
           <ShoppingCart className="w-5 h-5" style={{ color: brandColor }} />
           Commander maintenant
         </h2>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-gray-500 mb-5 sm:mb-6">
           {productName} — {formatPrice(price)} / unité
         </p>
 
@@ -118,9 +117,13 @@ export function LandingOrderForm({
               name="full_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700">Nom complet *</FormLabel>
+                  <FormLabel className="text-gray-700 text-sm">Nom complet *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Votre nom" {...field} />
+                    <Input
+                      placeholder="Votre nom"
+                      className="text-base h-12 sm:h-10 sm:text-sm"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -132,9 +135,14 @@ export function LandingOrderForm({
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700">Téléphone *</FormLabel>
+                  <FormLabel className="text-gray-700 text-sm">Téléphone *</FormLabel>
                   <FormControl>
-                    <Input placeholder="07 XX XX XX XX" {...field} />
+                    <Input
+                      placeholder="07 XX XX XX XX"
+                      type="tel"
+                      className="text-base h-12 sm:h-10 sm:text-sm"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -146,9 +154,14 @@ export function LandingOrderForm({
               name="quantity"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700">Quantité *</FormLabel>
+                  <FormLabel className="text-gray-700 text-sm">Quantité *</FormLabel>
                   <FormControl>
-                    <Input type="number" min={1} {...field} />
+                    <Input
+                      type="number"
+                      min={1}
+                      className="text-base h-12 sm:h-10 sm:text-sm"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -160,9 +173,13 @@ export function LandingOrderForm({
               name="delivery_address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700">Adresse de livraison *</FormLabel>
+                  <FormLabel className="text-gray-700 text-sm">Adresse de livraison *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Quartier, ville..." {...field} />
+                    <Input
+                      placeholder="Quartier, ville..."
+                      className="text-base h-12 sm:h-10 sm:text-sm"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -174,11 +191,12 @@ export function LandingOrderForm({
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-700">Notes (optionnel)</FormLabel>
+                  <FormLabel className="text-gray-700 text-sm">Notes (optionnel)</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Instructions spéciales..."
                       rows={2}
+                      className="text-base sm:text-sm"
                       {...field}
                     />
                   </FormControl>
@@ -202,7 +220,7 @@ export function LandingOrderForm({
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-12 text-base font-semibold text-white rounded-xl"
+              className="w-full h-14 sm:h-12 text-base font-semibold text-white rounded-xl"
               style={{ backgroundColor: brandColor }}
             >
               {isSubmitting ? (
