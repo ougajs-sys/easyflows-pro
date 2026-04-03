@@ -14,6 +14,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FloatingChat } from "@/components/chat/FloatingChat";
 import { useInitializePushNotifications } from "@/hooks/useInitializePushNotifications";
 import queryClient from "@/config/react-query";
+import ProductLanding from "./pages/ProductLanding";
+import EmbedOrderForm from "./pages/EmbedOrderForm";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -36,14 +38,12 @@ const Planning = lazy(() => import("./pages/Planning"));
 const Campaigns = lazy(() => import("./pages/Campaigns"));
 const Roles = lazy(() => import("./pages/Roles"));
 const WebhookTest = lazy(() => import("./pages/WebhookTest"));
-const EmbedOrderForm = lazy(() => import("./pages/EmbedOrderForm"));
 const EmbedFormsAdmin = lazy(() => import("./pages/EmbedFormsAdmin"));
 const Chat = lazy(() => import("./pages/Chat"));
 const AIAgent = lazy(() => import("./pages/AIAgent"));
 const RevenueTracking = lazy(() => import("./pages/RevenueTracking"));
 const Install = lazy(() => import("./pages/Install"));
 const LandingPages = lazy(() => import("./pages/LandingPages"));
-const ProductLanding = lazy(() => import("./pages/ProductLanding"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Helper function to check if error should be ignored (non-critical)
@@ -451,10 +451,6 @@ function AppContent() {
                           </ProtectedRoute>
                         }
                       />
-                      {/* Public embeddable order form - no auth required */}
-                      <Route path="/embed/order" element={<EmbedOrderForm />} />
-                      {/* Public landing pages - no auth required */}
-                      <Route path="/p/:slug" element={<ProductLanding />} />
                       {/* PWA Install page - no auth required */}
                       <Route path="/install" element={<Install />} />
                       <Route path="*" element={<NotFound />} />
@@ -472,12 +468,10 @@ function AppRouter() {
   if (isPublicRoute) {
     return (
       <RouteErrorBoundary>
-        <Suspense fallback={suspenseFallback}>
-          <Routes>
-            <Route path="/p/:slug" element={<ProductLanding />} />
-            <Route path="/embed/order" element={<EmbedOrderForm />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/p/:slug" element={<ProductLanding />} />
+          <Route path="/embed/order" element={<EmbedOrderForm />} />
+        </Routes>
       </RouteErrorBoundary>
     );
   }
