@@ -18,7 +18,6 @@ export function LandingThankYou({
   const { trackEvent } = usePixelTrack();
 
   useEffect(() => {
-    // Fire Purchase event
     trackEvent("Purchase", { value: total, currency: "XOF", content_name: productName }, orderId);
   }, [orderId, total, productName, trackEvent]);
 
@@ -27,17 +26,17 @@ export function LandingThankYou({
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+      <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 md:p-8 max-w-md w-full text-center mx-2">
         <div
-          className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4"
           style={{ backgroundColor: `${brandColor}20` }}
         >
-          <CheckCircle className="w-8 h-8" style={{ color: brandColor }} />
+          <CheckCircle className="w-7 h-7 sm:w-8 sm:h-8" style={{ color: brandColor }} />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
           Merci pour votre commande !
         </h1>
-        <p className="text-gray-600 mb-6">
+        <p className="text-sm sm:text-base text-gray-600 mb-6">
           Votre commande de <strong>{productName}</strong> d'un montant de{" "}
           <strong style={{ color: brandColor }}>{formatPrice(total)}</strong> a été
           enregistrée avec succès.

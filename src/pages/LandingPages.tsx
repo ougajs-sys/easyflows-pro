@@ -3,8 +3,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useProducts } from "@/hooks/useProducts";
 import { LandingPageEditor } from "@/components/landing/LandingPageEditor";
 import { LandingPageCard } from "@/components/landing/LandingPageCard";
-import { Button } from "@/components/ui/button";
-import { Plus, Zap, Loader2, Code } from "lucide-react";
+import { Plus, Loader2, Code } from "lucide-react";
 
 export default function LandingPages() {
   const { products, loading, updateProduct } = useProducts();
@@ -21,14 +20,13 @@ export default function LandingPages() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96 bg-[#0d1117]">
-          <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
         </div>
       </DashboardLayout>
     );
   }
 
-  // Editor view
   if (editingProduct || creating) {
     return (
       <DashboardLayout>
@@ -50,49 +48,48 @@ export default function LandingPages() {
     );
   }
 
-  // Dashboard view — Pipeline dark theme
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#14181f]">
-        {/* Header bar */}
-        <div className="h-16 border-b border-gray-800 flex items-center justify-between px-8 bg-[#0d1117]">
-          <h1 className="font-bold text-white text-lg">Tableau de bord</h1>
-          <div className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <div className="h-14 sm:h-16 border-b border-border flex items-center justify-between px-4 sm:px-8 bg-card">
+          <h1 className="font-bold text-foreground text-base sm:text-lg">Landing Pages</h1>
+          <div className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
             Cloud Actif
           </div>
         </div>
 
-        <div className="p-10 space-y-8">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-white">Vos Pages Importées</h2>
+        <div className="p-4 sm:p-6 lg:p-10 space-y-6 sm:space-y-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">Vos Pages Importées</h2>
             <button
               onClick={() => setCreating(true)}
-              className="bg-[#10b981] text-black px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/10"
+              className="bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg w-full sm:w-auto"
             >
               <Plus size={18} /> Importer une page
             </button>
           </div>
 
           {landingPages.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="w-20 h-20 mx-auto mb-6 bg-gray-800 rounded-3xl flex items-center justify-center">
-                <Code className="text-gray-600" size={40} />
+            <div className="text-center py-16 sm:py-20">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 bg-muted rounded-2xl sm:rounded-3xl flex items-center justify-center">
+                <Code className="text-muted-foreground" size={32} />
               </div>
-              <h3 className="text-lg font-medium text-white mb-2">
+              <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">
                 Aucune landing page
               </h3>
-              <p className="text-gray-500 mb-6">
+              <p className="text-muted-foreground mb-6 text-sm sm:text-base px-4">
                 Créez votre première page de destination pour vos produits
               </p>
               <button
                 onClick={() => setCreating(true)}
-                className="bg-[#10b981] text-black px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 mx-auto hover:bg-emerald-400 transition-colors"
+                className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 mx-auto hover:opacity-90 transition-opacity"
               >
                 <Plus size={18} /> Importer une page
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {landingPages.map((product) => (
                 <LandingPageCard
                   key={product.id}
