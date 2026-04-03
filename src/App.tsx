@@ -465,26 +465,48 @@ function AppContent() {
   );
 }
 
+function AppRouter() {
+  const location = useLocation();
+  const isPublicRoute = location.pathname.startsWith("/p/") || location.pathname.startsWith("/embed/");
+
+  if (isPublicRoute) {
+    return (
+      <RouteErrorBoundary>
+        <Suspense fallback={suspenseFallback}>
+          <Routes>
+            <Route path="/p/:slug" element={<ProductLanding />} />
+            <Route path="/embed/order" element={<EmbedOrderForm />} />
+          </Routes>
+        </Suspense>
+      </RouteErrorBoundary>
+    );
+  }
+
+  return (
+    <AuthProvider>
+      <NotificationsProvider>
+        <RouteErrorBoundary>
+          <Suspense fallback={suspenseFallback}>
+            <AppContent />
+          </Suspense>
+        </RouteErrorBoundary>
+      </NotificationsProvider>
+    </AuthProvider>
+  );
+}
+
 const App = () => (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <NotificationsProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <RouteErrorBoundary>
-                  <Suspense fallback={suspenseFallback}>
-                    <AppContent />
-                  </Suspense>
-                </RouteErrorBoundary>
-              </BrowserRouter>
-            </TooltipProvider>
-          </NotificationsProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppRouter />
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
 );
 
 export default App;
