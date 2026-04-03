@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
         status: "completed",
         executed_at: new Date().toISOString(),
         affected_count: assignments.length,
-        created_by: "00000000-0000-0000-0000-000000000000", // System user
+        created_by: user.id,
         result: {
           message: `${assignments.length} commandes distribuées`,
           distribution: {
