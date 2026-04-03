@@ -474,8 +474,6 @@ function AppRouter() {
         </Routes>
       </RouteErrorBoundary>
     );
-      </RouteErrorBoundary>
-    );
   }
 
   return (
