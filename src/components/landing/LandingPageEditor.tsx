@@ -56,7 +56,8 @@ export function LandingPageEditor({
 
   const formatPrice = (p: number) => new Intl.NumberFormat("fr-FR").format(p) + " FCFA";
 
-  const landingUrl = slug ? `${window.location.origin}/p/${slug}` : "";
+  const PRODUCTION_DOMAIN = "https://easyflow-pro.site";
+  const landingUrl = slug ? `${PRODUCTION_DOMAIN}/p/${slug}` : "";
 
   const copyLink = () => {
     if (!landingUrl) return;
