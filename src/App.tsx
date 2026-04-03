@@ -468,12 +468,12 @@ function AppRouter() {
   if (isPublicRoute) {
     return (
       <RouteErrorBoundary>
-        <Suspense fallback={suspenseFallback}>
-          <Routes>
-            <Route path="/p/:slug" element={<ProductLanding />} />
-            <Route path="/embed/order" element={<EmbedOrderForm />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/p/:slug" element={<ProductLanding />} />
+          <Route path="/embed/order" element={<EmbedOrderForm />} />
+        </Routes>
+      </RouteErrorBoundary>
+    );
       </RouteErrorBoundary>
     );
   }
