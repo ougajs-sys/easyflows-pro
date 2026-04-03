@@ -11,7 +11,8 @@ interface LandingPageCardProps {
 
 export function LandingPageCard({ product, onEdit, onRemoveLanding }: LandingPageCardProps) {
   const { toast } = useToast();
-  const landingUrl = `${window.location.origin}/p/${product.slug}`;
+  const PRODUCTION_DOMAIN = "https://easyflow-pro.site";
+  const landingUrl = `${PRODUCTION_DOMAIN}/p/${product.slug}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(landingUrl);
