@@ -182,6 +182,16 @@ function LandingWithCustomHtml({
   product: LandingProduct;
   brandColor: string;
 }) {
+  // Hide parent scroll to avoid double scrollbar
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, []);
+
   const webhookUrl = (() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     if (projectId) return `https://${projectId}.supabase.co/functions/v1/webhook-orders`;
@@ -208,6 +218,15 @@ function LandingWithCustomHtml({
       } else {
         html = viewportMeta + html;
       }
+    }
+
+    // Inject smooth scroll styles for iOS
+    const scrollStyles = `<style>html,body{overflow-y:auto;-webkit-overflow-scrolling:touch;margin:0;padding:0;}</style>`;
+    const headClose = html.toLowerCase().indexOf("</head>");
+    if (headClose !== -1) {
+      html = html.slice(0, headClose) + scrollStyles + html.slice(headClose);
+    } else {
+      html = scrollStyles + html;
     }
 
     const tailwindFallbackRuntime = `
@@ -260,32 +279,12 @@ function LandingWithCustomHtml({
     return html;
   }, [product.landing_html, injectedForm]);
 
-  const iframeRef = useCallback((iframe: HTMLIFrameElement | null) => {
-    if (!iframe) return;
-    const adjustHeight = () => {
-      try {
-        const h = iframe.contentDocument?.documentElement?.scrollHeight;
-        if (h && h > 100) iframe.style.height = h + "px";
-      } catch {}
-    };
-    iframe.addEventListener("load", () => {
-      adjustHeight();
-      const intervals = [500, 1500, 3000, 5000];
-      intervals.forEach((ms) => setTimeout(adjustHeight, ms));
-      try {
-        const obs = new ResizeObserver(adjustHeight);
-        if (iframe.contentDocument?.body) obs.observe(iframe.contentDocument.body);
-      } catch {}
-    });
-  }, []);
-
   return (
     <iframe
-      ref={iframeRef}
       srcDoc={srcDoc}
       title={product.name}
       className="w-full border-none block"
-      style={{ minHeight: "100vh", margin: 0, padding: 0 }}
+      style={{ width: "100%", height: "100vh", border: "none", display: "block", margin: 0, padding: 0 }}
       sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
     />
   );
