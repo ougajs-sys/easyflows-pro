@@ -284,8 +284,8 @@ function LandingWithCustomHtml({
       ref={iframeRef}
       srcDoc={srcDoc}
       title={product.name}
-      className="w-full border-none"
-      style={{ minHeight: "100vh" }}
+      className="w-full border-none block"
+      style={{ minHeight: "100vh", margin: 0, padding: 0 }}
       sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
     />
   );
