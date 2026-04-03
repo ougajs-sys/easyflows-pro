@@ -1,51 +1,39 @@
 
 
-# Plan : Corriger l'affichage des Landing Pages (Mobile + Desktop)
+# Plan : Corriger l'affichage en 2 temps des landing pages
 
-## Problemes identifies
+## Cause racine
 
-### 1. Mobile : page bloquee sur le spinner de chargement
-La route `/p/:slug` est a l'interieur de `AppContent` qui est enveloppe par `AuthProvider` > `NotificationsProvider` > `Suspense`. Sur mobile 4G en Afrique :
-- `AuthProvider` fait des appels Supabase (auth, profiles, user_roles) avant que quoi que ce soit s'affiche
-- `NotificationsProvider` initialise des subscriptions Realtime
-- `useInitializePushNotifications()` essaie de s'enregistrer
-- Le `Suspense` fallback reste affiche tant que le chunk JS n'est pas telecharge
+- `ProductLanding` est charge via `lazy()` (ligne 46) → chunk JS separe → Suspense affiche le spinner avant le contenu
+- Routes `/p/:slug` et `/embed/order` dupliquees dans `AppRouter` ET `AppContent` → conflits de rendu possibles
 
-**Resultat** : le client voit un spinner pendant 10-30 secondes (ou indefiniment sur connexion instable).
+## Corrections dans `src/App.tsx`
 
-### 2. Desktop : contenu qui deborde / layout casse
-L'iframe du HTML custom est enveloppee dans un `<div className="min-h-screen bg-gray-50">` qui applique les styles de l'app (fond gris, padding potentiel). Le contenu HTML custom peut deborder hors de l'iframe ou etre mal positionne a cause du conteneur parent.
-
-## Solution
-
-### Fichier 1 : `src/App.tsx` — Isoler les routes publiques
-
-Restructurer l'App pour que les routes publiques (`/p/:slug`, `/embed/order`) soient rendues **en dehors** de la chaine lourde `AuthProvider > NotificationsProvider > AppContent` :
-
-```
-BrowserRouter
-├── Routes
-│   ├── /p/:slug → ProductLanding (leger, pas de providers lourds)
-│   ├── /embed/order → EmbedOrderForm (leger)
-│   └── /* → AppContent (avec AuthProvider, Notifications, etc.)
+### 1. Import direct (pas de lazy)
+```typescript
+// Remplacer les lazy imports
+import ProductLanding from "./pages/ProductLanding";
+import EmbedOrderForm from "./pages/EmbedOrderForm";
 ```
 
-Concretement :
-- Creer un composant `AppRouter` dans le `BrowserRouter`
-- Les routes `/p/` et `/embed/` rendent directement leurs composants avec juste `QueryClientProvider` et `ThemeProvider` (pas d'auth, pas de notifications)
-- Les autres routes continuent via `AppContent` avec tous les providers
+### 2. Supprimer les routes dupliquees dans AppContent
+Retirer les lignes `/p/:slug`, `/embed/order` et `/install` du bloc `<Routes>` dans `AppContent` — elles sont deja gerees par `AppRouter`.
 
-### Fichier 2 : `src/pages/ProductLanding.tsx` — Layout plein ecran
+### 3. Supprimer Suspense pour les routes publiques dans AppRouter
+Puisque les composants sont importes directement, plus besoin de `Suspense` :
+```typescript
+if (isPublicRoute) {
+  return (
+    <RouteErrorBoundary>
+      <Routes>
+        <Route path="/p/:slug" element={<ProductLanding />} />
+        <Route path="/embed/order" element={<EmbedOrderForm />} />
+      </Routes>
+    </RouteErrorBoundary>
+  );
+}
+```
 
-- Supprimer le wrapper `<div className="min-h-screen bg-gray-50">` autour de l'iframe custom (l'iframe prend 100% de la viewport)
-- Pour l'iframe custom : `width:100%; min-height:100vh; border:none; display:block;` sans conteneur parasite
-- Garder le wrapper bg-gray-50 uniquement pour le hero par defaut (sans HTML custom)
-- Ajouter `margin:0; padding:0; overflow:hidden` au body via style inline sur le conteneur pour eviter tout espace blanc
-
-### Resume des fichiers modifies
-
-| Fichier | Modification |
-|---|---|
-| `src/App.tsx` | Isoler routes publiques hors des providers lourds (AuthProvider, NotificationsProvider, push notifications) |
-| `src/pages/ProductLanding.tsx` | Iframe plein ecran sans wrapper parasite, layout corrige |
+## Fichier modifie
+- `src/App.tsx`
 
