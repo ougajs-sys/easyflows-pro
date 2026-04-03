@@ -1,39 +1,44 @@
 
 
-# Plan : Corriger l'affichage en 2 temps des landing pages
+# Plan : Corriger l'affichage tronque des landing pages custom
 
-## Cause racine
+## Diagnostic
 
-- `ProductLanding` est charge via `lazy()` (ligne 46) → chunk JS separe → Suspense affiche le spinner avant le contenu
-- Routes `/p/:slug` et `/embed/order` dupliquees dans `AppRouter` ET `AppContent` → conflits de rendu possibles
+Le probleme ne vient pas du `/p/` dans l'editeur (c'est juste un label visuel). Le vrai probleme est dans `LandingWithCustomHtml` dans `ProductLanding.tsx` :
 
-## Corrections dans `src/App.tsx`
+La fonction `adjustHeight` tente de redimensionner l'iframe a la taille exacte de son contenu via `scrollHeight`. Cela echoue car :
+1. Le contenu HTML custom charge Tailwind CDN, des images, des animations CSS de facon asynchrone — le `scrollHeight` est mesure avant que tout soit rendu
+2. Le `ResizeObserver` cree une boucle de retour (le redimensionnement de l'iframe change le viewport interne, ce qui change le scrollHeight, etc.)
+3. Sur mobile, les elements avec des unites viewport (`vh`, `vw`) se recalculent a chaque changement de hauteur de l'iframe
 
-### 1. Import direct (pas de lazy)
-```typescript
-// Remplacer les lazy imports
-import ProductLanding from "./pages/ProductLanding";
-import EmbedOrderForm from "./pages/EmbedOrderForm";
+**Resultat** : le contenu est tronque apres une certaine section, ou l'inverse — espace blanc enorme.
+
+## Solution
+
+Supprimer toute la logique de redimensionnement dynamique de l'iframe. A la place, laisser l'iframe occuper 100% du viewport avec son propre scroll interne. C'est plus fiable et c'est le pattern standard pour afficher du HTML custom.
+
+### Fichier : `src/pages/ProductLanding.tsx`
+
+**Modifier `LandingWithCustomHtml`** :
+
+1. Supprimer le `useCallback` `iframeRef` avec `adjustHeight`, `ResizeObserver`, et les `setTimeout`
+2. Remplacer par un iframe simple avec `style="width:100%; height:100vh; border:none; display:block;"` — l'iframe gere son propre defilement interne
+3. Ajouter `overflow:hidden` sur le body du document parent pour eviter le double scrollbar (via un `useEffect` qui set `document.body.style.overflow = 'hidden'` et le restaure au cleanup)
+4. Injecter dans le `srcDoc` un style `html,body { overflow-y: auto; -webkit-overflow-scrolling: touch; }` pour garantir le scroll fluide dans l'iframe sur iOS
+
+### Detail technique
+
+```
+Avant:
+  Parent scroll + iframe auto-height → scrollHeight instable → contenu tronque
+
+Apres:
+  Parent bloque (overflow:hidden) + iframe 100vh avec scroll interne → tout le contenu visible
 ```
 
-### 2. Supprimer les routes dupliquees dans AppContent
-Retirer les lignes `/p/:slug`, `/embed/order` et `/install` du bloc `<Routes>` dans `AppContent` — elles sont deja gerees par `AppRouter`.
+### Fichier modifie
 
-### 3. Supprimer Suspense pour les routes publiques dans AppRouter
-Puisque les composants sont importes directement, plus besoin de `Suspense` :
-```typescript
-if (isPublicRoute) {
-  return (
-    <RouteErrorBoundary>
-      <Routes>
-        <Route path="/p/:slug" element={<ProductLanding />} />
-        <Route path="/embed/order" element={<EmbedOrderForm />} />
-      </Routes>
-    </RouteErrorBoundary>
-  );
-}
-```
-
-## Fichier modifie
-- `src/App.tsx`
+| Fichier | Modification |
+|---|---|
+| `src/pages/ProductLanding.tsx` | Supprimer adjustHeight/ResizeObserver, iframe 100vh avec scroll interne, masquer scroll parent |
 
