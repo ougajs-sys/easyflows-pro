@@ -24,9 +24,48 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
+
+    // --- Authentication check ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Authorization required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: userError } = await authClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // --- Role-based authorization ---
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: userRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("confirmed", true)
+      .in("role", ["superviseur", "administrateur"])
+      .limit(1)
+      .maybeSingle();
+
+    if (!userRole) {
+      return new Response(
+        JSON.stringify({ error: "Access denied. Supervisors and administrators only." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Check current time (UTC - adjust for your timezone if needed)
     const now = new Date();
@@ -189,7 +228,7 @@ Deno.serve(async (req) => {
         status: "completed",
         executed_at: new Date().toISOString(),
         affected_count: assignments.length,
-        created_by: "00000000-0000-0000-0000-000000000000", // System user
+        created_by: user.id,
         result: {
           message: `${assignments.length} commandes distribuées`,
           distribution: {
