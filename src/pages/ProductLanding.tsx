@@ -159,15 +159,13 @@ export default function ProductLanding() {
       ) : (
         <div className="min-h-screen bg-gray-50">
           <DefaultLandingHero product={product} brandColor={brandColor} formatPrice={formatPrice} />
-          <div className="py-6 sm:py-10 md:py-12 px-4" id="order-form">
-            <LandingOrderForm
-              productId={product.id}
-              productName={product.name}
-              price={Number(product.price)}
-              brandColor={brandColor}
-              onOrderSuccess={handleOrderSuccess}
-            />
-          </div>
+          <LandingOrderForm
+            productId={product.id}
+            productName={product.name}
+            price={Number(product.price)}
+            brandColor={brandColor}
+            onOrderSuccess={handleOrderSuccess}
+          />
         </div>
       )}
     </>
