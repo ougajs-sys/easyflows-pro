@@ -243,6 +243,13 @@ const suspenseFallback = (
   </div>
 );
 
+function FloatingChatGuard() {
+  const location = useLocation();
+  const isPublicRoute = location.pathname.startsWith("/p/") || location.pathname.startsWith("/embed/");
+  if (isPublicRoute) return null;
+  return <FloatingChat />;
+}
+
 function AppContent() {
   // Initialize push notifications
   useInitializePushNotifications();
