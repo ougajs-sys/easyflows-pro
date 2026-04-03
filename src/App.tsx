@@ -14,6 +14,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FloatingChat } from "@/components/chat/FloatingChat";
 import { useInitializePushNotifications } from "@/hooks/useInitializePushNotifications";
 import queryClient from "@/config/react-query";
+import ProductLanding from "./pages/ProductLanding";
+import EmbedOrderForm from "./pages/EmbedOrderForm";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
