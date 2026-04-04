@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { FacebookPixel, usePixelTrack } from "@/components/landing/FacebookPixel";
-import { LandingOrderForm } from "@/components/landing/LandingOrderForm";
 import { LandingThankYou } from "@/components/landing/LandingThankYou";
 import { buildInjectedFormHtml } from "@/components/landing/buildInjectedFormHtml";
-import { Loader2, ShoppingCart, ChevronDown } from "lucide-react";
+import PremiumHealthLanding from "@/components/landing/PremiumHealthLanding";
+import { Loader2 } from "lucide-react";
 
 interface LandingProduct {
   id: string;
