@@ -182,13 +182,35 @@ export function LandingOrderForm({
                     )}
                   />
 
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-700 text-xs font-semibold">Ville *</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <option value="">— Choisir une ville —</option>
+                            {CI_CITIES.map(city => (
+                              <option key={city} value={city}>{city}</option>
+                            ))}
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <div className="flex gap-2.5">
                     <FormField
                       control={form.control}
                       name="quantity"
                       render={({ field }) => (
                         <FormItem className="flex-1">
-                          <FormLabel className="text-gray-700 text-xs font-semibold">Quantité *</FormLabel>
+                          <FormLabel className="text-gray-700 text-xs font-semibold">Qté *</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
@@ -210,7 +232,7 @@ export function LandingOrderForm({
                           <FormLabel className="text-gray-700 text-xs font-semibold">Adresse *</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="Quartier, ville..."
+                              placeholder="Quartier, rue..."
                               className="text-base h-10 sm:text-sm"
                               {...field}
                             />
