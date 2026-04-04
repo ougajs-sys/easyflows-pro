@@ -51,6 +51,7 @@ export function LandingOrderForm({
       full_name: "",
       phone: "",
       quantity: 1,
+      city: "",
       delivery_address: "",
       notes: "",
     },
