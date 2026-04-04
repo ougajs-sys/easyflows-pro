@@ -66,6 +66,7 @@ export function LandingOrderForm({
       setError(null);
 
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const fullAddress = `${data.city} — ${data.delivery_address}`;
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/webhook-orders`,
         {
@@ -79,7 +80,7 @@ export function LandingOrderForm({
             quantity: data.quantity,
             unit_price: price,
             total_amount: total,
-            delivery_address: data.delivery_address,
+            delivery_address: fullAddress,
             notes: data.notes || "",
             source: "landing_page",
           }),
