@@ -13,11 +13,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Loader2, ShoppingCart, X } from "lucide-react";
+import { CI_CITIES } from "@/data/healthProducts";
 
 const orderSchema = z.object({
   full_name: z.string().min(2, "Le nom est requis"),
   phone: z.string().min(8, "Le numéro de téléphone est requis"),
   quantity: z.coerce.number().int().min(1, "Minimum 1"),
+  city: z.string().min(1, "Choisissez une ville"),
   delivery_address: z.string().min(3, "L'adresse est requise"),
   notes: z.string().optional(),
 });
@@ -49,6 +51,7 @@ export function LandingOrderForm({
       full_name: "",
       phone: "",
       quantity: 1,
+      city: "",
       delivery_address: "",
       notes: "",
     },
@@ -63,6 +66,7 @@ export function LandingOrderForm({
       setError(null);
 
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const fullAddress = `${data.city} — ${data.delivery_address}`;
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/webhook-orders`,
         {
@@ -76,7 +80,7 @@ export function LandingOrderForm({
             quantity: data.quantity,
             unit_price: price,
             total_amount: total,
-            delivery_address: data.delivery_address,
+            delivery_address: fullAddress,
             notes: data.notes || "",
             source: "landing_page",
           }),
@@ -178,13 +182,35 @@ export function LandingOrderForm({
                     )}
                   />
 
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-700 text-xs font-semibold">Ville *</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <option value="">— Choisir une ville —</option>
+                            {CI_CITIES.map(city => (
+                              <option key={city} value={city}>{city}</option>
+                            ))}
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <div className="flex gap-2.5">
                     <FormField
                       control={form.control}
                       name="quantity"
                       render={({ field }) => (
                         <FormItem className="flex-1">
-                          <FormLabel className="text-gray-700 text-xs font-semibold">Quantité *</FormLabel>
+                          <FormLabel className="text-gray-700 text-xs font-semibold">Qté *</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
@@ -206,7 +232,7 @@ export function LandingOrderForm({
                           <FormLabel className="text-gray-700 text-xs font-semibold">Adresse *</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="Quartier, ville..."
+                              placeholder="Quartier, rue..."
                               className="text-base h-10 sm:text-sm"
                               {...field}
                             />

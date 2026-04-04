@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { FacebookPixel, usePixelTrack } from "@/components/landing/FacebookPixel";
-import { LandingOrderForm } from "@/components/landing/LandingOrderForm";
 import { LandingThankYou } from "@/components/landing/LandingThankYou";
 import { buildInjectedFormHtml } from "@/components/landing/buildInjectedFormHtml";
-import { Loader2, ShoppingCart, ChevronDown } from "lucide-react";
+import PremiumHealthLanding from "@/components/landing/PremiumHealthLanding";
+import { Loader2 } from "lucide-react";
 
 interface LandingProduct {
   id: string;
@@ -157,16 +157,10 @@ export default function ProductLanding() {
       {product.landing_html ? (
         <LandingWithCustomHtml product={product} brandColor={brandColor} />
       ) : (
-        <div className="min-h-screen bg-gray-50">
-          <DefaultLandingHero product={product} brandColor={brandColor} formatPrice={formatPrice} />
-          <LandingOrderForm
-            productId={product.id}
-            productName={product.name}
-            price={Number(product.price)}
-            brandColor={brandColor}
-            onOrderSuccess={handleOrderSuccess}
-          />
-        </div>
+        <PremiumHealthLanding
+          product={product}
+          onOrderSuccess={handleOrderSuccess}
+        />
       )}
     </>
   );
@@ -288,65 +282,3 @@ function LandingWithCustomHtml({
   );
 }
 
-/** Default hero section when no custom HTML — mobile-first */
-function DefaultLandingHero({
-  product,
-  brandColor,
-  formatPrice,
-}: {
-  product: LandingProduct;
-  brandColor: string;
-  formatPrice: (p: number) => string;
-}) {
-  const scrollToForm = () => {
-    document.getElementById("order-form")?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  return (
-    <div className="relative">
-      <div
-        className="relative py-10 px-4 sm:py-16 md:py-24"
-        style={{
-          background: `linear-gradient(135deg, ${brandColor}, ${brandColor}dd)`,
-        }}
-      >
-        <div className="max-w-4xl mx-auto text-center text-white">
-          {product.image_url && (
-            <img
-              src={product.image_url}
-              alt={product.name}
-              className="w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 object-cover rounded-2xl mx-auto mb-6 sm:mb-8 shadow-2xl"
-            />
-          )}
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 sm:mb-4 leading-tight">
-            {product.landing_headline || product.name}
-          </h1>
-          {product.landing_description && (
-            <p className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto mb-4 sm:mb-6 leading-relaxed">
-              {product.landing_description}
-            </p>
-          )}
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-5 py-2.5 sm:px-6 sm:py-3 mb-6 sm:mb-8">
-            <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="text-xl sm:text-2xl font-bold">
-              {formatPrice(Number(product.price))}
-            </span>
-          </div>
-
-          {/* CTA scroll to form */}
-          <div>
-            <button
-              onClick={scrollToForm}
-              className="inline-flex items-center gap-2 bg-white text-gray-900 font-bold px-8 py-3.5 sm:py-4 rounded-xl text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all active:scale-95 min-h-[48px]"
-              style={{ color: brandColor }}
-            >
-              <ShoppingCart className="w-5 h-5" />
-              Commander maintenant
-              <ChevronDown className="w-4 h-4 animate-bounce" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
