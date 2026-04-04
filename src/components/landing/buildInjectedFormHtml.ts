@@ -114,7 +114,8 @@ export function buildInjectedFormHtml(opts: {
   #__order_modal_card .__close_btn:hover { background: #e5e7eb; }
 
   #__order_modal_card input,
-  #__order_modal_card textarea {
+  #__order_modal_card textarea,
+  #__order_modal_card select {
     width: 100%;
     box-sizing: border-box;
     padding: 10px 12px;
@@ -124,9 +125,12 @@ export function buildInjectedFormHtml(opts: {
     outline: none;
     transition: border-color 0.15s;
     font-family: inherit;
+    background: #fff;
+    -webkit-appearance: none;
   }
   #__order_modal_card input:focus,
-  #__order_modal_card textarea:focus { border-color: ${brandColor}; }
+  #__order_modal_card textarea:focus,
+  #__order_modal_card select:focus { border-color: ${brandColor}; }
 
   #__order_modal_card label {
     display: block;
@@ -140,9 +144,28 @@ export function buildInjectedFormHtml(opts: {
 
   @media (max-width: 640px) {
     #__order_modal_card .__field { margin-bottom: 8px; }
-    #__order_modal_card input { padding: 9px 10px; }
+    #__order_modal_card input,
+    #__order_modal_card select { padding: 9px 10px; }
     #__order_modal_card textarea { min-height: 36px; }
   }
+
+  #__wa_float {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    z-index: 9990;
+    width: 56px;
+    height: 56px;
+    background: #25D366;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    animation: pulse 2s infinite;
+    text-decoration: none;
+  }
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 </style>
 
 <!-- Floating CTA button -->
