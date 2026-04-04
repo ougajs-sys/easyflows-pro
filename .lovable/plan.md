@@ -1,44 +1,90 @@
 
 
-# Plan : Corriger l'affichage tronque des landing pages custom
+# Plan : Systeme Premium Health + Coexistence HTML
 
-## Diagnostic
+## Architecture
 
-Le probleme ne vient pas du `/p/` dans l'editeur (c'est juste un label visuel). Le vrai probleme est dans `LandingWithCustomHtml` dans `ProductLanding.tsx` :
-
-La fonction `adjustHeight` tente de redimensionner l'iframe a la taille exacte de son contenu via `scrollHeight`. Cela echoue car :
-1. Le contenu HTML custom charge Tailwind CDN, des images, des animations CSS de facon asynchrone — le `scrollHeight` est mesure avant que tout soit rendu
-2. Le `ResizeObserver` cree une boucle de retour (le redimensionnement de l'iframe change le viewport interne, ce qui change le scrollHeight, etc.)
-3. Sur mobile, les elements avec des unites viewport (`vh`, `vw`) se recalculent a chaque changement de hauteur de l'iframe
-
-**Resultat** : le contenu est tronque apres une certaine section, ou l'inverse — espace blanc enorme.
-
-## Solution
-
-Supprimer toute la logique de redimensionnement dynamique de l'iframe. A la place, laisser l'iframe occuper 100% du viewport avec son propre scroll interne. C'est plus fiable et c'est le pattern standard pour afficher du HTML custom.
-
-### Fichier : `src/pages/ProductLanding.tsx`
-
-**Modifier `LandingWithCustomHtml`** :
-
-1. Supprimer le `useCallback` `iframeRef` avec `adjustHeight`, `ResizeObserver`, et les `setTimeout`
-2. Remplacer par un iframe simple avec `style="width:100%; height:100vh; border:none; display:block;"` — l'iframe gere son propre defilement interne
-3. Ajouter `overflow:hidden` sur le body du document parent pour eviter le double scrollbar (via un `useEffect` qui set `document.body.style.overflow = 'hidden'` et le restaure au cleanup)
-4. Injecter dans le `srcDoc` un style `html,body { overflow-y: auto; -webkit-overflow-scrolling: touch; }` pour garantir le scroll fluide dans l'iframe sur iOS
-
-### Detail technique
-
-```
-Avant:
-  Parent scroll + iframe auto-height → scrollHeight instable → contenu tronque
-
-Apres:
-  Parent bloque (overflow:hidden) + iframe 100vh avec scroll interne → tout le contenu visible
+```text
+/p/:slug → ProductLanding.tsx
+  ├── product.landing_html present → LandingWithCustomHtml (iframe, inchange)
+  │     + injection WhatsApp flottant dans srcDoc
+  │
+  └── product.landing_html VIDE → PremiumHealthLanding (NOUVEAU)
+        ├── UrgencyBar (fixe, rouge, stock dynamique)
+        ├── HeroSection (image, headline, prix barre, CTA)
+        ├── BenefitsSection (grille icones)
+        ├── TestimonialsSection (3 cartes)
+        ├── GuaranteeSection (livraison, paiement, naturel)
+        ├── StickyBottomBar (apparait apres 500px scroll)
+        ├── WhatsAppButton (flottant anime)
+        └── OrderModal (popup avec dropdown villes CI)
 ```
 
-### Fichier modifie
+## Fichiers a creer
 
-| Fichier | Modification |
+### 1. `src/data/healthProducts.ts`
+Donnees enrichies par defaut pour les produits sante :
+- Map `slug → { benefits[], testimonials[], whatsappNumber }`
+- Donnees LB10+ pre-remplies (benefices prostate, temoignages)
+- 2 emplacements vides pour futurs produits
+- Fallback generique si le slug n'est pas dans la map
+
+### 2. `src/components/landing/PremiumHealthLanding.tsx`
+Composant React natif complet (pas d'iframe). Accepte `product` + `onOrderSuccess`.
+
+**Sections :**
+
+- **UrgencyBar** : `fixed top-0 z-50`, fond rouge, texte "Plus que {stock} unites disponibles !", animation pulse
+- **HeroSection** : gradient `brand_color` → ardoise, image avec `shadow-2xl rounded-[2rem]`, titre `text-3xl md:text-5xl font-black`, prix barre (x1.5) + prix reel, badge "Promo", CTA principal
+- **BenefitsSection** : grille 2 colonnes mobile / 3 desktop, icones vertes, coins arrondis `rounded-[1.5rem]`, ombres `shadow-xl`, fond blanc
+- **TestimonialsSection** : 3 cartes avec avatar initiales, etoiles, texte, fond gradient subtil
+- **GuaranteeSection** : 3 badges (Livraison Gratuite, Paiement a la Livraison, 100% Naturel) avec icones et `shadow-lg`
+- **StickyBottomBar** : `fixed bottom-0`, invisible par defaut, apparait via `useEffect` scroll > 500px, affiche prix + bouton "Commander", transition `translate-y`
+- **WhatsAppButton** : `fixed bottom-20 right-4`, vert `#25D366`, animation `pulse`, lien `wa.me/225XXXXXXXXXX`
+- **OrderModal** : s'ouvre au clic CTA, bottom-sheet mobile / centre desktop
+
+Design tokens : vert emeraude `#059669`, ardoise `#0f172a`, blanc, rouge urgence `#ef4444`, or `#f59e0b`. Adapte par `brand_color` du produit.
+
+Toutes les sections utilisent `IntersectionObserver` pour animation fade-in au scroll.
+
+### 3. `src/components/landing/OrderModal.tsx`
+Formulaire de commande en popup, extrait de `LandingOrderForm` :
+- Champs : Nom, Telephone, Quantite
+- **Champ Ville** : `<select>` avec les communes/villes de CI :
+  - Abidjan — Cocody, Yopougon, Marcory, Plateau, Riviera, Treichville, Abobo, Adjame, Koumassi, Port-Bouet
+  - Bouake, Yamoussoukro, San-Pedro, Korhogo, Daloa, Man, Gagnoa, Divo, Abengourou, Autre
+- Champ Adresse (complement)
+- Notes (optionnel)
+- Total dynamique
+- Submit vers webhook-orders existant
+- Transition vers page remerciement via `onOrderSuccess`
+
+## Fichiers a modifier
+
+### 4. `src/pages/ProductLanding.tsx`
+- Importer `PremiumHealthLanding`
+- Remplacer le bloc `DefaultLandingHero + LandingOrderForm` par `<PremiumHealthLanding product={product} onOrderSuccess={handleOrderSuccess} />`
+- Supprimer `DefaultLandingHero` (plus utilisee)
+- Dans `LandingWithCustomHtml` : injecter un bouton WhatsApp flottant dans le `srcDoc` (HTML/CSS inline, meme style que le composant React)
+
+### 5. `src/components/landing/LandingOrderForm.tsx`
+- Ajouter le champ `city` avec le dropdown villes CI (meme liste que OrderModal)
+- Le schema Zod ajoute `city: z.string().min(1)`
+- Concatener `city + delivery_address` dans le payload webhook
+
+### 6. `src/components/landing/buildInjectedFormHtml.ts`
+- Ajouter un `<select name="city">` avec les villes CI dans le formulaire injecte
+- Ajouter le bouton WhatsApp flottant en HTML/CSS inline
+- Concatener ville + adresse dans le payload du fetch
+
+## Resume
+
+| Fichier | Action |
 |---|---|
-| `src/pages/ProductLanding.tsx` | Supprimer adjustHeight/ResizeObserver, iframe 100vh avec scroll interne, masquer scroll parent |
+| `src/data/healthProducts.ts` | Creer — donnees benefices/temoignages |
+| `src/components/landing/PremiumHealthLanding.tsx` | Creer — composant principal premium |
+| `src/components/landing/OrderModal.tsx` | Creer — formulaire popup avec villes CI |
+| `src/pages/ProductLanding.tsx` | Modifier — brancher PremiumHealthLanding, injecter WhatsApp dans iframe |
+| `src/components/landing/LandingOrderForm.tsx` | Modifier — ajouter dropdown villes CI |
+| `src/components/landing/buildInjectedFormHtml.ts` | Modifier — ajouter select villes CI + WhatsApp |
 
