@@ -13,11 +13,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Loader2, ShoppingCart, X } from "lucide-react";
+import { CI_CITIES } from "@/data/healthProducts";
 
 const orderSchema = z.object({
   full_name: z.string().min(2, "Le nom est requis"),
   phone: z.string().min(8, "Le numéro de téléphone est requis"),
   quantity: z.coerce.number().int().min(1, "Minimum 1"),
+  city: z.string().min(1, "Choisissez une ville"),
   delivery_address: z.string().min(3, "L'adresse est requise"),
   notes: z.string().optional(),
 });
