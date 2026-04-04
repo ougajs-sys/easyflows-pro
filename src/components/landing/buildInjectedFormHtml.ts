@@ -295,7 +295,7 @@ export function buildInjectedFormHtml(opts: {
         quantity: qty,
         unit_price: PRICE,
         total_amount: total,
-        delivery_address: fd.get('delivery_address'),
+        delivery_address: (fd.get('city') || '') + ' — ' + (fd.get('delivery_address') || ''),
         notes: fd.get('notes') || '',
         source: 'landing_page'
       })
