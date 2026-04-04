@@ -191,14 +191,40 @@ export function buildInjectedFormHtml(opts: {
         <label>Téléphone *</label>
         <input name="phone" type="tel" required placeholder="07 XX XX XX XX" />
       </div>
+      <div class="__field">
+        <label>Ville *</label>
+        <select name="city" required>
+          <option value="">— Choisir une ville —</option>
+          <option value="Abidjan - Cocody">Abidjan - Cocody</option>
+          <option value="Abidjan - Yopougon">Abidjan - Yopougon</option>
+          <option value="Abidjan - Marcory">Abidjan - Marcory</option>
+          <option value="Abidjan - Plateau">Abidjan - Plateau</option>
+          <option value="Abidjan - Riviera">Abidjan - Riviera</option>
+          <option value="Abidjan - Treichville">Abidjan - Treichville</option>
+          <option value="Abidjan - Abobo">Abidjan - Abobo</option>
+          <option value="Abidjan - Adjamé">Abidjan - Adjamé</option>
+          <option value="Abidjan - Koumassi">Abidjan - Koumassi</option>
+          <option value="Abidjan - Port-Bouët">Abidjan - Port-Bouët</option>
+          <option value="Bouaké">Bouaké</option>
+          <option value="Yamoussoukro">Yamoussoukro</option>
+          <option value="San-Pédro">San-Pédro</option>
+          <option value="Korhogo">Korhogo</option>
+          <option value="Daloa">Daloa</option>
+          <option value="Man">Man</option>
+          <option value="Gagnoa">Gagnoa</option>
+          <option value="Divo">Divo</option>
+          <option value="Abengourou">Abengourou</option>
+          <option value="Autre">Autre</option>
+        </select>
+      </div>
       <div style="display:flex;gap:10px;">
         <div class="__field" style="flex:1;">
           <label>Quantité *</label>
           <input name="quantity" type="number" min="1" value="1" required />
         </div>
         <div class="__field" style="flex:2;">
-          <label>Adresse de livraison *</label>
-          <input name="delivery_address" required placeholder="Quartier, ville..." />
+          <label>Adresse *</label>
+          <input name="delivery_address" required placeholder="Quartier, rue..." />
         </div>
       </div>
       <div class="__field">
