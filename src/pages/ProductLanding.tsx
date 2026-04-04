@@ -157,16 +157,10 @@ export default function ProductLanding() {
       {product.landing_html ? (
         <LandingWithCustomHtml product={product} brandColor={brandColor} />
       ) : (
-        <div className="min-h-screen bg-gray-50">
-          <DefaultLandingHero product={product} brandColor={brandColor} formatPrice={formatPrice} />
-          <LandingOrderForm
-            productId={product.id}
-            productName={product.name}
-            price={Number(product.price)}
-            brandColor={brandColor}
-            onOrderSuccess={handleOrderSuccess}
-          />
-        </div>
+        <PremiumHealthLanding
+          product={product}
+          onOrderSuccess={handleOrderSuccess}
+        />
       )}
     </>
   );
