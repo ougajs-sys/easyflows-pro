@@ -216,16 +216,6 @@ export default function PremiumHealthLanding({ product, onOrderSuccess }: Premiu
         </div>
       </div>
 
-      {/* WhatsApp Button */}
-      <a
-        href={`https://wa.me/${data.whatsappNumber}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-20 right-4 z-30 w-14 h-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-xl animate-pulse hover:scale-110 transition-transform"
-        aria-label="WhatsApp"
-      >
-        <MessageCircle className="w-7 h-7 text-white" />
-      </a>
 
       {/* Order Modal */}
       <OrderModal
