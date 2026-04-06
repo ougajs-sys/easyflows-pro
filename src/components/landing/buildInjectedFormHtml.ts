@@ -16,6 +16,92 @@ export function buildInjectedFormHtml(opts: {
   const formatPrice = (p: number) =>
     new Intl.NumberFormat("fr-FR").format(p) + " FCFA";
 
+  if (skipForm) {
+    // Only inject the hijack script — no CTA, no modal
+    return `
+<!-- Interception script only (skipForm mode) -->
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+<script>
+(function(){
+  var PRODUCT_ID = "${productId}";
+  var PRODUCT_NAME = "${productName.replace(/"/g, '\\"')}";
+  var PRICE = ${price};
+  var WEBHOOK_URL = "${webhookUrl}";
+
+  function fmt(n){ return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA'; }
+
+  var templateForm = document.getElementById('orderForm')
+    || document.querySelector('.modal form')
+    || document.querySelector('[data-order-form]')
+    || document.querySelector('form');
+
+  if (!templateForm) return;
+
+  templateForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    var fd = new FormData(templateForm);
+    var submitBtn = templateForm.querySelector('button[type="submit"]') || templateForm.querySelector('input[type="submit"]') || templateForm.querySelector('button:last-of-type');
+    var originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+
+    var clientName = fd.get('full_name') || fd.get('client_name') || fd.get('name') || fd.get('nom') || '';
+    var phone = fd.get('phone') || fd.get('telephone') || fd.get('tel') || '';
+    var address = fd.get('delivery_address') || fd.get('address') || fd.get('adresse') || fd.get('ville') || '';
+    var notes = fd.get('notes') || fd.get('note') || fd.get('message') || '';
+    var qtyRaw = fd.get('quantity') || fd.get('quantite') || fd.get('qty') || '1';
+    var qty = Math.max(1, parseInt(qtyRaw) || 1);
+
+    var modalProductName = fd.get('product_name') || fd.get('produit') || '';
+    var finalProductName = modalProductName || PRODUCT_NAME;
+
+    var modalPrice = fd.get('price') || fd.get('prix') || '';
+    var unitPrice = modalPrice ? parseFloat(String(modalPrice).replace(/[^0-9.,]/g,'').replace(',','.')) || PRICE : PRICE;
+    var total = qty * unitPrice;
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span style="display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></span> Traitement...';
+    }
+
+    fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_name: clientName,
+        client_phone: phone,
+        product_id: PRODUCT_ID,
+        product_name: finalProductName,
+        quantity: qty,
+        unit_price: unitPrice,
+        total_amount: total,
+        delivery_address: address,
+        notes: notes,
+        source: 'landing_page'
+      })
+    })
+    .then(function(r){ if(!r.ok) throw new Error('Erreur serveur'); return r.json(); })
+    .then(function(result){
+      var orderId = (result.order && result.order.id) || result.order_id || result.id || '';
+      var modal = templateForm.closest('.modal') || templateForm.closest('[id*="modal"]') || templateForm.closest('[class*="modal"]');
+      if (modal) modal.style.display = 'none';
+      var overlay = document.querySelector('.modal-overlay') || document.querySelector('[class*="overlay"]');
+      if (overlay) overlay.style.display = 'none';
+      window.parent.postMessage({ type: 'order-success', orderId: orderId, total: total }, '*');
+    })
+    .catch(function(err){
+      alert(err.message || 'Une erreur est survenue. Veuillez réessayer.');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
+    });
+  }, true);
+})();
+</script>
+`;
+  }
+
   return `
 <!-- Injected order form — POPUP MODAL mobile-first -->
 <style>
