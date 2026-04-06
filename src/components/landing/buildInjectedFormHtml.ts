@@ -9,8 +9,9 @@ export function buildInjectedFormHtml(opts: {
   price: number;
   brandColor: string;
   webhookUrl: string;
+  skipForm?: boolean;
 }) {
-  const { productId, productName, price, brandColor, webhookUrl } = opts;
+  const { productId, productName, price, brandColor, webhookUrl, skipForm } = opts;
 
   const formatPrice = (p: number) =>
     new Intl.NumberFormat("fr-FR").format(p) + " FCFA";
