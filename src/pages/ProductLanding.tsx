@@ -191,12 +191,15 @@ function LandingWithCustomHtml({
     return `${url}/functions/v1/webhook-orders`;
   })();
 
+  const hasExistingForm = /<form[\s>]/i.test(product.landing_html || "");
+
   const injectedForm = buildInjectedFormHtml({
     productId: product.id,
     productName: product.name,
     price: Number(product.price),
     brandColor,
     webhookUrl,
+    skipForm: hasExistingForm,
   });
 
   const srcDoc = useMemo(() => {
