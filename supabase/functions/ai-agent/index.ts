@@ -156,8 +156,11 @@ serve(async (req) => {
     const totalOrders = contextData.orders.length;
     const deliveryRate = totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0;
     
+    const cancelledCount = ordersByStatus.cancelled || 0;
+    const reportedCount = ordersByStatus.reported || 0;
+    const confirmRate = totalOrders > 0 ? Math.round(((confirmedOrders + deliveredOrders) / totalOrders) * 100) : 0;
+    
     const pendingOrders = ordersByStatus.pending || 0;
-    const confirmedOrders = ordersByStatus.confirmed || 0;
     
     const lowStockProducts = contextData.products.filter(p => p.stock <= 10 && p.is_active);
     const criticalStockProducts = contextData.products.filter(p => p.stock <= 5 && p.is_active);
@@ -166,6 +169,11 @@ serve(async (req) => {
     const vipClients = contextData.clients.filter(c => c.segment === "vip");
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Cancelled orders recovery targets
+    const cancelledClientIds = [...new Set(cancelledOrders30d.map(o => o.client_id))];
+    const deliveredClientIds = new Set(contextData.orders.filter(o => o.status === "delivered").map(o => o.client_id));
+    const recoveryTargets = cancelledClientIds.filter(cid => !deliveredClientIds.has(cid));
 
     // Get available delivery persons
     const availableDeliveryPersons = contextData.delivery_persons.filter(d => d.status === "available");
