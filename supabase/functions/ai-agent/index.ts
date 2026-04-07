@@ -153,6 +153,7 @@ serve(async (req) => {
     }, {} as Record<string, number>);
 
     const deliveredOrders = ordersByStatus.delivered || 0;
+    const confirmedOrders = ordersByStatus.confirmed || 0;
     const totalOrders = contextData.orders.length;
     const deliveryRate = totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0;
     
