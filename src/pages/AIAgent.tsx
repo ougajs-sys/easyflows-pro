@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 export default function AIAgent() {
-  const [activeTab, setActiveTab] = useState("conseils");
+  const [activeTab, setActiveTab] = useState("propositions");
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<QuickAction | null>(null);
 
