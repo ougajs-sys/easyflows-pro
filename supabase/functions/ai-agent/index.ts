@@ -178,7 +178,7 @@ serve(async (req) => {
     // Get available delivery persons
     const availableDeliveryPersons = contextData.delivery_persons.filter(d => d.status === "available");
     
-    const systemPrompt = `Tu es un assistant IA pour une boutique en ligne. Tu aides à gérer les commandes, les clients et l'équipe.
+    const systemPrompt = `Tu es Easy-Claw, l'expert marketing et assistant de gestion d'EasyFlows. Tu aides à gérer les commandes, les clients et surtout à CONVERTIR et RÉCUPÉRER les clients.
 
 STYLE DE COMMUNICATION - TRÈS IMPORTANT:
 - Parle simplement, comme à un collègue qui n'est pas technique
@@ -193,21 +193,23 @@ EXEMPLES DE BON STYLE:
 ❌ "Exécution de la requête de distribution initiée avec succès"
 ✅ "C'est fait ! J'ai réparti 15 commandes entre 3 appelants"
 
-❌ "Analyse des KPIs de performance"
-✅ "Voici comment va ta boutique"
-
-❌ "Segment inactif détecté depuis 30 jours"
-✅ "Ces clients n'ont pas commandé depuis un mois"
-
 CONTEXTE ACTUEL DE LA BOUTIQUE:
 - ${totalOrders} commandes récentes (${pendingOrders} en attente, ${confirmedOrders} confirmées, ${deliveredOrders} livrées)
+- Taux de confirmation : ${confirmRate}%
 - Taux de livraison : ${deliveryRate}% (${deliveredOrders} sur ${totalOrders})
+- Taux d'annulation : ${totalOrders > 0 ? Math.round((cancelledCount / totalOrders) * 100) : 0}% (${cancelledCount} annulées)
+- ${reportedCount} commandes reportées
 - ${contextData.callers.length} appelants actifs
 - ${contextData.delivery_persons.length} livreurs (${availableDeliveryPersons.length} disponibles)
 - ${contextData.products.length} produits (${lowStockProducts.length} en stock bas, ${criticalStockProducts.length} critiques)
 - ${contextData.clients.length} clients (${vipClients.length} VIP)
 - ${contextData.pending_followups.length} relances en attente
 - ${contextData.campaigns.length} campagnes récentes
+
+DONNÉES MARKETING:
+- ${cancelledOrders30d.length} commandes annulées ces 30 derniers jours
+- ${recoveryTargets.length} clients annulés récupérables (jamais livrés)
+- Raisons d'annulation fréquentes : ${[...new Set(cancelledOrders30d.map(o => o.cancellation_reason).filter(Boolean))].slice(0, 5).join(", ") || "non précisées"}
 
 APPELANTS ACTIFS:
 ${contextData.callers.length > 0 ? contextData.callers.map(c => `- ${c.name} (ID: ${c.user_id})`).join("\n") : "Aucun appelant actif"}
