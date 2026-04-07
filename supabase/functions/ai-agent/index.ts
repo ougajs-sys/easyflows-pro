@@ -87,14 +87,15 @@ serve(async (req) => {
     }
 
     // Get context data for AI
-    const [ordersResult, callersResult, productsResult, clientsResult, followupsResult, deliveryPersonsResult, campaignsResult] = await Promise.all([
-      supabase.from("orders").select("id, status, assigned_to, delivery_person_id, client_id, product_id, quantity, total_amount, created_at, delivery_address, clients(zone, full_name, segment)").order("created_at", { ascending: false }).limit(100),
+    const [ordersResult, callersResult, productsResult, clientsResult, followupsResult, deliveryPersonsResult, campaignsResult, cancelledOrdersResult] = await Promise.all([
+      supabase.from("orders").select("id, status, assigned_to, delivery_person_id, client_id, product_id, quantity, total_amount, created_at, delivery_address, cancellation_reason, report_reason, clients(zone, full_name, segment)").order("created_at", { ascending: false }).limit(100),
       supabase.from("user_roles").select("user_id, role").eq("role", "appelant").eq("confirmed", true),
       supabase.from("products").select("id, name, stock, price, is_active"),
       supabase.from("clients").select("id, full_name, phone, segment, total_orders, total_spent, created_at").order("created_at", { ascending: false }).limit(200),
       supabase.from("follow_ups").select("id, client_id, order_id, status, scheduled_at, type").eq("status", "pending").limit(100),
       supabase.from("delivery_persons").select("id, user_id, status, is_active, zone, daily_deliveries").eq("is_active", true),
       supabase.from("campaigns").select("id, name, status, sent_count, total_recipients, sent_at, category").order("created_at", { ascending: false }).limit(20),
+      supabase.from("orders").select("id, client_id, product_id, cancellation_reason, created_at").eq("status", "cancelled").gte("created_at", new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()),
     ]);
 
     // Get caller and delivery person profiles
