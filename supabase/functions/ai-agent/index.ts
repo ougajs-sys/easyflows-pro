@@ -87,14 +87,15 @@ serve(async (req) => {
     }
 
     // Get context data for AI
-    const [ordersResult, callersResult, productsResult, clientsResult, followupsResult, deliveryPersonsResult, campaignsResult] = await Promise.all([
-      supabase.from("orders").select("id, status, assigned_to, delivery_person_id, client_id, product_id, quantity, total_amount, created_at, delivery_address, clients(zone, full_name, segment)").order("created_at", { ascending: false }).limit(100),
+    const [ordersResult, callersResult, productsResult, clientsResult, followupsResult, deliveryPersonsResult, campaignsResult, cancelledOrdersResult] = await Promise.all([
+      supabase.from("orders").select("id, status, assigned_to, delivery_person_id, client_id, product_id, quantity, total_amount, created_at, delivery_address, cancellation_reason, report_reason, clients(zone, full_name, segment)").order("created_at", { ascending: false }).limit(100),
       supabase.from("user_roles").select("user_id, role").eq("role", "appelant").eq("confirmed", true),
       supabase.from("products").select("id, name, stock, price, is_active"),
       supabase.from("clients").select("id, full_name, phone, segment, total_orders, total_spent, created_at").order("created_at", { ascending: false }).limit(200),
       supabase.from("follow_ups").select("id, client_id, order_id, status, scheduled_at, type").eq("status", "pending").limit(100),
       supabase.from("delivery_persons").select("id, user_id, status, is_active, zone, daily_deliveries").eq("is_active", true),
       supabase.from("campaigns").select("id, name, status, sent_count, total_recipients, sent_at, category").order("created_at", { ascending: false }).limit(20),
+      supabase.from("orders").select("id, client_id, product_id, cancellation_reason, created_at").eq("status", "cancelled").gte("created_at", new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()),
     ]);
 
     // Get caller and delivery person profiles
@@ -106,6 +107,8 @@ serve(async (req) => {
       .from("profiles")
       .select("id, full_name")
       .in("id", allUserIds);
+
+    const cancelledOrders30d = cancelledOrdersResult.data || [];
 
     const contextData = {
       orders: ordersResult.data || [],
@@ -125,6 +128,7 @@ serve(async (req) => {
       clients: clientsResult.data || [],
       pending_followups: followupsResult.data || [],
       campaigns: campaignsResult.data || [],
+      cancelled_orders_30d: cancelledOrders30d,
     };
 
     // Create lookup maps for name-to-id resolution
@@ -149,11 +153,15 @@ serve(async (req) => {
     }, {} as Record<string, number>);
 
     const deliveredOrders = ordersByStatus.delivered || 0;
+    const confirmedOrders = ordersByStatus.confirmed || 0;
     const totalOrders = contextData.orders.length;
     const deliveryRate = totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0;
     
+    const cancelledCount = ordersByStatus.cancelled || 0;
+    const reportedCount = ordersByStatus.reported || 0;
+    const confirmRate = totalOrders > 0 ? Math.round(((confirmedOrders + deliveredOrders) / totalOrders) * 100) : 0;
+    
     const pendingOrders = ordersByStatus.pending || 0;
-    const confirmedOrders = ordersByStatus.confirmed || 0;
     
     const lowStockProducts = contextData.products.filter(p => p.stock <= 10 && p.is_active);
     const criticalStockProducts = contextData.products.filter(p => p.stock <= 5 && p.is_active);
@@ -163,10 +171,15 @@ serve(async (req) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Cancelled orders recovery targets
+    const cancelledClientIds = [...new Set(cancelledOrders30d.map(o => o.client_id))];
+    const deliveredClientIds = new Set(contextData.orders.filter(o => o.status === "delivered").map(o => o.client_id));
+    const recoveryTargets = cancelledClientIds.filter(cid => !deliveredClientIds.has(cid));
+
     // Get available delivery persons
     const availableDeliveryPersons = contextData.delivery_persons.filter(d => d.status === "available");
     
-    const systemPrompt = `Tu es un assistant IA pour une boutique en ligne. Tu aides à gérer les commandes, les clients et l'équipe.
+    const systemPrompt = `Tu es Easy-Claw, l'expert marketing et assistant de gestion d'EasyFlows. Tu aides à gérer les commandes, les clients et surtout à CONVERTIR et RÉCUPÉRER les clients.
 
 STYLE DE COMMUNICATION - TRÈS IMPORTANT:
 - Parle simplement, comme à un collègue qui n'est pas technique
@@ -181,21 +194,23 @@ EXEMPLES DE BON STYLE:
 ❌ "Exécution de la requête de distribution initiée avec succès"
 ✅ "C'est fait ! J'ai réparti 15 commandes entre 3 appelants"
 
-❌ "Analyse des KPIs de performance"
-✅ "Voici comment va ta boutique"
-
-❌ "Segment inactif détecté depuis 30 jours"
-✅ "Ces clients n'ont pas commandé depuis un mois"
-
 CONTEXTE ACTUEL DE LA BOUTIQUE:
 - ${totalOrders} commandes récentes (${pendingOrders} en attente, ${confirmedOrders} confirmées, ${deliveredOrders} livrées)
+- Taux de confirmation : ${confirmRate}%
 - Taux de livraison : ${deliveryRate}% (${deliveredOrders} sur ${totalOrders})
+- Taux d'annulation : ${totalOrders > 0 ? Math.round((cancelledCount / totalOrders) * 100) : 0}% (${cancelledCount} annulées)
+- ${reportedCount} commandes reportées
 - ${contextData.callers.length} appelants actifs
 - ${contextData.delivery_persons.length} livreurs (${availableDeliveryPersons.length} disponibles)
 - ${contextData.products.length} produits (${lowStockProducts.length} en stock bas, ${criticalStockProducts.length} critiques)
 - ${contextData.clients.length} clients (${vipClients.length} VIP)
 - ${contextData.pending_followups.length} relances en attente
 - ${contextData.campaigns.length} campagnes récentes
+
+DONNÉES MARKETING:
+- ${cancelledOrders30d.length} commandes annulées ces 30 derniers jours
+- ${recoveryTargets.length} clients annulés récupérables (jamais livrés)
+- Raisons d'annulation fréquentes : ${[...new Set(cancelledOrders30d.map(o => o.cancellation_reason).filter(Boolean))].slice(0, 5).join(", ") || "non précisées"}
 
 APPELANTS ACTIFS:
 ${contextData.callers.length > 0 ? contextData.callers.map(c => `- ${c.name} (ID: ${c.user_id})`).join("\n") : "Aucun appelant actif"}

@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_campaign_proposals: {
+        Row: {
+          analysis: string
+          approved_at: string | null
+          approved_by: string | null
+          campaign_id: string | null
+          campaign_type: string
+          channel: string | null
+          created_at: string
+          id: string
+          proposed_message: string
+          rejected_reason: string | null
+          status: string | null
+          target_count: number | null
+          target_segment: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          analysis: string
+          approved_at?: string | null
+          approved_by?: string | null
+          campaign_id?: string | null
+          campaign_type: string
+          channel?: string | null
+          created_at?: string
+          id?: string
+          proposed_message: string
+          rejected_reason?: string | null
+          status?: string | null
+          target_count?: number | null
+          target_segment: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          analysis?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          campaign_id?: string | null
+          campaign_type?: string
+          channel?: string | null
+          created_at?: string
+          id?: string
+          proposed_message?: string
+          rejected_reason?: string | null
+          status?: string | null
+          target_count?: number | null
+          target_segment?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_campaign_proposals_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_execution_logs: {
         Row: {
           action_type: string

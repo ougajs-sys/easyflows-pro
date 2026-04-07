@@ -171,6 +171,20 @@ export function useAIAgent() {
       color: "accent",
       actions: [
         {
+          id: "recovery-campaign",
+          label: "Campagne récupération",
+          description: "Relancer les clients qui ont annulé",
+          instruction: "Analyse les commandes annulées des 7 derniers jours et lance une campagne WhatsApp de récupération ciblée pour les clients qui n'ont pas recommandé",
+          icon: "Target",
+        },
+        {
+          id: "conversion-funnel",
+          label: "Funnel de conversion",
+          description: "Analyser les taux par produit",
+          instruction: "Analyse le funnel de conversion par produit: taux de confirmation, livraison, annulation et report. Identifie les points de perte",
+          icon: "BarChart3",
+        },
+        {
           id: "analyze-opportunities",
           label: "Analyser opportunités",
           description: "Trouver des opportunités de vente",
