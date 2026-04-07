@@ -8,11 +8,13 @@ import { AIConversation } from "@/components/ai-agent/AIConversation";
 import { AIQuickActions, QuickAction } from "@/components/ai-agent/AIQuickActions";
 import { AIPerformanceDashboard } from "@/components/ai-agent/AIPerformanceDashboard";
 import { Recommendation } from "@/components/ai-agent/AIRecommendationCard";
+import { AICampaignProposals } from "@/components/ai-agent/AICampaignProposals";
 import {
   Bot,
   MessageSquare,
   Zap,
   Lightbulb,
+  Sparkles,
   Truck,
   Phone,
   Package,
@@ -118,16 +120,20 @@ export default function AIAgent() {
             <Bot className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Agent IA</h1>
+            <h1 className="text-2xl font-bold">Easy-Claw</h1>
             <p className="text-muted-foreground">
-              Ton assistant pour gérer la boutique simplement
+              Ton expert marketing & assistant de gestion
             </p>
           </div>
         </div>
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsTrigger value="propositions" className="gap-2">
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:inline">Propositions</span>
+            </TabsTrigger>
             <TabsTrigger value="conseils" className="gap-2">
               <Lightbulb className="w-4 h-4" />
               <span className="hidden sm:inline">Conseils</span>
@@ -141,6 +147,11 @@ export default function AIAgent() {
               <span className="hidden sm:inline">Parler</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Propositions Tab - Easy-Claw Campaign Proposals */}
+          <TabsContent value="propositions" className="mt-0">
+            <AICampaignProposals />
+          </TabsContent>
 
           {/* Conseils Tab - Performance Dashboard */}
           <TabsContent value="conseils" className="mt-0">
