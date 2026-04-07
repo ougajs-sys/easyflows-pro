@@ -108,6 +108,8 @@ serve(async (req) => {
       .select("id, full_name")
       .in("id", allUserIds);
 
+    const cancelledOrders30d = cancelledOrdersResult.data || [];
+
     const contextData = {
       orders: ordersResult.data || [],
       callers: callersResult.data?.map(c => ({
@@ -126,6 +128,7 @@ serve(async (req) => {
       clients: clientsResult.data || [],
       pending_followups: followupsResult.data || [],
       campaigns: campaignsResult.data || [],
+      cancelled_orders_30d: cancelledOrders30d,
     };
 
     // Create lookup maps for name-to-id resolution
