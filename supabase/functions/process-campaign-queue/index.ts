@@ -216,19 +216,15 @@ serve(async (req) => {
     const newTotalFailed = control.total_failed + batchFailed;
 
     if (remaining === 0) {
-      // Campaign done
-      await supabase.from("campaign_queue_control").update({
-        total_sent: newTotalSent,
-        total_failed: newTotalFailed,
-        updated_at: now,
-      }).eq("id", control.id);
-
+      // Campaign done — delete control row to unblock queue
       await supabase.from("campaigns").update({
         status: "completed",
         sent_count: newTotalSent,
         failed_count: newTotalFailed,
         sent_at: now,
       }).eq("id", control.campaign_id);
+
+      await supabase.from("campaign_queue_control").delete().eq("id", control.id);
 
       console.log(`Campaign ${control.campaign_id} fully completed: ${newTotalSent} sent, ${newTotalFailed} failed`);
     } else {
