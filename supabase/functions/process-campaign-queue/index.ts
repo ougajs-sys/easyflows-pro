@@ -69,8 +69,9 @@ serve(async (req) => {
     // Find campaigns with pending batches that are ready to process
     const { data: readyControls, error: ctrlErr } = await supabase
       .from("campaign_queue_control")
-      .select("*")
+      .select("*, campaigns!inner(status)")
       .lte("next_batch_at", now)
+      .not("campaigns.status", "in", '("completed","cancelled")')
       .order("next_batch_at", { ascending: true })
       .limit(1);
 
@@ -96,7 +97,7 @@ serve(async (req) => {
     if (msgErr) throw msgErr;
 
     if (!messages || messages.length === 0) {
-      // No more messages, mark campaign as completed
+      // No more messages, mark campaign as completed and DELETE control row
       await supabase
         .from("campaigns")
         .update({
@@ -106,6 +107,11 @@ serve(async (req) => {
           sent_at: now,
         })
         .eq("id", control.campaign_id);
+
+      await supabase
+        .from("campaign_queue_control")
+        .delete()
+        .eq("id", control.id);
 
       console.log(`Campaign ${control.campaign_id} completed: ${control.total_sent} sent, ${control.total_failed} failed`);
 
@@ -210,19 +216,15 @@ serve(async (req) => {
     const newTotalFailed = control.total_failed + batchFailed;
 
     if (remaining === 0) {
-      // Campaign done
-      await supabase.from("campaign_queue_control").update({
-        total_sent: newTotalSent,
-        total_failed: newTotalFailed,
-        updated_at: now,
-      }).eq("id", control.id);
-
+      // Campaign done — delete control row to unblock queue
       await supabase.from("campaigns").update({
         status: "completed",
         sent_count: newTotalSent,
         failed_count: newTotalFailed,
         sent_at: now,
       }).eq("id", control.campaign_id);
+
+      await supabase.from("campaign_queue_control").delete().eq("id", control.id);
 
       console.log(`Campaign ${control.campaign_id} fully completed: ${newTotalSent} sent, ${newTotalFailed} failed`);
     } else {
