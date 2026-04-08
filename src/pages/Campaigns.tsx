@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCampaigns, Campaign } from "@/hooks/useCampaigns";
+import { supabase } from "@/integrations/supabase/client";
 import { useSmsTemplates, SmsTemplate } from "@/hooks/useSmsTemplates";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
