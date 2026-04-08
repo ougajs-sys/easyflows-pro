@@ -1,28 +1,69 @@
 
-# Plan : Easy-Claw — Agent Marketing Autonome (IMPLEMENTÉ)
 
-## Ce qui a été fait
+# Plan : Corriger le blocage de diffusion des campagnes
 
-### 1. Table `ai_campaign_proposals` (migration)
-- Stocke les propositions de campagnes générées par Easy-Claw
-- RLS : lecture/écriture réservée aux superviseurs et administrateurs
+## Probleme
 
-### 2. Edge Function `easy-claw-scheduler`
-- Analyse autonome des données (commandes, taux, annulations, clients inactifs)
-- Génère une proposition de campagne via Lovable AI
-- Envoie des notifications internes (DM) ET WhatsApp aux admins/superviseurs
-- Déduplication : max 2 propositions pending sur 3 jours
+`process-campaign-queue` selectionne le `campaign_queue_control` le plus ancien (ORDER BY next_batch_at ASC LIMIT 1). L'ancienne campagne terminee `6db2bff2` a toujours une ligne dans cette table, bloquant indefiniment la nouvelle campagne `176e22a5` (2841 messages en attente).
 
-### 3. Edge Function `ai-agent` enrichie
-- Rebrandée "Easy-Claw" dans le system prompt
-- Contexte enrichi : taux d'annulation, commandes reportées, clients récupérables
-- Actions rapides marketing ajoutées : récupération, funnel de conversion
+## Corrections
 
-### 4. UI — Nouvel onglet "Propositions"
-- Onglet par défaut dans la page Agent IA
-- Affiche les propositions pending avec analyse, segment, message
-- Boutons Approuver / Rejeter
-- Historique des propositions traitées
+### 1. Edge Function `supabase/functions/process-campaign-queue/index.ts`
 
-### 5. Cron job pg_cron
-- Exécution automatique toutes les 48h à 8h du matin
+**Quand une campagne est terminee (0 messages pending), SUPPRIMER la ligne `campaign_queue_control`** au lieu de la laisser :
+
+```typescript
+// Apres: No more messages, mark campaign as completed
+await supabase
+  .from("campaign_queue_control")
+  .delete()
+  .eq("id", control.id);  // SUPPRIMER la ligne
+```
+
+Meme chose quand `remaining === 0` apres un batch :
+
+```typescript
+if (remaining === 0) {
+  // Supprimer le control pour liberer la file
+  await supabase.from("campaign_queue_control").delete().eq("id", control.id);
+  // Mettre a jour la campagne
+  await supabase.from("campaigns").update({ ... }).eq("id", control.campaign_id);
+}
+```
+
+### 2. Migration SQL — Nettoyer les controls orphelins existants
+
+Supprimer immediatement la ligne `campaign_queue_control` de l'ancienne campagne completee pour debloquer la file :
+
+```sql
+DELETE FROM campaign_queue_control
+WHERE campaign_id IN (
+  SELECT id FROM campaigns WHERE status IN ('completed', 'cancelled')
+);
+```
+
+### 3. Securite supplementaire dans le SELECT
+
+Ajouter un filtre pour ne prendre que les controls dont la campagne n'est PAS deja terminee :
+
+```typescript
+const { data: readyControls } = await supabase
+  .from("campaign_queue_control")
+  .select("*, campaigns!inner(status)")
+  .lte("next_batch_at", now)
+  .not("campaigns.status", "in", '("completed","cancelled")')
+  .order("next_batch_at", { ascending: true })
+  .limit(1);
+```
+
+## Fichiers modifies
+
+| Fichier | Modification |
+|---|---|
+| `supabase/functions/process-campaign-queue/index.ts` | Supprimer `campaign_queue_control` quand campagne terminee + filtrer les campagnes deja completees |
+| Migration SQL | Nettoyer les controls orphelins existants |
+
+## Resultat attendu
+
+La campagne `176e22a5` (2841 messages WhatsApp) commencera a etre traitee des le prochain cycle cron (1 minute).
+
