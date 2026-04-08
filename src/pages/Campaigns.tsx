@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCampaigns, Campaign } from "@/hooks/useCampaigns";
+import { supabase } from "@/integrations/supabase/client";
 import { useSmsTemplates, SmsTemplate } from "@/hooks/useSmsTemplates";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -37,7 +38,8 @@ import {
   FileText,
   Sparkles,
   Settings,
-  FlaskConical
+  FlaskConical,
+  StopCircle
 } from "lucide-react";
 
 const Campaigns = () => {
@@ -126,6 +128,23 @@ const Campaigns = () => {
     try {
       await sendCampaign.mutateAsync(campaignId);
       toast({ title: "Succès", description: "Campagne envoyée avec succès" });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCancelCampaign = async (campaignId: string) => {
+    try {
+      // Cancel pending queue items
+      await supabase
+        .from("campaign_queue")
+        .update({ status: "cancelled" })
+        .eq("campaign_id", campaignId)
+        .in("status", ["pending", "queued"]);
+
+      // Update campaign status
+      await updateCampaign.mutateAsync({ id: campaignId, status: "cancelled" as any });
+      toast({ title: "Campagne annulée", description: "La campagne et les messages en attente ont été annulés." });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -590,10 +609,34 @@ const Campaigns = () => {
                           </>
                         )}
                         {campaign.status === 'scheduled' && (
-                          <Badge variant="outline" className="text-blue-400 border-blue-400/30">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Programmée
-                          </Badge>
+                          <>
+                            <Badge variant="outline" className="text-blue-400 border-blue-400/30">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Programmée
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="gap-1"
+                              onClick={() => handleCancelCampaign(campaign.id)}
+                              disabled={updateCampaign.isPending}
+                            >
+                              <StopCircle className="h-3 w-3" />
+                              Annuler
+                            </Button>
+                          </>
+                        )}
+                        {campaign.status === 'sending' && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="gap-1"
+                            onClick={() => handleCancelCampaign(campaign.id)}
+                            disabled={updateCampaign.isPending}
+                          >
+                            <StopCircle className="h-3 w-3" />
+                            Arrêter
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
