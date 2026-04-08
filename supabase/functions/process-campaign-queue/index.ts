@@ -97,7 +97,7 @@ serve(async (req) => {
     if (msgErr) throw msgErr;
 
     if (!messages || messages.length === 0) {
-      // No more messages, mark campaign as completed
+      // No more messages, mark campaign as completed and DELETE control row
       await supabase
         .from("campaigns")
         .update({
@@ -107,6 +107,11 @@ serve(async (req) => {
           sent_at: now,
         })
         .eq("id", control.campaign_id);
+
+      await supabase
+        .from("campaign_queue_control")
+        .delete()
+        .eq("id", control.id);
 
       console.log(`Campaign ${control.campaign_id} completed: ${control.total_sent} sent, ${control.total_failed} failed`);
 
