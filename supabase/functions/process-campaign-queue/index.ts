@@ -69,8 +69,9 @@ serve(async (req) => {
     // Find campaigns with pending batches that are ready to process
     const { data: readyControls, error: ctrlErr } = await supabase
       .from("campaign_queue_control")
-      .select("*")
+      .select("*, campaigns!inner(status)")
       .lte("next_batch_at", now)
+      .not("campaigns.status", "in", '("completed","cancelled")')
       .order("next_batch_at", { ascending: true })
       .limit(1);
 
