@@ -37,7 +37,8 @@ import {
   FileText,
   Sparkles,
   Settings,
-  FlaskConical
+  FlaskConical,
+  StopCircle
 } from "lucide-react";
 
 const Campaigns = () => {
@@ -126,6 +127,23 @@ const Campaigns = () => {
     try {
       await sendCampaign.mutateAsync(campaignId);
       toast({ title: "Succès", description: "Campagne envoyée avec succès" });
+    } catch (error: any) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCancelCampaign = async (campaignId: string) => {
+    try {
+      // Cancel pending queue items
+      await supabase
+        .from("campaign_queue")
+        .update({ status: "cancelled" })
+        .eq("campaign_id", campaignId)
+        .in("status", ["pending", "queued"]);
+
+      // Update campaign status
+      await updateCampaign.mutateAsync({ id: campaignId, status: "cancelled" as any });
+      toast({ title: "Campagne annulée", description: "La campagne et les messages en attente ont été annulés." });
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
