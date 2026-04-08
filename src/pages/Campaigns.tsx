@@ -609,10 +609,34 @@ const Campaigns = () => {
                           </>
                         )}
                         {campaign.status === 'scheduled' && (
-                          <Badge variant="outline" className="text-blue-400 border-blue-400/30">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Programmée
-                          </Badge>
+                          <>
+                            <Badge variant="outline" className="text-blue-400 border-blue-400/30">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Programmée
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="gap-1"
+                              onClick={() => handleCancelCampaign(campaign.id)}
+                              disabled={updateCampaign.isPending}
+                            >
+                              <StopCircle className="h-3 w-3" />
+                              Annuler
+                            </Button>
+                          </>
+                        )}
+                        {campaign.status === 'sending' && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="gap-1"
+                            onClick={() => handleCancelCampaign(campaign.id)}
+                            disabled={updateCampaign.isPending}
+                          >
+                            <StopCircle className="h-3 w-3" />
+                            Arrêter
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
