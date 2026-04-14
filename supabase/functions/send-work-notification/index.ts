@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendViaManyChat } from "../_shared/manychat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,53 +12,17 @@ const VALID_CI_PREFIXES = ["01", "05", "07", "21", "22", "23", "24", "25", "27"]
 function normalizeCIPhone(raw: string): { valid: boolean; normalized: string; error?: string } {
   let cleaned = raw.replace(/[\s\-\(\)\.]/g, "");
   cleaned = cleaned.replace(/^\+/, "").replace(/^00/, "");
-
-  // 0XXXXXXXXX (10 digits local) -> 2250XXXXXXXXX
-  if (/^0\d{9}$/.test(cleaned)) {
-    cleaned = "225" + cleaned;
-  }
-
-  // 10 digits without leading 0 and without prefix -> add 225
-  if (!cleaned.startsWith("225") && /^\d{10}$/.test(cleaned)) {
-    cleaned = "225" + cleaned;
-  }
-
-  // 8 digits (old format) -> add 225
-  if (/^\d{8}$/.test(cleaned)) {
-    cleaned = "225" + cleaned;
-  }
-
+  if (/^0\d{9}$/.test(cleaned)) cleaned = "225" + cleaned;
+  if (!cleaned.startsWith("225") && /^\d{10}$/.test(cleaned)) cleaned = "225" + cleaned;
+  if (/^\d{8}$/.test(cleaned)) cleaned = "225" + cleaned;
   if (!/^225\d{10}$/.test(cleaned)) {
     return { valid: false, normalized: cleaned, error: `Format invalide: ${raw} -> ${cleaned}` };
   }
-
   const prefix = cleaned.substring(3, 5);
   if (!VALID_CI_PREFIXES.includes(prefix)) {
     return { valid: false, normalized: cleaned, error: `Préfixe CI invalide: ${prefix}` };
   }
-
   return { valid: true, normalized: cleaned };
-}
-
-async function sendViaMessenger360(
-  phone: string,
-  message: string,
-  apiKey: string
-): Promise<{ ok: boolean; data: any; status?: number }> {
-  const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      phonenumber: phone,
-      text: message,
-      channel: "whatsapp",
-    }),
-  });
-  const data = await response.json();
-  return { ok: response.ok, data, status: response.status };
 }
 
 serve(async (req) => {
@@ -82,10 +47,10 @@ serve(async (req) => {
     return new Response("Paramètres requis manquants", { status: 400, headers: corsHeaders });
   }
 
-  const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
-  if (!MESSENGER360_API_KEY) {
-    console.error("MESSENGER360_API_KEY not configured");
-    return new Response("MESSENGER360_API_KEY not configured", { status: 500, headers: corsHeaders });
+  const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY");
+  if (!MANYCHAT_API_KEY) {
+    console.error("MANYCHAT_API_KEY not configured");
+    return new Response("MANYCHAT_API_KEY not configured", { status: 500, headers: corsHeaders });
   }
 
   const supabase = createClient(
@@ -93,19 +58,19 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  const MANYCHAT_FLOW_NS = Deno.env.get("MANYCHAT_FLOW_NS") || "";
+
   console.log(`[send-work-notification] event=${event_type}, targets=${target_user_ids.length}`);
 
-  // Fetch target user phones
   const { data: users, error: fetchError } = await supabase
     .from("profiles")
-    .select("id, phone")
+    .select("id, phone, full_name")
     .in("id", target_user_ids);
 
   if (fetchError || !users) {
     console.error("Error fetching profiles:", fetchError?.message);
     return new Response("Erreur récupération profils: " + fetchError?.message, {
-      status: 500,
-      headers: corsHeaders,
+      status: 500, headers: corsHeaders,
     });
   }
 
@@ -122,14 +87,9 @@ serve(async (req) => {
     if (!valid) {
       console.log(`[skip] user ${user.id}: ${normError}`);
       await supabase.from("work_notification_logs").insert([{
-        event_type,
-        recipient_user_id: user.id,
-        recipient_phone: user.phone,
-        message: `${title}\n${body}`,
-        link,
-        status: "error",
-        error_message: normError || "Numéro invalide",
-        provider: "messenger360",
+        event_type, recipient_user_id: user.id, recipient_phone: user.phone,
+        message: `${title}\n${body}`, link, status: "error",
+        error_message: normError || "Numéro invalide", provider: "manychat",
       }]);
       failed++;
       continue;
@@ -149,59 +109,32 @@ serve(async (req) => {
     }
 
     const message = `EasyFlows: ${title}.\n${body}\nConsultez: ${link ?? ""}`;
+    const firstName = user.full_name?.split(" ")[0] || "Équipe";
 
-    // Send with retry on 429
-    let sendResult: { ok: boolean; data: any; status?: number } | null = null;
-    let lastError = "";
+    const sendResult = await sendViaManyChat(
+      normalized, message, MANYCHAT_API_KEY, supabase,
+      firstName, MANYCHAT_FLOW_NS || undefined
+    );
 
-    for (let attempt = 0; attempt <= 2; attempt++) {
-      try {
-        sendResult = await sendViaMessenger360(normalized, message, MESSENGER360_API_KEY);
-        if (sendResult.ok) break;
-
-        lastError = sendResult.data?.message || JSON.stringify(sendResult.data);
-
-        if (sendResult.status === 429 && attempt < 2) {
-          const wait = 2000 * (attempt + 1);
-          console.log(`[retry] 429 for ${normalized}, waiting ${wait}ms`);
-          await new Promise((r) => setTimeout(r, wait));
-          continue;
-        }
-        break;
-      } catch (err) {
-        lastError = err instanceof Error ? err.message : "Request failed";
-        sendResult = { ok: false, data: { message: lastError } };
-        break;
-      }
-    }
-
-    const status = sendResult?.ok ? "success" : "error";
-    const errorMessage = sendResult?.ok ? "" : lastError;
+    const status = sendResult.ok ? "success" : "error";
+    const errorMessage = sendResult.ok ? "" : (sendResult.data?.message || "Envoi échoué");
 
     console.log(`[${status}] ${normalized}: ${errorMessage || "OK"}`);
 
     await supabase.from("work_notification_logs").insert([{
-      event_type,
-      recipient_user_id: user.id,
-      recipient_phone: normalized,
-      message,
-      link,
-      status,
-      error_message: errorMessage,
-      provider: "messenger360",
+      event_type, recipient_user_id: user.id, recipient_phone: normalized,
+      message, link, status, error_message: errorMessage, provider: "manychat",
     }]);
 
-    if (sendResult?.ok) sent++;
+    if (sendResult.ok) sent++;
     else failed++;
 
-    // Throttle 200ms between sends
     await new Promise((r) => setTimeout(r, 200));
   }
 
   console.log(`[send-work-notification] Done: ${sent} sent, ${failed} failed`);
 
   return new Response(JSON.stringify({ sent, failed }), {
-    status: 200,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
+    status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
   });
 });

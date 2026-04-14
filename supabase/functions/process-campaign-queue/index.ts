@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendViaManyChat } from "../_shared/manychat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,20 +37,6 @@ async function sendViaSms8(phone: string, message: string, apiKey: string, devic
   }
 }
 
-async function sendViaMessenger360(phone: string, message: string, channel: string, apiKey: string): Promise<{ ok: boolean; data: any; status?: number }> {
-  const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({ phonenumber: phone, text: message, channel }),
-  });
-  const data = await response.json();
-  return { ok: response.ok, data, status: response.status };
-}
-
-// Random integer between min and max (inclusive)
 function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -66,7 +53,6 @@ serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    // Find campaigns with pending batches that are ready to process
     const { data: readyControls, error: ctrlErr } = await supabase
       .from("campaign_queue_control")
       .select("*, campaigns!inner(status)")
@@ -83,9 +69,8 @@ serve(async (req) => {
     }
 
     const control = readyControls[0];
-    const batchSize = randomInt(15, 20); // Random batch size between 15-20
+    const batchSize = randomInt(15, 20);
 
-    // Fetch pending messages for this campaign
     const { data: messages, error: msgErr } = await supabase
       .from("campaign_queue")
       .select("*")
@@ -97,44 +82,33 @@ serve(async (req) => {
     if (msgErr) throw msgErr;
 
     if (!messages || messages.length === 0) {
-      // No more messages, mark campaign as completed and DELETE control row
-      await supabase
-        .from("campaigns")
-        .update({
-          status: "completed",
-          sent_count: control.total_sent,
-          failed_count: control.total_failed,
-          sent_at: now,
-        })
-        .eq("id", control.campaign_id);
+      await supabase.from("campaigns").update({
+        status: "completed", sent_count: control.total_sent,
+        failed_count: control.total_failed, sent_at: now,
+      }).eq("id", control.campaign_id);
 
-      await supabase
-        .from("campaign_queue_control")
-        .delete()
-        .eq("id", control.id);
+      await supabase.from("campaign_queue_control").delete().eq("id", control.id);
 
       console.log(`Campaign ${control.campaign_id} completed: ${control.total_sent} sent, ${control.total_failed} failed`);
 
       return new Response(JSON.stringify({ 
-        message: "Campaign completed", 
-        campaign_id: control.campaign_id,
-        total_sent: control.total_sent,
-        total_failed: control.total_failed,
+        message: "Campaign completed", campaign_id: control.campaign_id,
+        total_sent: control.total_sent, total_failed: control.total_failed,
       }), {
         status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    // Determine provider
     const isSms = messages[0].type === "sms";
     const SMS8_API_KEY = Deno.env.get("SMS8_API_KEY") || "";
     const SMS8_DEVICE_ID = Deno.env.get("SMS8_DEVICE_ID") || "";
-    const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY") || "";
+    const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY") || "";
+    const MANYCHAT_FLOW_NS = Deno.env.get("MANYCHAT_FLOW_NS") || "";
 
     let batchSent = 0;
     let batchFailed = 0;
 
-    console.log(`Processing batch of ${messages.length} ${messages[0].type} messages for campaign ${control.campaign_id}`);
+    console.log(`Processing batch of ${messages.length} ${messages[0].type} messages for campaign ${control.campaign_id} via ${isSms ? "sms8.io" : "ManyChat"}`);
 
     for (const msg of messages) {
       try {
@@ -157,19 +131,10 @@ serve(async (req) => {
         if (isSms) {
           sendResult = await sendViaSms8(normalized, msg.message, SMS8_API_KEY, SMS8_DEVICE_ID);
         } else {
-          // WhatsApp with retry on 429
-          let sent = false;
-          sendResult = { ok: false, data: {} };
-          for (let attempt = 0; attempt <= 2; attempt++) {
-            const res = await sendViaMessenger360(normalized, msg.message, "whatsapp", MESSENGER360_API_KEY);
-            if (res.ok) { sendResult = res; sent = true; break; }
-            if (res.status === 429 && attempt < 2) {
-              await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-              continue;
-            }
-            sendResult = res;
-            break;
-          }
+          sendResult = await sendViaManyChat(
+            normalized, msg.message, MANYCHAT_API_KEY, supabase,
+            undefined, MANYCHAT_FLOW_NS || undefined
+          );
         }
 
         if (sendResult.ok) {
@@ -192,7 +157,6 @@ serve(async (req) => {
           });
         }
 
-        // Small delay between messages within a batch (1-3 seconds, irregular)
         const intraDelay = randomInt(1000, 3000);
         await new Promise(r => setTimeout(r, intraDelay));
 
@@ -205,7 +169,6 @@ serve(async (req) => {
       }
     }
 
-    // Check remaining messages
     const { count: remaining } = await supabase
       .from("campaign_queue")
       .select("*", { count: "exact", head: true })
@@ -216,45 +179,33 @@ serve(async (req) => {
     const newTotalFailed = control.total_failed + batchFailed;
 
     if (remaining === 0) {
-      // Campaign done — delete control row to unblock queue
       await supabase.from("campaigns").update({
-        status: "completed",
-        sent_count: newTotalSent,
-        failed_count: newTotalFailed,
-        sent_at: now,
+        status: "completed", sent_count: newTotalSent,
+        failed_count: newTotalFailed, sent_at: now,
       }).eq("id", control.campaign_id);
 
       await supabase.from("campaign_queue_control").delete().eq("id", control.id);
 
       console.log(`Campaign ${control.campaign_id} fully completed: ${newTotalSent} sent, ${newTotalFailed} failed`);
     } else {
-      // Schedule next batch with random delay: 10min to 60min
       const delayMinutes = randomInt(10, 60);
       const nextBatchAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();
 
       await supabase.from("campaign_queue_control").update({
-        total_sent: newTotalSent,
-        total_failed: newTotalFailed,
-        next_batch_at: nextBatchAt,
-        batch_size: randomInt(15, 20), // Vary next batch size too
-        updated_at: now,
+        total_sent: newTotalSent, total_failed: newTotalFailed,
+        next_batch_at: nextBatchAt, batch_size: randomInt(15, 20), updated_at: now,
       }).eq("id", control.id);
 
-      // Update campaign progress
       await supabase.from("campaigns").update({
-        sent_count: newTotalSent,
-        failed_count: newTotalFailed,
+        sent_count: newTotalSent, failed_count: newTotalFailed,
       }).eq("id", control.campaign_id);
 
       console.log(`Batch done: ${batchSent} sent, ${batchFailed} failed. ${remaining} remaining. Next batch in ${delayMinutes}min at ${nextBatchAt}`);
     }
 
     return new Response(JSON.stringify({
-      message: "Batch processed",
-      campaign_id: control.campaign_id,
-      batch_sent: batchSent,
-      batch_failed: batchFailed,
-      remaining: remaining || 0,
+      message: "Batch processed", campaign_id: control.campaign_id,
+      batch_sent: batchSent, batch_failed: batchFailed, remaining: remaining || 0,
     }), {
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
     });

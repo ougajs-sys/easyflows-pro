@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendViaManyChat } from "../_shared/manychat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,7 +24,6 @@ function normalizeCIPhone(phone: string): { valid: boolean; normalized: string; 
   return { valid: true, normalized: cleaned };
 }
 
-// --- sms8.io sender ---
 async function sendViaSms8(phone: string, message: string, apiKey: string, deviceId: string): Promise<{ ok: boolean; data: any }> {
   const phoneWithPlus = "+" + phone;
   const url = `https://app.sms8.io/services/send.php?key=${encodeURIComponent(apiKey)}&number=${encodeURIComponent(phoneWithPlus)}&message=${encodeURIComponent(message)}&devices=${encodeURIComponent(JSON.stringify([deviceId]))}&type=sms`;
@@ -35,20 +35,6 @@ async function sendViaSms8(phone: string, message: string, apiKey: string, devic
   } catch (err) {
     return { ok: false, data: { message: err instanceof Error ? err.message : "sms8.io request failed" } };
   }
-}
-
-// --- Messenger360 sender (WhatsApp) ---
-async function sendViaMessenger360(phone: string, message: string, channel: string, apiKey: string): Promise<{ ok: boolean; data: any; status?: number }> {
-  const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({ phonenumber: phone, text: message, channel }),
-  });
-  const data = await response.json();
-  return { ok: response.ok, data, status: response.status };
 }
 
 interface SendSmsRequest {
@@ -137,22 +123,23 @@ serve(async (req) => {
         throw new Error("SMS8_API_KEY or SMS8_DEVICE_ID not configured");
       }
     } else {
-      const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
-      if (!MESSENGER360_API_KEY) {
-        throw new Error("MESSENGER360_API_KEY not configured");
+      const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY");
+      if (!MANYCHAT_API_KEY) {
+        throw new Error("MANYCHAT_API_KEY not configured");
       }
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    console.log(`Sending ${type} to ${phones.length} recipients via ${isSms ? 'sms8.io' : 'Messenger360'} (by ${userId})`);
+    const providerName = isSms ? "sms8.io" : "ManyChat";
+    console.log(`Sending ${type} to ${phones.length} recipients via ${providerName} (by ${userId})`);
 
     const SMS8_API_KEY = Deno.env.get("SMS8_API_KEY") || "";
     const SMS8_DEVICE_ID = Deno.env.get("SMS8_DEVICE_ID") || "";
-    const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY") || "";
+    const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY") || "";
+    const MANYCHAT_FLOW_NS = Deno.env.get("MANYCHAT_FLOW_NS") || "";
 
     const results = { sent: 0, failed: 0, errors: [] as string[] };
     const throttleMs = isSms ? 100 : 200;
-    // WhatsApp batch throttling: pause 20s every 20 messages to avoid bans
     const WA_BATCH_SIZE = 20;
     const WA_BATCH_PAUSE_MS = 20_000;
     let waBatchCount = 0;
@@ -178,31 +165,13 @@ serve(async (req) => {
         if (isSms) {
           sendResult = await sendViaSms8(normalized, message, SMS8_API_KEY, SMS8_DEVICE_ID);
         } else {
-          // WhatsApp with retry on 429
-          let sent = false;
-          let lastError = "";
-          for (let attempt = 0; attempt <= 2; attempt++) {
-            const res = await sendViaMessenger360(normalized, message, type, MESSENGER360_API_KEY);
-            if (res.ok) {
-              sendResult = res;
-              sent = true;
-              break;
-            }
-            lastError = res.data?.message || JSON.stringify(res.data);
-            if (res.status === 429 && attempt < 2) {
-              const wait = Math.min(2000, 10000) * (attempt + 1);
-              await new Promise(r => setTimeout(r, wait));
-              continue;
-            }
-            sendResult = res;
-            break;
-          }
-          if (!sent && !sendResult!) {
-            sendResult = { ok: false, data: { message: lastError || "Max retries exceeded" } };
-          }
+          sendResult = await sendViaManyChat(
+            normalized, message, MANYCHAT_API_KEY, supabase,
+            undefined, MANYCHAT_FLOW_NS || undefined
+          );
         }
 
-        if (sendResult!.ok) {
+        if (sendResult.ok) {
           results.sent++;
           if (campaign_id) {
             await supabase.from("campaign_logs").insert({
@@ -211,7 +180,7 @@ serve(async (req) => {
           }
         } else {
           results.failed++;
-          const errMsg = sendResult!.data?.message || JSON.stringify(sendResult!.data);
+          const errMsg = sendResult.data?.message || JSON.stringify(sendResult.data);
           results.errors.push(`${normalized}: ${errMsg}`);
           if (campaign_id) {
             await supabase.from("campaign_logs").insert({
@@ -233,7 +202,6 @@ serve(async (req) => {
 
       await new Promise(resolve => setTimeout(resolve, throttleMs));
 
-      // WhatsApp batch pause: every 20 messages, wait 20 seconds
       if (!isSms) {
         waBatchCount++;
         if (waBatchCount >= WA_BATCH_SIZE) {
@@ -244,7 +212,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Completed: ${results.sent} sent, ${results.failed} failed via ${isSms ? 'sms8.io' : 'Messenger360'}`);
+    console.log(`Completed: ${results.sent} sent, ${results.failed} failed via ${providerName}`);
 
     return new Response(JSON.stringify(results), {
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
