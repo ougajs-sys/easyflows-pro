@@ -1,69 +1,85 @@
 
 
-# Plan : Corriger le blocage de diffusion des campagnes
+# Plan : Integrer ManyChat comme fournisseur WhatsApp Business API
 
-## Probleme
+## Contexte
 
-`process-campaign-queue` selectionne le `campaign_queue_control` le plus ancien (ORDER BY next_batch_at ASC LIMIT 1). L'ancienne campagne terminee `6db2bff2` a toujours une ligne dans cette table, bloquant indefiniment la nouvelle campagne `176e22a5` (2841 messages en attente).
+Les messages envoyes via Messenger360 (numero non verifie) tombent en spam a 99%. ManyChat, en tant que BSP officiel WhatsApp Business API avec un compte verifie, resout ce probleme car les messages arrivent avec le nom d'entreprise verifie (badge vert).
 
-## Corrections
+## Contrainte importante de ManyChat
 
-### 1. Edge Function `supabase/functions/process-campaign-queue/index.ts`
+ManyChat fonctionne differemment de Messenger360 :
+- Les contacts doivent etre des **subscribers** ManyChat (avec un `subscriber_id`)
+- Hors fenetre 24h, seuls les **Message Templates approuves** peuvent etre envoyes (via `/fb/sending/sendFlow`)
+- Dans la fenetre 24h, on peut envoyer du texte libre (via `/fb/sending/sendContent`)
+- Il faut d'abord **creer le subscriber** via `/fb/subscriber/createSubscriber` avec le numero WhatsApp
 
-**Quand une campagne est terminee (0 messages pending), SUPPRIMER la ligne `campaign_queue_control`** au lieu de la laisser :
+## Architecture proposee
 
-```typescript
-// Apres: No more messages, mark campaign as completed
-await supabase
-  .from("campaign_queue_control")
-  .delete()
-  .eq("id", control.id);  // SUPPRIMER la ligne
+```text
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐
+│ EasyFlows Pro   │────>│ Edge Functions    │────>│ ManyChat API│
+│ (Campagnes)     │     │ (send-sms, etc.) │     │ (WhatsApp)  │
+└─────────────────┘     └──────────────────┘     └─────────────┘
+                              │                        │
+                              │ 1. createSubscriber     │
+                              │ 2. sendFlow (template)  │
+                              │    ou sendContent (24h) │
+                              └────────────────────────>│
 ```
 
-Meme chose quand `remaining === 0` apres un batch :
+## Modifications
 
-```typescript
-if (remaining === 0) {
-  // Supprimer le control pour liberer la file
-  await supabase.from("campaign_queue_control").delete().eq("id", control.id);
-  // Mettre a jour la campagne
-  await supabase.from("campaigns").update({ ... }).eq("id", control.campaign_id);
-}
-```
+### 1. Nouvelle fonction utilitaire : `sendViaManyChat`
 
-### 2. Migration SQL — Nettoyer les controls orphelins existants
+Remplacer `sendViaMessenger360` dans les 4 edge functions par une nouvelle fonction `sendViaManyChat` qui :
 
-Supprimer immediatement la ligne `campaign_queue_control` de l'ancienne campagne completee pour debloquer la file :
+1. **Cree le subscriber** si inexistant : `POST https://api.manychat.com/fb/subscriber/createSubscriber` avec `{ whatsapp_phone, first_name, consent_phrase }`
+2. **Envoie le message** via : `POST https://api.manychat.com/fb/sending/sendContent` avec `{ subscriber_id, data: { version: "v2", content: { type: "whatsapp", messages: [{ type: "text", text }] } } }`
+3. En cas d'echec (hors 24h), **fallback sur sendFlow** avec un template pre-approuve
 
-```sql
-DELETE FROM campaign_queue_control
-WHERE campaign_id IN (
-  SELECT id FROM campaigns WHERE status IN ('completed', 'cancelled')
-);
-```
+Headers : `Authorization: Bearer MANYCHAT_API_KEY`, `Content-Type: application/json`
 
-### 3. Securite supplementaire dans le SELECT
+### 2. Nouveau secret Supabase
 
-Ajouter un filtre pour ne prendre que les controls dont la campagne n'est PAS deja terminee :
+- `MANYCHAT_API_KEY` : Token API ManyChat (genere dans Settings > API)
+- `MANYCHAT_FLOW_NS` : Namespace du flow de fallback pour les templates (optionnel au debut)
 
-```typescript
-const { data: readyControls } = await supabase
-  .from("campaign_queue_control")
-  .select("*, campaigns!inner(status)")
-  .lte("next_batch_at", now)
-  .not("campaigns.status", "in", '("completed","cancelled")')
-  .order("next_batch_at", { ascending: true })
-  .limit(1);
-```
-
-## Fichiers modifies
+### 3. Fichiers modifies
 
 | Fichier | Modification |
 |---|---|
-| `supabase/functions/process-campaign-queue/index.ts` | Supprimer `campaign_queue_control` quand campagne terminee + filtrer les campagnes deja completees |
-| Migration SQL | Nettoyer les controls orphelins existants |
+| `supabase/functions/send-sms/index.ts` | Remplacer `sendViaMessenger360` par `sendViaManyChat` |
+| `supabase/functions/send-campaign/index.ts` | Idem |
+| `supabase/functions/send-notification-sms/index.ts` | Idem |
+| `supabase/functions/process-campaign-queue/index.ts` | Idem |
+| `supabase/functions/send-work-notification/index.ts` | Idem |
+| `supabase/functions/_shared/manychat.ts` | Nouveau fichier partage avec la logique ManyChat |
+
+### 4. Table de mapping (optionnel mais recommande)
+
+Creer une table `manychat_subscribers` pour cacher les `subscriber_id` ManyChat et eviter de recréer les contacts a chaque envoi :
+
+```sql
+CREATE TABLE manychat_subscribers (
+  phone TEXT PRIMARY KEY,
+  subscriber_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 5. Pre-requis cote ManyChat (action manuelle)
+
+Avant l'implementation, vous devez :
+1. **Generer un token API** dans ManyChat (Settings > API > Generate Token)
+2. **Contacter le support ManyChat** pour activer la permission `createSubscriber` avec `wa_id` (necessaire pour importer des contacts par telephone)
+3. **Creer un Message Template** dans ManyChat pour les campagnes marketing (approuve par WhatsApp)
+4. **Creer un Flow** dans ManyChat qui envoie ce template (pour l'endpoint `sendFlow`)
 
 ## Resultat attendu
 
-La campagne `176e22a5` (2841 messages WhatsApp) commencera a etre traitee des le prochain cycle cron (1 minute).
+- Messages WhatsApp delivres avec le badge verifie (nom d'entreprise)
+- Taux d'ouverture passe de ~1% a 70-90%
+- SMS via sms8.io reste inchange (pas affecte)
+- Compatible avec le systeme anti-spam progressif existant
 
