@@ -737,6 +737,24 @@ export type Database = {
           },
         ]
       }
+      manychat_subscribers: {
+        Row: {
+          created_at: string
+          phone: string
+          subscriber_id: string
+        }
+        Insert: {
+          created_at?: string
+          phone: string
+          subscriber_id: string
+        }
+        Update: {
+          created_at?: string
+          phone?: string
+          subscriber_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           channel: string
