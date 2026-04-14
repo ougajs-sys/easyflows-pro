@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendViaManyChat } from "../_shared/manychat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,47 +24,17 @@ function normalizeCIPhone(phone: string): { valid: boolean; normalized: string; 
   return { valid: true, normalized: cleaned };
 }
 
-// --- sms8.io sender ---
 async function sendViaSms8(phone: string, message: string, apiKey: string, deviceId: string): Promise<{ ok: boolean; data: any }> {
-  const phoneWithPlus = "+" + phone; // sms8.io expects +2250XXXXXXXXX
+  const phoneWithPlus = "+" + phone;
   const url = `https://app.sms8.io/services/send.php?key=${encodeURIComponent(apiKey)}&number=${encodeURIComponent(phoneWithPlus)}&message=${encodeURIComponent(message)}&devices=${encodeURIComponent(JSON.stringify([deviceId]))}&type=sms`;
-  
   try {
     const response = await fetch(url);
     const data = await response.json();
-    
-    if (data.success || response.ok) {
-      return { ok: true, data };
-    }
+    if (data.success || response.ok) return { ok: true, data };
     return { ok: false, data };
   } catch (err) {
     return { ok: false, data: { message: err instanceof Error ? err.message : "sms8.io request failed" } };
   }
-}
-
-// --- Messenger360 sender (WhatsApp) ---
-async function sendViaMessenger360(phone: string, message: string, channel: string, apiKey: string, maxRetries = 2): Promise<{ ok: boolean; data: any }> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({ phonenumber: phone, text: message, channel }),
-    });
-    const data = await response.json();
-    if (response.ok) return { ok: true, data };
-    if (response.status === 429 && attempt < maxRetries) {
-      const retryAfter = parseInt(response.headers.get("Retry-After") || "2");
-      const waitMs = Math.min(retryAfter * 1000, 10000) * (attempt + 1);
-      console.log(`429 for ${phone}, retrying in ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})`);
-      await new Promise((r) => setTimeout(r, waitMs));
-      continue;
-    }
-    return { ok: false, data };
-  }
-  return { ok: false, data: { message: "Max retries exceeded" } };
 }
 
 serve(async (req) => {
@@ -76,7 +47,6 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // --- Authentication ---
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Authorization required" }), {
@@ -120,7 +90,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch campaign
     const { data: campaign, error: campaignError } = await supabase
       .from("campaigns").select("*").eq("id", campaign_id).single();
     if (campaignError || !campaign) {
@@ -129,11 +98,9 @@ serve(async (req) => {
       });
     }
 
-    // --- Provider routing ---
     const isSms = campaign.type === "sms";
     const isWhatsApp = campaign.type === "whatsapp";
 
-    // Load provider keys based on campaign type
     if (isSms) {
       const SMS8_API_KEY = Deno.env.get("SMS8_API_KEY");
       const SMS8_DEVICE_ID = Deno.env.get("SMS8_DEVICE_ID");
@@ -142,16 +109,16 @@ serve(async (req) => {
       }
     }
     if (isWhatsApp) {
-      const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
-      if (!MESSENGER360_API_KEY) {
-        throw new Error("MESSENGER360_API_KEY not configured");
+      const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY");
+      if (!MANYCHAT_API_KEY) {
+        throw new Error("MANYCHAT_API_KEY not configured");
       }
     }
 
     console.log(`Processing campaign ${campaign.name} (${campaign_id}), type: ${campaign.type}, segment: ${campaign.segment}, by: ${userId}`);
 
     // --- Resolve recipients based on segment ---
-    let allClients: { id: string; phone: string }[] = [];
+    let allClients: { id: string; phone: string; full_name?: string }[] = [];
     const segment = campaign.segment || "all";
     const isGroupSegment = segment.startsWith("campaign_group:");
     const isProductSegment = segment.startsWith("product:") || segment.startsWith("product_cancelled:");
@@ -176,13 +143,13 @@ serve(async (req) => {
       const uniqueClientIds = [...new Set(allOrders.map((o) => o.client_id))];
       for (let i = 0; i < uniqueClientIds.length; i += 100) {
         const batch = uniqueClientIds.slice(i, i + 100);
-        const { data: clients } = await supabase.from("clients").select("id, phone").in("id", batch);
+        const { data: clients } = await supabase.from("clients").select("id, phone, full_name").in("id", batch);
         if (clients) allClients = allClients.concat(clients);
       }
     } else {
       let from = 0;
       while (true) {
-        let q = supabase.from("clients").select("id, phone").range(from, from + 999);
+        let q = supabase.from("clients").select("id, phone, full_name").range(from, from + 999);
 
         if (isGroupSegment) {
           q = q.eq("campaign_group", segment.replace("campaign_group:", ""));
@@ -265,23 +232,22 @@ serve(async (req) => {
       });
     }
 
-    // Update status to sending
     await supabase.from("campaigns").update({
       status: "sending", total_recipients: allClients.length,
     }).eq("id", campaign_id);
 
-    console.log(`Sending ${campaign.type} to ${allClients.length} recipients via ${isSms ? 'sms8.io' : 'Messenger360'}`);
+    const providerName = isSms ? "sms8.io" : "ManyChat";
+    console.log(`Sending ${campaign.type} to ${allClients.length} recipients via ${providerName}`);
 
     let totalSent = 0;
     let totalFailed = 0;
     let totalInvalid = 0;
 
-    // Get provider credentials
     const SMS8_API_KEY = Deno.env.get("SMS8_API_KEY") || "";
     const SMS8_DEVICE_ID = Deno.env.get("SMS8_DEVICE_ID") || "";
-    const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY") || "";
+    const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY") || "";
+    const MANYCHAT_FLOW_NS = Deno.env.get("MANYCHAT_FLOW_NS") || "";
 
-    // Throttle delay: sms8.io can handle faster since it's local Android gateway
     const throttleMs = isSms ? 100 : 200;
 
     for (let i = 0; i < allClients.length; i++) {
@@ -305,7 +271,11 @@ serve(async (req) => {
         if (isSms) {
           result = await sendViaSms8(normalized, campaign.message, SMS8_API_KEY, SMS8_DEVICE_ID);
         } else {
-          result = await sendViaMessenger360(normalized, campaign.message, campaign.type, MESSENGER360_API_KEY);
+          const firstName = client.full_name?.split(" ")[0] || "Client";
+          result = await sendViaManyChat(
+            normalized, campaign.message, MANYCHAT_API_KEY, supabase,
+            firstName, MANYCHAT_FLOW_NS || undefined
+          );
         }
 
         if (result.ok) {
@@ -341,7 +311,6 @@ serve(async (req) => {
       }
     }
 
-    // Final update
     await supabase.from("campaigns").update({
       sent_count: totalSent, failed_count: totalFailed,
       status: "completed", sent_at: new Date().toISOString(),
@@ -351,7 +320,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       sent: totalSent, failed: totalFailed, invalid: totalInvalid,
-      total: allClients.length, provider: isSms ? "sms8.io" : "messenger360",
+      total: allClients.length, provider: providerName,
     }), {
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
