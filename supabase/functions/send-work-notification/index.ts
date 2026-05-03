@@ -73,7 +73,7 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const MANYCHAT_FLOW_NS = Deno.env.get("MANYCHAT_FLOW_NS") || "";
+  
 
   console.log(`[send-work-notification] event=${event_type}, targets=${target_user_ids.length}`);
 
