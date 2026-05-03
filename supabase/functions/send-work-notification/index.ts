@@ -154,7 +154,7 @@ serve(async (req) => {
       message, link, status, error_message: errorMessage, provider: "messenger360",
     }]);
 
-    if (sendResult.ok) sent++;
+    if (sendResult?.ok) sent++;
     else failed++;
 
     await new Promise((r) => setTimeout(r, 200));
