@@ -62,10 +62,10 @@ serve(async (req) => {
     return new Response("Paramètres requis manquants", { status: 400, headers: corsHeaders });
   }
 
-  const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY");
-  if (!MANYCHAT_API_KEY) {
-    console.error("MANYCHAT_API_KEY not configured");
-    return new Response("MANYCHAT_API_KEY not configured", { status: 500, headers: corsHeaders });
+  const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
+  if (!MESSENGER360_API_KEY) {
+    console.error("MESSENGER360_API_KEY not configured");
+    return new Response("MESSENGER360_API_KEY not configured", { status: 500, headers: corsHeaders });
   }
 
   const supabase = createClient(
