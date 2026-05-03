@@ -1,6 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendViaManyChat } from "../_shared/manychat.ts";
+async function sendViaMessenger360(phone: string, message: string, apiKey: string): Promise<{ ok: boolean; data: any }> {
+  try {
+    const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ phonenumber: phone, text: message, channel: "whatsapp" }),
+    });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, data };
+  } catch (err) {
+    return { ok: false, data: { message: err instanceof Error ? err.message : "messenger360 request failed" } };
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
