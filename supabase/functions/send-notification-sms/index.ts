@@ -128,7 +128,7 @@ serve(async (req) => {
     }
 
     const isSms = channel === 'sms';
-    const providerName = isSms ? 'sms8.io' : 'ManyChat';
+    const providerName = isSms ? 'sms8.io' : 'messenger360';
     console.log(`Sending ${type} notification to ${normalized} via ${providerName} (channel: ${channel})`);
 
     const templateFn = messageTemplates[type];
@@ -147,19 +147,14 @@ serve(async (req) => {
       }
       result = await sendViaSms8(normalized, message, SMS8_API_KEY, SMS8_DEVICE_ID);
     } else {
-      const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY");
-      if (!MANYCHAT_API_KEY) {
+      const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
+      if (!MESSENGER360_API_KEY) {
         return new Response(
-          JSON.stringify({ error: "WhatsApp service (ManyChat) not configured", sent: false }),
+          JSON.stringify({ error: "WhatsApp service (Messenger360) not configured", sent: false }),
           { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
-      const MANYCHAT_FLOW_NS = Deno.env.get("MANYCHAT_FLOW_NS") || "";
-      const firstName = data.client_name?.split(" ")[0] || "Client";
-      result = await sendViaManyChat(
-        normalized, message, MANYCHAT_API_KEY, supabase,
-        firstName, MANYCHAT_FLOW_NS || undefined
-      );
+      result = await sendViaMessenger360(normalized, message, MESSENGER360_API_KEY);
     }
 
     console.log(`${providerName} response for ${normalized}:`, JSON.stringify(result.data));
