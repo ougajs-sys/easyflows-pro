@@ -1,85 +1,44 @@
+# Plan : Restaurer Messenger360 pour les notifications de travail
 
+## Constat
 
-# Plan : Integrer ManyChat comme fournisseur WhatsApp Business API
+Depuis l'intégration de ManyChat dans toutes les fonctions d'envoi, les notifications aux intervenants (livreurs, appelants, superviseurs) ne partent plus. Cause probable : ManyChat exige qu'un numéro soit déjà un "subscriber" actif (opt-in WhatsApp) avant d'envoyer un message hors-template, ce qui n'est pas le cas pour la plupart des collaborateurs internes. Les campagnes marketing, elles, fonctionnent car les destinataires deviennent abonnés automatiquement.
 
-## Contexte
+## Décision
 
-Les messages envoyes via Messenger360 (numero non verifie) tombent en spam a 99%. ManyChat, en tant que BSP officiel WhatsApp Business API avec un compte verifie, resout ce probleme car les messages arrivent avec le nom d'entreprise verifie (badge vert).
+- **Notifications internes (travail)** : repasser sur **Messenger360** (qui marchait avant).
+- **Campagnes marketing WhatsApp** : **garder ManyChat** (badge vérifié = délivrabilité).
 
-## Contrainte importante de ManyChat
+## Changements à faire
 
-ManyChat fonctionne differemment de Messenger360 :
-- Les contacts doivent etre des **subscribers** ManyChat (avec un `subscriber_id`)
-- Hors fenetre 24h, seuls les **Message Templates approuves** peuvent etre envoyes (via `/fb/sending/sendFlow`)
-- Dans la fenetre 24h, on peut envoyer du texte libre (via `/fb/sending/sendContent`)
-- Il faut d'abord **creer le subscriber** via `/fb/subscriber/createSubscriber` avec le numero WhatsApp
+### 1. Restaurer Messenger360 dans les 3 fonctions de notification
+Remplacer `sendViaManyChat` par `sendViaMessenger360` (ancienne implémentation déjà connue) dans :
+- `supabase/functions/send-work-notification/index.ts` — notifications de travail aux livreurs/appelants/superviseurs
+- `supabase/functions/send-notification-sms/index.ts` — notifications système
+- `supabase/functions/send-sms/index.ts` — envoi SMS unitaire
 
-## Architecture proposee
+Pour chacune :
+- Re-ajouter la fonction `sendViaMessenger360` (POST vers `https://api.360messenger.com/v2/sendMessage`).
+- Lire le secret `MESSENGER360_API_KEY` au lieu de `MANYCHAT_API_KEY`.
+- Repasser le champ `provider` à `"messenger360"` dans les logs.
+- Conserver la normalisation CIV existante et la déduplication 60s.
 
-```text
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐
-│ EasyFlows Pro   │────>│ Edge Functions    │────>│ ManyChat API│
-│ (Campagnes)     │     │ (send-sms, etc.) │     │ (WhatsApp)  │
-└─────────────────┘     └──────────────────┘     └─────────────┘
-                              │                        │
-                              │ 1. createSubscriber     │
-                              │ 2. sendFlow (template)  │
-                              │    ou sendContent (24h) │
-                              └────────────────────────>│
-```
+### 2. Garder ManyChat pour les campagnes
+Aucun changement sur :
+- `supabase/functions/send-campaign/index.ts`
+- `supabase/functions/process-campaign-queue/index.ts`
+- `supabase/functions/_shared/manychat.ts`
 
-## Modifications
+### 3. Vérifier le secret
+- Confirmer que `MESSENGER360_API_KEY` est toujours présent dans les secrets Supabase. S'il a été supprimé, le redemander avant déploiement.
 
-### 1. Nouvelle fonction utilitaire : `sendViaManyChat`
+### 4. Mémoire projet
+Mettre à jour la mémoire `mem://integrations/messaging-infrastructure-manychat-sms8` pour refléter la séparation :
+- Messenger360 = notifications internes
+- ManyChat = campagnes marketing uniquement
 
-Remplacer `sendViaMessenger360` dans les 4 edge functions par une nouvelle fonction `sendViaManyChat` qui :
+## Vérification après déploiement
 
-1. **Cree le subscriber** si inexistant : `POST https://api.manychat.com/fb/subscriber/createSubscriber` avec `{ whatsapp_phone, first_name, consent_phrase }`
-2. **Envoie le message** via : `POST https://api.manychat.com/fb/sending/sendContent` avec `{ subscriber_id, data: { version: "v2", content: { type: "whatsapp", messages: [{ type: "text", text }] } } }`
-3. En cas d'echec (hors 24h), **fallback sur sendFlow** avec un template pre-approuve
-
-Headers : `Authorization: Bearer MANYCHAT_API_KEY`, `Content-Type: application/json`
-
-### 2. Nouveau secret Supabase
-
-- `MANYCHAT_API_KEY` : Token API ManyChat (genere dans Settings > API)
-- `MANYCHAT_FLOW_NS` : Namespace du flow de fallback pour les templates (optionnel au debut)
-
-### 3. Fichiers modifies
-
-| Fichier | Modification |
-|---|---|
-| `supabase/functions/send-sms/index.ts` | Remplacer `sendViaMessenger360` par `sendViaManyChat` |
-| `supabase/functions/send-campaign/index.ts` | Idem |
-| `supabase/functions/send-notification-sms/index.ts` | Idem |
-| `supabase/functions/process-campaign-queue/index.ts` | Idem |
-| `supabase/functions/send-work-notification/index.ts` | Idem |
-| `supabase/functions/_shared/manychat.ts` | Nouveau fichier partage avec la logique ManyChat |
-
-### 4. Table de mapping (optionnel mais recommande)
-
-Creer une table `manychat_subscribers` pour cacher les `subscriber_id` ManyChat et eviter de recréer les contacts a chaque envoi :
-
-```sql
-CREATE TABLE manychat_subscribers (
-  phone TEXT PRIMARY KEY,
-  subscriber_id TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### 5. Pre-requis cote ManyChat (action manuelle)
-
-Avant l'implementation, vous devez :
-1. **Generer un token API** dans ManyChat (Settings > API > Generate Token)
-2. **Contacter le support ManyChat** pour activer la permission `createSubscriber` avec `wa_id` (necessaire pour importer des contacts par telephone)
-3. **Creer un Message Template** dans ManyChat pour les campagnes marketing (approuve par WhatsApp)
-4. **Creer un Flow** dans ManyChat qui envoie ce template (pour l'endpoint `sendFlow`)
-
-## Resultat attendu
-
-- Messages WhatsApp delivres avec le badge verifie (nom d'entreprise)
-- Taux d'ouverture passe de ~1% a 70-90%
-- SMS via sms8.io reste inchange (pas affecte)
-- Compatible avec le systeme anti-spam progressif existant
-
+- Déclencher une notification test (ex. assignation d'une commande à un livreur).
+- Vérifier dans `work_notification_logs` que `provider = 'messenger360'` et `status = 'success'`.
+- Confirmer qu'une campagne marketing passe toujours via ManyChat.
