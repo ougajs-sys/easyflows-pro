@@ -104,7 +104,7 @@ serve(async (req) => {
       await supabase.from("work_notification_logs").insert([{
         event_type, recipient_user_id: user.id, recipient_phone: user.phone,
         message: `${title}\n${body}`, link, status: "error",
-        error_message: normError || "Numéro invalide", provider: "manychat",
+        error_message: normError || "Numéro invalide", provider: "messenger360",
       }]);
       failed++;
       continue;
