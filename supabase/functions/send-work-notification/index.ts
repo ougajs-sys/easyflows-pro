@@ -124,21 +124,34 @@ serve(async (req) => {
     }
 
     const message = `EasyFlows: ${title}.\n${body}\nConsultez: ${link ?? ""}`;
-    const firstName = user.full_name?.split(" ")[0] || "Équipe";
 
-    const sendResult = await sendViaManyChat(
-      normalized, message, MANYCHAT_API_KEY, supabase,
-      firstName, MANYCHAT_FLOW_NS || undefined
-    );
+    let sendResult: { ok: boolean; data: any; status?: number } | null = null;
+    let lastError = "";
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      try {
+        sendResult = await sendViaMessenger360(normalized, message, MESSENGER360_API_KEY);
+        if (sendResult.ok) break;
+        lastError = sendResult.data?.message || JSON.stringify(sendResult.data);
+        if (sendResult.status === 429 && attempt < 2) {
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
+        break;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "Request failed";
+        sendResult = { ok: false, data: { message: lastError } };
+        break;
+      }
+    }
 
-    const status = sendResult.ok ? "success" : "error";
-    const errorMessage = sendResult.ok ? "" : (sendResult.data?.message || "Envoi échoué");
+    const status = sendResult?.ok ? "success" : "error";
+    const errorMessage = sendResult?.ok ? "" : lastError;
 
     console.log(`[${status}] ${normalized}: ${errorMessage || "OK"}`);
 
     await supabase.from("work_notification_logs").insert([{
       event_type, recipient_user_id: user.id, recipient_phone: normalized,
-      message, link, status, error_message: errorMessage, provider: "manychat",
+      message, link, status, error_message: errorMessage, provider: "messenger360",
     }]);
 
     if (sendResult.ok) sent++;
