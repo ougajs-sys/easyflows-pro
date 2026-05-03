@@ -176,10 +176,7 @@ serve(async (req) => {
         if (isSms) {
           sendResult = await sendViaSms8(normalized, message, SMS8_API_KEY, SMS8_DEVICE_ID);
         } else {
-          sendResult = await sendViaManyChat(
-            normalized, message, MANYCHAT_API_KEY, supabase,
-            undefined, MANYCHAT_FLOW_NS || undefined
-          );
+          sendResult = await sendViaMessenger360(normalized, message, MESSENGER360_API_KEY);
         }
 
         if (sendResult.ok) {
