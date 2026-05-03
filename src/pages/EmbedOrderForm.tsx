@@ -140,25 +140,27 @@ export default function EmbedOrderForm() {
     }
   };
 
+  const fontStack = "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
   if (isSuccess) {
     return (
-      <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: '#faf9f7' }}>
-        <div className="w-full sm:max-w-md text-center bg-white rounded-2xl shadow-sm border border-gray-100 p-8 sm:p-10">
-          <div 
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
-            style={{ backgroundColor: `${brandColor}12` }}
+      <div className="flex items-center justify-center p-3 sm:p-5" style={{ fontFamily: fontStack }}>
+        <div className="w-full max-w-[440px] text-center bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] border border-gray-100 p-6 sm:p-8">
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+            style={{ backgroundColor: `${brandColor}15` }}
           >
-            <CheckCircle2 className="w-9 h-9" style={{ color: brandColor }} />
+            <CheckCircle2 className="w-8 h-8" style={{ color: brandColor }} />
           </div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+          <h2 className="text-[19px] font-bold text-gray-900 mb-1.5">
             Commande confirmée !
           </h2>
-          <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-            Merci pour votre commande. Vous recevrez un SMS de confirmation sous peu.
+          <p className="text-[15px] text-gray-500 mb-5 leading-relaxed">
+            Merci ! Vous recevrez un SMS de confirmation sous peu.
           </p>
-          <Button 
+          <Button
             onClick={() => setIsSuccess(false)}
-            className="rounded-xl px-6 h-11 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            className="rounded-xl px-6 h-12 text-[15px] font-semibold text-white hover:opacity-90 transition-opacity"
             style={{ backgroundColor: brandColor }}
           >
             Passer une autre commande
@@ -168,40 +170,52 @@ export default function EmbedOrderForm() {
     );
   }
 
-  const inputClasses = "h-11 sm:h-12 rounded-xl border-gray-200 bg-white text-gray-800 placeholder:text-gray-350 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-[15px] font-normal";
-  const labelClasses = "flex items-center gap-1.5 text-[13px] font-medium text-gray-600 tracking-normal";
+  // Compact, mobile-first, readable design.
+  // Inputs use 16px font to prevent iOS zoom + touch-friendly heights.
+  const inputClasses = "h-12 rounded-xl border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-offset-0 transition-all text-[16px]";
+  const labelClasses = "flex items-center gap-1.5 text-[14px] font-semibold text-gray-700 mb-1.5";
 
   return (
-    <div className="min-h-[100svh] sm:min-h-screen flex items-center justify-center p-3 sm:p-6" style={{ backgroundColor: '#faf9f7', fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" }}>
-      <div className="w-full sm:max-w-lg bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {/* Subtle top accent */}
-        <div className="h-1 w-full opacity-80" style={{ backgroundColor: brandColor }} />
-        
-        <div className="px-5 sm:px-7 pt-5 sm:pt-7 pb-1 sm:pb-2">
+    <div
+      className="flex items-center justify-center p-2 sm:p-4"
+      style={{ fontFamily: fontStack }}
+    >
+      <div
+        className="w-full max-w-[440px] bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300"
+        style={{ ['--tw-ring-color' as any]: `${brandColor}40` }}
+      >
+        {/* Header */}
+        <div
+          className="px-5 pt-5 pb-4 border-b border-gray-100"
+          style={{ background: `linear-gradient(135deg, ${brandColor}08 0%, transparent 100%)` }}
+        >
           {brandName && (
-            <p className="text-[11px] font-semibold tracking-widest uppercase mb-1" style={{ color: brandColor }}>
+            <p className="text-[11px] font-bold tracking-[0.15em] uppercase mb-1" style={{ color: brandColor }}>
               {brandName}
             </p>
           )}
-          <h1 className="text-lg sm:text-xl font-semibold text-gray-800 tracking-tight">
+          <h1 className="text-[20px] sm:text-[22px] font-bold text-gray-900 tracking-tight leading-tight">
             Commander maintenant
           </h1>
-          <p className="text-[13px] sm:text-sm text-gray-500 mt-0.5">
-            Remplissez le formulaire pour passer votre commande
+          <p className="text-[14px] text-gray-500 mt-1">
+            Livraison rapide • Paiement à la réception
           </p>
         </div>
 
-        <div className="px-5 sm:px-7 pb-5 sm:pb-7 pt-3 sm:pt-4">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
+        <div className="px-5 py-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" autoComplete="off">
             {/* Product Selection */}
-            <div className="space-y-1.5">
+            <div>
               <Label className={labelClasses}>
-                <Package className="w-3.5 h-3.5" style={{ color: brandColor }} />
+                <Package className="w-4 h-4" style={{ color: brandColor }} />
                 Produit
               </Label>
               {preselectedProduct ? (
-                <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <p className="font-medium text-gray-800 text-[15px]">{preselectedProduct}</p>
+                <div
+                  className="p-3 rounded-xl border"
+                  style={{ backgroundColor: `${brandColor}08`, borderColor: `${brandColor}25` }}
+                >
+                  <p className="font-semibold text-gray-900 text-[15px]">{preselectedProduct}</p>
                   <p className="text-[13px] text-gray-500 mt-0.5">
                     {price?.toLocaleString()} FCFA / unité
                   </p>
@@ -213,7 +227,7 @@ export default function EmbedOrderForm() {
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-gray-200">
                     {products.map((product) => (
-                      <SelectItem key={product.id} value={product.name} className="text-[14px] text-gray-700">
+                      <SelectItem key={product.id} value={product.name} className="text-[15px] text-gray-700">
                         {product.name} — {product.price.toLocaleString()} FCFA
                       </SelectItem>
                     ))}
@@ -221,14 +235,14 @@ export default function EmbedOrderForm() {
                 </Select>
               )}
               {errors.product_name && (
-                <p className="text-xs text-red-400">{errors.product_name.message}</p>
+                <p className="text-[12px] text-red-500 mt-1">{errors.product_name.message}</p>
               )}
             </div>
 
             {/* Customer Name */}
-            <div className="space-y-1.5">
+            <div>
               <Label className={labelClasses}>
-                <User className="w-3.5 h-3.5" style={{ color: brandColor }} />
+                <User className="w-4 h-4" style={{ color: brandColor }} />
                 Nom complet
               </Label>
               <Input
@@ -237,70 +251,67 @@ export default function EmbedOrderForm() {
                 className={inputClasses}
                 autoComplete="off"
                 autoCorrect="off"
-                autoCapitalize="off"
+                autoCapitalize="words"
                 spellCheck="false"
               />
               {errors.client_name && (
-                <p className="text-xs text-red-400">{errors.client_name.message}</p>
+                <p className="text-[12px] text-red-500 mt-1">{errors.client_name.message}</p>
               )}
             </div>
 
-            {/* Phone */}
-            <div className="space-y-1.5">
-              <Label className={labelClasses}>
-                <Phone className="w-3.5 h-3.5" style={{ color: brandColor }} />
-                Téléphone
-              </Label>
-              <Input
-                {...register('phone')}
-                type="tel"
-                placeholder="+225 XX XX XX XX"
-                className={inputClasses}
-                autoComplete="new-password"
-                autoCorrect="off"
-                inputMode="numeric"
-                data-form-type="other"
-                data-lpignore="true"
-              />
-              {errors.phone && (
-                <p className="text-xs text-red-400">{errors.phone.message}</p>
-              )}
-            </div>
-
-            {/* Quantity */}
-            <div className="space-y-1.5">
-              <Label className={labelClasses}>
-                <Hash className="w-3.5 h-3.5" style={{ color: brandColor }} />
-                Quantité
-              </Label>
-              <Input
-                {...register('quantity', { valueAsNumber: true })}
-                type="number"
-                min="1"
-                className={inputClasses}
-                autoComplete="off"
-              />
-              {errors.quantity && (
-                <p className="text-xs text-red-400">{errors.quantity.message}</p>
-              )}
+            {/* Phone + Quantity (2 cols on all sizes for compactness) */}
+            <div className="grid grid-cols-[1fr_90px] gap-3">
+              <div>
+                <Label className={labelClasses}>
+                  <Phone className="w-4 h-4" style={{ color: brandColor }} />
+                  Téléphone
+                </Label>
+                <Input
+                  {...register('phone')}
+                  type="tel"
+                  placeholder="+225 ..."
+                  className={inputClasses}
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  inputMode="numeric"
+                  data-form-type="other"
+                  data-lpignore="true"
+                />
+                {errors.phone && (
+                  <p className="text-[12px] text-red-500 mt-1">{errors.phone.message}</p>
+                )}
+              </div>
+              <div>
+                <Label className={labelClasses}>
+                  <Hash className="w-4 h-4" style={{ color: brandColor }} />
+                  Qté
+                </Label>
+                <Input
+                  {...register('quantity', { valueAsNumber: true })}
+                  type="number"
+                  min="1"
+                  className={`${inputClasses} text-center font-semibold`}
+                  autoComplete="off"
+                />
+              </div>
             </div>
 
             {/* Address */}
-            <div className="space-y-1.5">
+            <div>
               <Label className={labelClasses}>
-                <MapPin className="w-3.5 h-3.5" style={{ color: brandColor }} />
+                <MapPin className="w-4 h-4" style={{ color: brandColor }} />
                 Adresse de livraison
               </Label>
               <Textarea
                 {...register('address')}
-                placeholder="Votre adresse complète"
-                className="min-h-[70px] sm:min-h-[80px] resize-none rounded-xl border-gray-200 bg-white text-gray-800 placeholder:text-gray-350 focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition-all text-[15px]"
+                placeholder="Quartier, ville, point de repère..."
+                className="min-h-[60px] resize-none rounded-xl border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 transition-all text-[16px] py-2.5"
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
               />
               {errors.address && (
-                <p className="text-xs text-red-400">{errors.address.message}</p>
+                <p className="text-[12px] text-red-500 mt-1">{errors.address.message}</p>
               )}
             </div>
 
@@ -308,18 +319,19 @@ export default function EmbedOrderForm() {
             <input type="hidden" {...register('price', { valueAsNumber: true })} />
 
             {/* Total */}
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-              <div className="flex justify-between items-center">
-                <span className="text-[14px] text-gray-600">Total à payer</span>
-                <span className="text-lg sm:text-xl font-bold" style={{ color: brandColor }}>
-                  {totalAmount.toLocaleString()} FCFA
-                </span>
-              </div>
+            <div
+              className="p-3.5 rounded-xl flex justify-between items-center"
+              style={{ backgroundColor: `${brandColor}0d`, border: `1px solid ${brandColor}25` }}
+            >
+              <span className="text-[14px] font-medium text-gray-700">Total</span>
+              <span className="text-[20px] font-bold" style={{ color: brandColor }}>
+                {totalAmount.toLocaleString()} FCFA
+              </span>
             </div>
 
             {/* Error message */}
             {error && (
-              <div className="p-3 rounded-xl bg-red-50 text-red-500 text-sm border border-red-100">
+              <div className="p-3 rounded-xl bg-red-50 text-red-600 text-[13px] border border-red-100">
                 {error}
               </div>
             )}
@@ -328,22 +340,21 @@ export default function EmbedOrderForm() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-12 sm:h-13 text-sm sm:text-base font-semibold rounded-xl text-white hover:opacity-90 transition-all shadow-sm"
-              style={{ backgroundColor: brandColor }}
+              className="w-full h-13 min-h-[52px] text-[16px] font-bold rounded-xl text-white hover:opacity-95 transition-all shadow-sm active:scale-[0.99]"
+              style={{ backgroundColor: brandColor, boxShadow: `0 4px 14px ${brandColor}40` }}
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
                   Envoi en cours...
                 </>
               ) : (
-                'Confirmer ma commande'
+                '✓ Confirmer ma commande'
               )}
             </Button>
 
-            <p className="text-[11px] text-center text-gray-500 leading-relaxed">
-              En confirmant, vous acceptez nos conditions de vente.
-              <br />Paiement à la livraison.
+            <p className="text-[12px] text-center text-gray-500 leading-relaxed">
+              🔒 Paiement à la livraison • Vos données sont protégées
             </p>
           </form>
         </div>
