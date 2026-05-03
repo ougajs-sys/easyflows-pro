@@ -135,20 +135,19 @@ serve(async (req) => {
         throw new Error("SMS8_API_KEY or SMS8_DEVICE_ID not configured");
       }
     } else {
-      const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY");
-      if (!MANYCHAT_API_KEY) {
-        throw new Error("MANYCHAT_API_KEY not configured");
+      const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
+      if (!MESSENGER360_API_KEY) {
+        throw new Error("MESSENGER360_API_KEY not configured");
       }
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const providerName = isSms ? "sms8.io" : "ManyChat";
+    const providerName = isSms ? "sms8.io" : "messenger360";
     console.log(`Sending ${type} to ${phones.length} recipients via ${providerName} (by ${userId})`);
 
     const SMS8_API_KEY = Deno.env.get("SMS8_API_KEY") || "";
     const SMS8_DEVICE_ID = Deno.env.get("SMS8_DEVICE_ID") || "";
-    const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY") || "";
-    const MANYCHAT_FLOW_NS = Deno.env.get("MANYCHAT_FLOW_NS") || "";
+    const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY") || "";
 
     const results = { sent: 0, failed: 0, errors: [] as string[] };
     const throttleMs = isSms ? 100 : 200;
