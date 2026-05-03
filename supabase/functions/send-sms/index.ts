@@ -1,6 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendViaManyChat } from "../_shared/manychat.ts";
+async function sendViaMessenger360(phone: string, message: string, apiKey: string): Promise<{ ok: boolean; data: any; status?: number }> {
+  try {
+    const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ phonenumber: phone, text: message, channel: "whatsapp" }),
+    });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, data, status: response.status };
+  } catch (err) {
+    return { ok: false, data: { message: err instanceof Error ? err.message : "messenger360 request failed" } };
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,20 +135,19 @@ serve(async (req) => {
         throw new Error("SMS8_API_KEY or SMS8_DEVICE_ID not configured");
       }
     } else {
-      const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY");
-      if (!MANYCHAT_API_KEY) {
-        throw new Error("MANYCHAT_API_KEY not configured");
+      const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
+      if (!MESSENGER360_API_KEY) {
+        throw new Error("MESSENGER360_API_KEY not configured");
       }
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const providerName = isSms ? "sms8.io" : "ManyChat";
+    const providerName = isSms ? "sms8.io" : "messenger360";
     console.log(`Sending ${type} to ${phones.length} recipients via ${providerName} (by ${userId})`);
 
     const SMS8_API_KEY = Deno.env.get("SMS8_API_KEY") || "";
     const SMS8_DEVICE_ID = Deno.env.get("SMS8_DEVICE_ID") || "";
-    const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY") || "";
-    const MANYCHAT_FLOW_NS = Deno.env.get("MANYCHAT_FLOW_NS") || "";
+    const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY") || "";
 
     const results = { sent: 0, failed: 0, errors: [] as string[] };
     const throttleMs = isSms ? 100 : 200;
@@ -165,10 +176,7 @@ serve(async (req) => {
         if (isSms) {
           sendResult = await sendViaSms8(normalized, message, SMS8_API_KEY, SMS8_DEVICE_ID);
         } else {
-          sendResult = await sendViaManyChat(
-            normalized, message, MANYCHAT_API_KEY, supabase,
-            undefined, MANYCHAT_FLOW_NS || undefined
-          );
+          sendResult = await sendViaMessenger360(normalized, message, MESSENGER360_API_KEY);
         }
 
         if (sendResult.ok) {

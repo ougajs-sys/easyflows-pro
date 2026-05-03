@@ -1,6 +1,21 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sendViaManyChat } from "../_shared/manychat.ts";
+async function sendViaMessenger360(
+  phone: string,
+  message: string,
+  apiKey: string
+): Promise<{ ok: boolean; data: any; status?: number }> {
+  const response = await fetch("https://api.360messenger.com/v2/sendMessage", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ phonenumber: phone, text: message, channel: "whatsapp" }),
+  });
+  const data = await response.json().catch(() => ({}));
+  return { ok: response.ok, data, status: response.status };
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,10 +62,10 @@ serve(async (req) => {
     return new Response("Paramètres requis manquants", { status: 400, headers: corsHeaders });
   }
 
-  const MANYCHAT_API_KEY = Deno.env.get("MANYCHAT_API_KEY");
-  if (!MANYCHAT_API_KEY) {
-    console.error("MANYCHAT_API_KEY not configured");
-    return new Response("MANYCHAT_API_KEY not configured", { status: 500, headers: corsHeaders });
+  const MESSENGER360_API_KEY = Deno.env.get("MESSENGER360_API_KEY");
+  if (!MESSENGER360_API_KEY) {
+    console.error("MESSENGER360_API_KEY not configured");
+    return new Response("MESSENGER360_API_KEY not configured", { status: 500, headers: corsHeaders });
   }
 
   const supabase = createClient(
@@ -58,7 +73,7 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const MANYCHAT_FLOW_NS = Deno.env.get("MANYCHAT_FLOW_NS") || "";
+  
 
   console.log(`[send-work-notification] event=${event_type}, targets=${target_user_ids.length}`);
 
@@ -89,7 +104,7 @@ serve(async (req) => {
       await supabase.from("work_notification_logs").insert([{
         event_type, recipient_user_id: user.id, recipient_phone: user.phone,
         message: `${title}\n${body}`, link, status: "error",
-        error_message: normError || "Numéro invalide", provider: "manychat",
+        error_message: normError || "Numéro invalide", provider: "messenger360",
       }]);
       failed++;
       continue;
@@ -109,24 +124,37 @@ serve(async (req) => {
     }
 
     const message = `EasyFlows: ${title}.\n${body}\nConsultez: ${link ?? ""}`;
-    const firstName = user.full_name?.split(" ")[0] || "Équipe";
 
-    const sendResult = await sendViaManyChat(
-      normalized, message, MANYCHAT_API_KEY, supabase,
-      firstName, MANYCHAT_FLOW_NS || undefined
-    );
+    let sendResult: { ok: boolean; data: any; status?: number } | null = null;
+    let lastError = "";
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      try {
+        sendResult = await sendViaMessenger360(normalized, message, MESSENGER360_API_KEY);
+        if (sendResult.ok) break;
+        lastError = sendResult.data?.message || JSON.stringify(sendResult.data);
+        if (sendResult.status === 429 && attempt < 2) {
+          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
+        break;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "Request failed";
+        sendResult = { ok: false, data: { message: lastError } };
+        break;
+      }
+    }
 
-    const status = sendResult.ok ? "success" : "error";
-    const errorMessage = sendResult.ok ? "" : (sendResult.data?.message || "Envoi échoué");
+    const status = sendResult?.ok ? "success" : "error";
+    const errorMessage = sendResult?.ok ? "" : lastError;
 
     console.log(`[${status}] ${normalized}: ${errorMessage || "OK"}`);
 
     await supabase.from("work_notification_logs").insert([{
       event_type, recipient_user_id: user.id, recipient_phone: normalized,
-      message, link, status, error_message: errorMessage, provider: "manychat",
+      message, link, status, error_message: errorMessage, provider: "messenger360",
     }]);
 
-    if (sendResult.ok) sent++;
+    if (sendResult?.ok) sent++;
     else failed++;
 
     await new Promise((r) => setTimeout(r, 200));
